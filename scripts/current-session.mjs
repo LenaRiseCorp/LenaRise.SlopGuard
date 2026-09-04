@@ -1,11 +1,12 @@
 /**
- * Komut satırından "şu anki oturum" hangisi?
+ * Which session is "the current one", from the command line?
  *
- * Komutlar hook değil; stdin'de session_id almazlar. Kalp atışı damgası her
- * hook tetiklenmesinde bu oturumun kimliğiyle yazıldığı için en güvenilir
- * kaynak odur. Damga yoksa en son güncellenen oturum dosyasına düşülür —
- * ve hangi yoldan bulunduğu çağırana söylenir, çünkü "muhtemelen bu oturumdur"
- * demek ile kanıtlamak arasındaki farkı gizlemek bu projenin karşı olduğu şey.
+ * Commands are not hooks; they receive no session_id on stdin. The heartbeat
+ * stamp is written with this session's id on every hook trigger, so it is the
+ * most reliable source. With no stamp we fall back to the most recently updated
+ * session file — and the caller is told which route was taken, because hiding
+ * the difference between "this is probably the session" and proving it is
+ * exactly what this project is against.
  */
 
 import { readdirSync, statSync } from 'node:fs';
@@ -16,7 +17,7 @@ import { read as readHeartbeat, ageSeconds } from '../lib/heartbeat.mjs';
 export function currentSessionId({ maxAgeSeconds = 3600 } = {}) {
   const beat = readHeartbeat();
   if (beat?.sessionId && ageSeconds(beat) <= maxAgeSeconds) {
-    return { id: beat.sessionId, source: 'kalp atışı', confident: true };
+    return { id: beat.sessionId, source: 'heartbeat', confident: true };
   }
 
   let newest = null;
@@ -30,9 +31,9 @@ export function currentSessionId({ maxAgeSeconds = 3600 } = {}) {
       }
     }
   } catch (error) {
-    return { id: null, source: `oturum dizini okunamadı: ${error.message}`, confident: false };
+    return { id: null, source: `the session directory could not be read: ${error.message}`, confident: false };
   }
 
-  if (!newest) return { id: null, source: 'hiç oturum kaydı yok', confident: false };
-  return { id: newest.id, source: 'en son güncellenen oturum dosyası', confident: false };
+  if (!newest) return { id: null, source: 'no session records exist', confident: false };
+  return { id: newest.id, source: 'the most recently updated session file', confident: false };
 }

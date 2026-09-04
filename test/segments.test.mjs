@@ -3,56 +3,56 @@ import assert from 'node:assert/strict';
 import { commandSegments, isCommitCommand, isTestCommand, writeTargets } from '../lib/commands.mjs';
 
 /**
- * Çok satırlı Bash blokları.
+ * Multi-line Bash blocks.
  *
- * İlk sürüm yalnızca `&&`, `||`, `;` ve `|` üzerinden bölüyordu. Çok satırlı
- * bir bloğun ikinci satırındaki `git commit` ya da `npm test` hiç tanınmıyordu;
- * commit'ler oturum defterine işlenmiyor, doğrulama damgası atılmıyor ve Stop
- * kapısı yapılmış işi yapılmamış sayıyordu. Aracın kendi geliştirilmesinde,
- * kapı yazarını durdurduğunda ortaya çıktı.
+ * The first version split only on `&&`, `||`, `;` and `|`. A `git commit` or
+ * `npm test` on the second line of a multi-line block was never recognised;
+ * commits were not recorded in the session ledger, the verification stamp was
+ * never set, and the stop gate counted finished work as unfinished. Found while
+ * developing the tool, when the gate stopped its own author.
  */
 
 const COK_SATIR = ['git add -A', 'git commit -q -m "iş"', 'git push -q origin main'].join('\n');
 
-test('satır sonu segment ayırıcısıdır', () => {
+test('a newline is a segment separator', () => {
   assert.equal(commandSegments(COK_SATIR).length, 3);
   assert.deepEqual(commandSegments('npm run build\nnpm test'), ['npm run build', 'npm test']);
 });
 
-test('ilk satır olmayan commit tanınır', () => {
+test('a commit that is not on the first line is recognised', () => {
   assert.ok(isCommitCommand(COK_SATIR));
   assert.ok(isCommitCommand('npm test\ngit commit -m "yeşil"'));
 });
 
-test('ilk satır olmayan test komutu tanınır', () => {
+test('a test command that is not on the first line is recognised', () => {
   assert.ok(isTestCommand('npm run docs > /dev/null\nnpm test'));
   assert.ok(isTestCommand('cd api\npytest -q'));
 });
 
-test('heredoc gövdesi segment üretmez — mesaj komut değildir', () => {
-  const commit = ['git add -A', "git commit -F - <<'MSGEOF'", 'git commit örneği mesajın içinde',
-                  'npm test yazısı da burada', 'MSGEOF'].join('\n');
-  assert.ok(isCommitCommand(commit), 'gerçek commit tanınmalı');
-  assert.equal(isTestCommand(commit), false, 'mesaj gövdesindeki metin test sayılmamalı');
+test('a heredoc body produces no segment', () => {
+  const commit = ['git add -A', "git commit -F - <<'MSGEOF'", 'a git commit example inside the message',
+                  'the words npm test appear here too', 'MSGEOF'].join('\n');
+  assert.ok(isCommitCommand(commit), 'the real commit must be recognised');
+  assert.equal(isTestCommand(commit), false, 'text in the message body must not count as a test');
 });
 
-test('yalnızca gövdede geçen komut tetiklemez', () => {
-  const yaz = ['cat > not.md <<EOF', 'git commit yapmayı unutma', 'npm test çalıştır', 'EOF'].join('\n');
+test('a command that only appears in a body does not trigger', () => {
+  const yaz = ['cat > not.md <<EOF', 'do not forget to git commit', 'run npm test', 'EOF'].join('\n');
   assert.equal(isCommitCommand(yaz), false);
   assert.equal(isTestCommand(yaz), false);
 });
 
-test('çok satırlı blokta yazma hedefleri bulunur', () => {
-  const blok = ['mkdir -p src', 'cat > src/a.js <<EOF', 'kod', 'EOF', 'cp src/a.js src/b.js'].join('\n');
+test('write targets are found in a multi-line block', () => {
+  const blok = ['mkdir -p src', 'cat > src/a.js <<EOF', 'code', 'EOF', 'cp src/a.js src/b.js'].join('\n');
   const hedefler = writeTargets(blok);
   assert.ok(hedefler.includes('src/a.js'), JSON.stringify(hedefler));
   assert.ok(hedefler.includes('src/b.js'), JSON.stringify(hedefler));
 });
 
-test('ortam değişkeni öneki her satırda ayıklanır', () => {
+test('an environment prefix is stripped on every line', () => {
   assert.ok(isTestCommand('echo hazir\nCI=1 NODE_ENV=test npm test'));
 });
 
-test('boş satırlar segment üretmez', () => {
+test('blank lines produce no segments', () => {
   assert.deepEqual(commandSegments('npm test\n\n\ngit status'), ['npm test', 'git status']);
 });

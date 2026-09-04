@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * /slop-doctor — talep üzerine teşhis.
+ * /slop-doctor — diagnosis on demand.
  *
- * Her satır ya ✅ ya ❌ basar ve ❌ olanın nasıl düzeltileceğini söyler.
- * "Muhtemelen iyidir" diye bir satır yok: teşhis aracının belirsizliği
- * iyimserliğe yuvarlaması, teşhis olmamasından kötüdür (INS-04).
+ * Every line prints either a tick or a cross, and every cross says how to fix
+ * it. There is no "probably fine" line: a diagnostic tool that rounds
+ * uncertainty towards optimism is worse than no diagnosis at all (HUMAN-04).
  *
- * Hook boru testleri gerçek stdin yüküyle ve SLOPGUARD_PROBE=1 ile yapılır —
- * teşhis kendi kalp atışını damgalayıp "canlı" görüntüsü üretmez.
+ * The hook pipe tests use real stdin payloads and SLOPGUARD_PROBE=1, so the
+ * diagnosis never stamps its own heartbeat and manufactures an appearance of life.
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -29,10 +29,10 @@ const bad = (text, fix) => { failures++; lines.push(`  ❌ ${text}`); if (fix) l
 const info = (text) => lines.push(`     ${text}`);
 const section = (title) => lines.push('', title);
 
-/** Hook'a sentetik yük gönderir; beklenen anahtarın çıktıda olup olmadığına bakar. */
+/** Sends a synthetic payload to a hook and checks whether the expected key is in the output. */
 function probeHook(file, payload, expect) {
   const script = join(ROOT, 'hooks', file);
-  if (!existsSync(script)) return { ok: false, why: 'dosya yok' };
+  if (!existsSync(script)) return { ok: false, why: 'file missing' };
   try {
     const out = execFileSync(process.execPath, [script], {
       input: JSON.stringify(payload),
@@ -41,16 +41,16 @@ function probeHook(file, payload, expect) {
       env: { ...process.env, SLOPGUARD_PROBE: '1' },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    if (expect === null) return { ok: out.trim() === '', why: out.trim() === '' ? null : 'beklenmedik çıktı' };
-    if (out.trim() === '') return { ok: false, why: 'çıktı yok' };
+    if (expect === null) return { ok: out.trim() === '', why: out.trim() === '' ? null : 'unexpected output' };
+    if (out.trim() === '') return { ok: false, why: 'no output' };
     const parsed = JSON.parse(out);
-    return expect(parsed) ? { ok: true } : { ok: false, why: 'beklenen cevap gelmedi' };
+    return expect(parsed) ? { ok: true } : { ok: false, why: 'the expected answer did not come back' };
   } catch (error) {
     return { ok: false, why: error.message.split('\n')[0] };
   }
 }
 
-section('Dosyalar');
+section('Files');
 const required = [
   'hooks/hooks.json', 'hooks/session-start.mjs', 'hooks/user-prompt.mjs',
   'hooks/pre-edit.mjs', 'hooks/post-edit.mjs', 'hooks/pre-bash.mjs',
@@ -58,107 +58,108 @@ const required = [
   'bin/statusline.mjs', 'lib/patterns.mjs', 'rules/base-rules.md',
 ];
 const missing = required.filter((rel) => !existsSync(join(ROOT, rel)));
-if (missing.length === 0) ok(`${required.length} çekirdek dosya yerinde`);
-else bad(`eksik dosya: ${missing.join(', ')}`, 'claude plugin update lenarise-slopguard, ya da yeniden kur');
+if (missing.length === 0) ok(`${required.length} core files present`);
+else bad(`missing files: ${missing.join(', ')}`, 'run claude plugin update lenarise-slopguard, or reinstall');
 
 section('hooks.json');
 const hooksJson = readJsonFile(join(ROOT, 'hooks/hooks.json'));
 if (!hooksJson.ok) {
-  bad(`hooks.json ${hooksJson.error}`, 'plugin yeniden kurulmalı');
+  bad(`hooks.json ${hooksJson.error}`, 'the plugin needs to be reinstalled');
 } else {
   const events = Object.keys(hooksJson.value?.hooks ?? {});
-  ok(`geçerli JSON · ${events.length} olay: ${events.join(', ')}`);
+  ok(`valid JSON · ${events.length} events: ${events.join(', ')}`);
   const referenced = JSON.stringify(hooksJson.value).match(/hooks\/[a-z-]+\.mjs/g) ?? [];
   const broken = [...new Set(referenced)].filter((rel) => !existsSync(join(ROOT, rel)));
-  if (broken.length === 0) ok('kayıtlı her hook dosyası mevcut');
-  else bad(`hooks.json olmayan dosyaya işaret ediyor: ${broken.join(', ')}`, 'plugin yeniden kurulmalı');
+  if (broken.length === 0) ok('every registered hook file exists');
+  else bad(`hooks.json points at missing files: ${broken.join(', ')}`, 'the plugin needs to be reinstalled');
 }
 
-section('Hook boru testleri (gerçek stdin yüküyle)');
+section('Hook pipe tests (real stdin payloads)');
 const probes = [
   ['pre-edit.mjs', { session_id: '__doctor__', tool_input: { file_path: '/x/parser_v2.js' } },
-    (p) => p.hookSpecificOutput?.permissionDecision === 'deny', 'sürüm ekli dosya adını reddetmeli'],
+    (p) => p.hookSpecificOutput?.permissionDecision === 'deny', 'should refuse a version-suffixed filename'],
   ['pre-edit.mjs', { session_id: '__doctor__', tool_input: { file_path: '/x/normal.js' } },
-    null, 'temiz yolda sessiz kalmalı'],
-  // Yük bilerek prose kapsamından seçildi: bu dize bir .mjs dosyasında
-  // durduğu için prose desenleri ona uygulanmaz, yani teşhis aracı kendi
-  // tarayıcısını tetiklemez. Kirli kod dizesi kullanmak muafiyet yazmayı
-  // gerektirirdi; kapsam seçmek gerektirmiyor.
+    null, 'should stay silent on a clean path'],
+  // The payload is deliberately chosen from prose scope: this string sits in a
+  // .mjs file, where prose patterns do not apply, so the diagnostic tool does not
+  // trip its own scanner. A dirty-code string would have required writing a waiver.
   ['post-edit.mjs', { session_id: '__doctor__', tool_input: { file_path: '/x/plan.md' },
-    tool_response: { filePath: '/x/plan.md', content: 'Bu iş tahminen 3 gün sürer.' } },
-    (p) => p.decision === 'block', 'temelsiz süre tahminini bloklamalı'],
-  ['pre-bash.mjs', { session_id: '__doctor__', tool_input: { command: 'rm -rf /veri' } },
-    (p) => p.hookSpecificOutput?.permissionDecision === 'deny', 'yıkıcı komutu reddetmeli'],
+    tool_response: { filePath: '/x/plan.md', content: 'This work takes about 3 days.' } },
+    (p) => p.decision === 'block', 'should block an unfounded time estimate'],
+  ['pre-bash.mjs', { session_id: '__doctor__', tool_input: { command: 'rm -rf /data' } },
+    (p) => p.hookSpecificOutput?.permissionDecision === 'deny', 'should refuse a destructive command'],
   ['pre-bash.mjs', { session_id: '__doctor__', tool_input: { command: 'ls -la' } },
-    null, 'temiz komutta sessiz kalmalı'],
+    null, 'should stay silent on a clean command'],
   ['session-start.mjs', { session_id: '__doctor__' },
-    (p) => typeof p.hookSpecificOutput?.additionalContext === 'string', 'kural setini enjekte etmeli'],
+    (p) => typeof p.hookSpecificOutput?.additionalContext === 'string', 'should inject the rule set'],
   ['stop-gate.mjs', { session_id: '__doctor__', stop_hook_active: false },
-    null, 'temiz oturumda geçirmeli'],
+    null, 'should pass a clean session'],
 ];
 for (const [file, payload, expect, what] of probes) {
   const result = probeHook(file, payload, expect);
   if (result.ok) ok(`${file} — ${what}`);
-  else bad(`${file} — ${what} (${result.why})`, 'node yolu, dosya izinleri ve plugin bütünlüğünü kontrol et');
+  else bad(`${file} — ${what} (${result.why})`, 'check the node path, file permissions and plugin integrity');
 }
 
-section('Yapılandırma');
+section('Configuration');
 const { config, problems, sources } = loadConfig({ repoRoot: process.cwd() });
-if (problems.length === 0) ok('config.json ve patterns.local.json geçerli');
-else for (const p of problems) bad(p, 'dosyayı düzelt ya da sil; silinirse varsayılana dönülür');
-info(`kaynaklar: ${sources.join(' → ')}`);
-ok(`kip: ${config.mode} · plugin ${config.enabled ? 'etkin' : 'KAPALI'}`);
+if (problems.length === 0) ok('config.json and patterns.local.json are valid');
+else for (const p of problems) bad(p, 'fix the file or delete it; deleting falls back to the defaults');
+info(`sources: ${sources.join(' → ')}`);
+ok(`mode: ${config.mode} · plugin ${config.enabled ? 'enabled' : 'DISABLED'}`);
 
 const localCount = config.localPatterns.length;
-ok(`${PATTERN_COUNT} yerleşik desen + ${localCount} kullanıcı deseni · ${Object.keys(CATEGORIES).length} kategori`);
-if (config.disabled.length > 0) info(`kapalı: ${config.disabled.join(', ')}`);
+ok(`${PATTERN_COUNT} built-in patterns + ${localCount} user patterns · ${Object.keys(CATEGORIES).length} categories`);
+if (config.disabled.length > 0) info(`disabled: ${config.disabled.join(', ')}`);
 
-section('Kayıt');
+section('Registration');
 const settings = readJsonFile(SETTINGS);
 if (!settings.ok) {
-  bad(`~/.claude/settings.json ${settings.error}`, 'dosyayı düzelt; bozuk settings.json tüm hook kaydını etkiler');
+  bad(`~/.claude/settings.json ${settings.error}`, 'fix the file; a malformed settings.json affects every hook registration');
 } else if (settings.missing) {
-  bad('~/.claude/settings.json yok', '/slop-setup çalıştır');
+  bad('~/.claude/settings.json does not exist', 'run /slop-setup');
 } else {
-  // Tanıma ölçütü setup.mjs ile aynı olmalı: başlatıcının adı
-  // statusline-launcher.mjs, yani "statusline.mjs" araması onu kaçırır.
+  // The recognition test must match setup.mjs exactly: the launcher is named
+  // statusline-launcher.mjs, so searching for "statusline.mjs" would miss it.
+  // Written separately once before, and each side then mistook the other's entry
+  // for a stranger's.
   const statusLine = settings.value.statusLine?.command ?? '';
   const mark = statusLine.toLowerCase();
-  const ours = mark.includes('statusline') && mark.includes('slopguard');
-  if (ours && mark.includes('plugins/cache')) {
-    bad('statusLine sürümlü cache yoluna ayarlı — her güncellemede kırılır',
-      '/slop-setup çalıştır; girdi sürümsüz başlatıcıya taşınır');
-  } else if (ours) {
-    ok('statusLine kayıtlı (sürümden bağımsız başlatıcı)');
+  const isOurs = mark.includes('statusline') && mark.includes('slopguard');
+  if (isOurs && mark.includes('statusline-launcher')) {
+    ok('statusLine is registered (version-independent launcher)');
+  } else if (isOurs) {
+    bad('statusLine points at a versioned cache path — every update breaks it',
+      'run /slop-setup; the entry is migrated to the version-independent launcher');
   } else if (statusLine) {
-    bad('statusLine başka bir komuta ayarlı', '/slop-setup ile ekle; mevcut girdi korunur');
+    bad('statusLine points at a different command', 'run /slop-setup to add ours; your existing entry is preserved');
   } else {
-    bad('statusLine kayıtlı değil', '/slop-setup çalıştır — canlılık göstergesi olmadan sessiz ölüm görünmez');
+    bad('statusLine is not registered', 'run /slop-setup — without the liveness indicator a silent death is invisible');
   }
 }
 
-section('Kalp atışı');
+section('Heartbeat');
 const beat = readHeartbeat();
 if (!beat) {
-  bad('kalp atışı damgası yok', 'plugin hiç tetiklenmemiş. Kurulumdan sonra Claude Code yeniden başlatıldı mı?');
+  bad('no heartbeat stamp', 'the plugin has never fired. Was Claude Code restarted after installation?');
 } else {
   const age = ageSeconds(beat);
-  if (isStale(beat)) bad(`son damga ${formatAge(age)} — bayat`, '/slop-setup ve ardından yeniden başlatma gerekebilir');
-  else ok(`son damga ${formatAge(age)} · sürüm ${beat.version} · ${beat.patterns} desen · olay ${beat.event}`);
+  if (isStale(beat)) bad(`last stamp ${formatAge(age)} — stale`, '/slop-setup followed by a restart may be needed');
+  else ok(`last stamp ${formatAge(age)} · version ${beat.version} · ${beat.patterns} patterns · event ${beat.event}`);
   if (beat.version !== version()) {
-    info(`damga sürümü ${beat.version}, çalışan sürüm ${version()} — güncelleme sonrası ilk tetiklenme bekleniyor`);
+    info(`the stamp reports ${beat.version}, the running version is ${version()} — waiting for the first trigger after the update`);
   }
 }
 
-section('Bypass permissions kipi');
-ok('Hook katmanı bypass kipinde çalışıyor — ölçüldü, docs/dogrulama-kaydi.md');
-info('PreToolUse deny aracı gerçekten durduruyor; Stop block turu bitirtmiyor.');
-info('PostToolUse block modele iletiliyor ama durdurmuyor — sert garanti stop-gate\'te.');
+section('Bypass permissions mode');
+ok('The hook layer works in bypass mode — measured, docs/verification-log.md');
+info('A PreToolUse deny really stops the tool; a Stop block prevents the turn from ending.');
+info('A PostToolUse block reaches the model but does not stop it — the hard guarantee is in stop-gate.');
 
 lines.push('');
 lines.push(failures === 0
-  ? 'Sonuç: sorun yok.'
-  : `Sonuç: ${failures} sorun bulundu. Yukarıdaki → satırları ne yapılacağını söylüyor.`);
+  ? 'Result: no problems.'
+  : `Result: ${failures} problem(s) found. The → lines above say what to do.`);
 
 process.stdout.write(lines.join('\n') + '\n');
 process.exit(failures === 0 ? 0 : 1);

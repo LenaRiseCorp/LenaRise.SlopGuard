@@ -28,32 +28,32 @@ function runScript(rel, args = []) {
   }
 }
 
-test('staged tarayıcı temiz kodu geçirir', () => {
+test('the staged scanner passes clean code', () => {
   writeFileSync(join(repo, 'clean.js'), 'export const a = 1;\n');
   git('add', 'clean.js');
   const r = runScript('scripts/scan-staged.mjs');
   assert.equal(r.code, 0);
-  assert.match(r.stdout, /temiz/);
+  assert.match(r.stdout, /clean/);
 });
 
-test('staged tarayıcı kirli kodu 1 ile reddeder — commit durur', () => {
+test('the staged scanner refuses dirty code with exit 1', () => {
   writeFileSync(join(repo, 'dirty.js'), 'try{ a() }catch(e){}\n');
   git('add', 'dirty.js');
   const r = runScript('scripts/scan-staged.mjs');
   assert.equal(r.code, 1, 'sıfır olmayan çıkış commit i durdurur');
-  assert.match(r.stdout, /KOD-05/);
+  assert.match(r.stdout, /CODE-05/);
   assert.match(r.stdout, /slop-guard-ignore/, 'kaçış yolu da söylenmeli');
 });
 
-test('gerekçeli muafiyet commit i geçirir', () => {
-  writeFileSync(join(repo, 'dirty.js'), '// slop-guard-ignore KOD-05: SDK sözleşmesi\ntry{ a() }catch(e){}\n');
+test('a reasoned waiver lets the commit through', () => {
+  writeFileSync(join(repo, 'dirty.js'), '// slop-guard-ignore CODE-05: SDK sözleşmesi\ntry{ a() }catch(e){}\n');
   git('add', 'dirty.js');
   const r = runScript('scripts/scan-staged.mjs');
   assert.equal(r.code, 0);
-  assert.match(r.stdout, /1 gerekçeli muafiyet/);
+  assert.match(r.stdout, /1 reasoned waiver/);
 });
 
-test('.slopignore staged taramada da geçerli', () => {
+test('.slopignore applies to the staged scan too', () => {
   mkdirSync(join(repo, 'vendor'), { recursive: true });
   writeFileSync(join(repo, '.slopignore'), 'vendor\n');
   writeFileSync(join(repo, 'vendor/lib.js'), 'try{}catch(e){}\n');
@@ -61,41 +61,41 @@ test('.slopignore staged taramada da geçerli', () => {
   assert.equal(runScript('scripts/scan-staged.mjs').code, 0);
 });
 
-test('diff tarayıcısı iki commit arasını tarar', () => {
+test('the diff scanner scans between two commits', () => {
   git('add', '-A'); git('commit', '-q', '-m', 'temel');
   const base = git('rev-parse', 'HEAD').trim();
   writeFileSync(join(repo, 'later.js'), 'const k = "AKIAIOSFODNN7EXAMPLE"\n');
   git('add', 'later.js'); git('commit', '-q', '-m', 'sır eklendi');
   const r = runScript('scripts/scan-diff.mjs', ['--base', base]);
   assert.equal(r.code, 1);
-  assert.match(r.stdout, /GUV-03/);
+  assert.match(r.stdout, /SEC-03/);
   assert.match(r.stdout, /later\.js/);
 });
 
-test('geçersiz temel referansta sessizce hiçbir şey taramaz değil, hepsini tarar', () => {
+test('an invalid base reference scans everything rather than nothing', () => {
   const r = runScript('scripts/scan-diff.mjs', ['--base', 'boyle-bir-ref-yok']);
-  assert.match(r.stdout, /tüm izlenen dosyalar|GUV-03/, 'taramayı atlamak korumasız kalmak olurdu');
+  assert.match(r.stdout, /all tracked files|SEC-03/, 'taramayı atlamak korumasız kalmak olurdu');
 });
 
-// ── Şablonların bütünlüğü ───────────────────────────────────────────────
+// ── Template integrity ───────────────────────────────────────────────────
 
-test('pre-commit şablonu çalıştırılabilir ve gerçek bir script e işaret eder', () => {
+test('the pre-commit template is executable and points at a real script', () => {
   const file = join(ROOT, 'templates/pre-commit');
   assert.ok(statSync(file).mode & 0o111, 'çalıştırma biti açık olmalı');
   const body = readFileSync(file, 'utf8');
   assert.match(body, /scripts\/scan-staged\.mjs/);
   assert.ok(statSync(join(ROOT, 'scripts/scan-staged.mjs')).isFile(),
-    'şablonun işaret ettiği script gerçekten var olmalı — yoksa doküman-kod ayrışması (DOK-07)');
+    'şablonun işaret ettiği script gerçekten var olmalı — yoksa doküman-code ayrışması (DOC-07)');
 });
 
-test('CI şablonunun çağırdığı script var', () => {
+test('the script the CI template calls exists', () => {
   const body = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
   assert.match(body, /scripts\/scan-diff\.mjs/);
   assert.ok(statSync(join(ROOT, 'scripts/scan-diff.mjs')).isFile());
 });
 
-test('pre-commit tarayıcı bulunamazsa commit i engellemez ama sessiz kalmaz', () => {
+test('pre-commit does not block when the scanner is missing, but does not stay silent', () => {
   const body = readFileSync(join(ROOT, 'templates/pre-commit'), 'utf8');
-  assert.match(body, /taranmadı/);
+  assert.match(body, /not scanned/);
   assert.match(body, /exit 0/);
 });

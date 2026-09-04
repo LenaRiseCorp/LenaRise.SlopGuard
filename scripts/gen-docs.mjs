@@ -1,20 +1,21 @@
 #!/usr/bin/env node
 /**
- * Doküman üreteci.
+ * Documentation generator.
  *
- * README, CLAUDE.md, semgrep şablonu, varsayılan yapılandırma ve skill'in şema
- * bölümleri buradan üretilir. Elle senkron tutulmazlar çünkü doküman-kod
- * ayrışması (DOK-07) bu projenin kendi kategorilerinden biri ve kendi kuralına
- * uymayan bir araç kendi savunusunu çürütür.
+ * The README, CLAUDE.md, the semgrep template, the default configuration and the
+ * schema sections inside the skill are produced here. They are not kept in sync
+ * by hand, because documentation drifting from code (DOC-07) is one of this
+ * project's own categories, and a tool that breaks its own rule undermines its
+ * own case.
  *
- * `--check` ile çalıştırıldığında hiçbir şey yazmaz; üretilen çıktı diskteki
- * hâlle aynı değilse 1 ile çıkar. CI kapısı budur.
+ * With `--check` nothing is written; if the generated output differs from what is
+ * on disk it exits 1. That is the CI gate.
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, PROSE_EXTENSIONS, CODE_EXTENSIONS, titleOf } from '../lib/patterns.mjs';
+import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, PROSE_EXTENSIONS, CODE_EXTENSIONS, categoryOf } from '../lib/patterns.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -32,33 +33,25 @@ function emit(rel, content) {
   written.push(rel);
 }
 
-const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-const VERSION = PKG.version;
-// Kurulum adresi package.json'dan okunur; iki yerde tutmak ilk yeniden
-// adlandırmada ayrışırdı (DOK-07).
-const SLUG = (PKG.repository?.url ?? '').replace(/^.*github\.com\//, '').replace(/\.git$/, '') || 'OWNER/REPO';
-const SCOPE_LABEL = { code: 'kaynak dosya', prose: 'metin dosyası', path: 'dosya yolu', command: 'kabuk komutu' };
+const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+const SCOPE_LABEL = { code: 'source file', prose: 'text file', path: 'file path', command: 'shell command' };
 
-// ── Ortak tablolar ───────────────────────────────────────────────────────
+// ── Shared tables ────────────────────────────────────────────────────────
 
 function patternCatalogue() {
-  // Kanonik başlık sütunu bilerek var: gözlemde bir AI, DOK-01'i kapatırken
-  // kullanıcıya "başlığa emoji koyma" dedi — o DOK-04. Kapatılan şeyin ne
-  // olduğunu yanlış söylemek, "neyi kaybettiğini söyle" kuralını pratikte
-  // çökertiyor. ID → kanonik ad eşlemesi tek yerde ve açık olmalı.
-  const rows = ['| ID | Kanonik ad | Desen anahtarı | Kapsam | Sertlik | Ne yakalar |', '|---|---|---|---|---|---|'];
+  const rows = ['| ID | Pattern key | Scope | Severity | What it catches |', '|---|---|---|---|---|'];
   for (const p of [...PATTERNS].sort((a, b) => a.id.localeCompare(b.id) || a.key.localeCompare(b.key))) {
-    rows.push(`| ${p.id} | ${titleOf(p.id)} | \`${p.key}\` | ${SCOPE_LABEL[p.scope]} | ${p.severity === 'block' ? 'engeller' : 'uyarır'} | ${p.detects} |`);
+    rows.push(`| ${p.id} | \`${p.key}\` | ${SCOPE_LABEL[p.scope]} | ${p.severity === 'block' ? 'blocks' : 'warns'} | ${p.detects} |`);
   }
   return rows.join('\n');
 }
 
 function taxonomyTable() {
-  const rows = ['| Kategori | ID sayısı | Mekanik desen | Zorlama |', '|---|---|---|---|'];
+  const rows = ['| Category | IDs | Mechanical patterns | Enforcement |', '|---|---|---|---|'];
   for (const [code, meta] of Object.entries(CATEGORIES)) {
     const ids = TAXONOMY.filter((t) => t.category === code).length;
-    const mech = PATTERNS.filter((p) => p.id.startsWith(code)).length;
-    rows.push(`| **${code}** ${meta.name} | ${ids} | ${mech === 0 ? 'yok — koç katmanı' : mech} | ${meta.enforcement} |`);
+    const mech = PATTERNS.filter((p) => categoryOf(p.id) === code).length;
+    rows.push(`| **${code}** ${meta.name} | ${ids} | ${mech === 0 ? 'none — coach layer' : mech} | ${meta.enforcement} |`);
   }
   return rows.join('\n');
 }
@@ -66,28 +59,28 @@ function taxonomyTable() {
 function configSchema() {
   const t = DEFAULT_CONFIG.thresholds;
   const notes = {
-    maxDiffLines: 'Stop kapısı: son commit\'ten beri değişen satır eşiği (SUR-02)',
-    contextTurns: 'Koç uyarısı: oturum tur eşiği (AGT-01)',
-    contextUsedPercent: 'Bağlam doluluk oranı eşiği; durum çubuğu ölçer (AGT-01)',
-    comprehensionGap: 'Koç uyarısı: yazılan eksi okunan satır farkı (INS-01)',
-    uncommittedLines: 'Koç uyarısı: commit\'siz biriken satır (AGT-06)',
-    consecutiveFixes: 'Koç uyarısı: aynı dosyaya ardışık düzeltme (MTK-05)',
-    packageCheckTimeoutMs: 'Paket kayıt defteri sorgusu; aşılırsa engeller (GUV-02)',
-    maxStopBlocks: 'Aynı gerekçeyle en fazla kaç kez bloklanır (AGT-08)',
+    maxDiffLines: 'Stop gate: lines changed since the last commit (PROC-02)',
+    contextTurns: 'Coach warning: session turn threshold (AGENT-01)',
+    contextUsedPercent: 'Context fill ratio threshold; measured by the status line (AGENT-01)',
+    comprehensionGap: 'Coach warning: lines written minus lines read (HUMAN-01)',
+    uncommittedLines: 'Coach warning: lines accumulated without a commit (AGENT-06)',
+    consecutiveFixes: 'Coach warning: consecutive patches to the same file (LOGIC-05)',
+    packageCheckTimeoutMs: 'Package registry lookup; exceeding it blocks (SEC-02)',
+    maxStopBlocks: 'How often the same reason may block before the gate opens (AGENT-08)',
   };
-  const rows = ['| Alan | Varsayılan | Ne yapar |', '|---|---|---|'];
-  rows.push(`| \`enabled\` | \`${DEFAULT_CONFIG.enabled}\` | \`false\` yapılırsa tüm koruma durur, çubuk "kapalı" gösterir |`);
-  rows.push(`| \`mode\` | \`"${DEFAULT_CONFIG.mode}"\` | \`strict\` engeller, \`explore\` yalnızca uyarır (geri dönüşsüz komutlar hariç) |`);
-  rows.push('| `disabled` | `[]` | Kategori (`GUV`), taksonomi ID (`GUV-03`) ya da desen anahtarı |');
-  rows.push('| `trustedPackages` | `[]` | Kayıt defterine sorulmadan geçen paket adları |');
-  rows.push(`| \`allowTestWrites\` | \`${DEFAULT_CONFIG.allowTestWrites}\` | \`true\` yapılırsa test dosyalarına yazma kilidi açılır (TST-01) |`);
+  const rows = ['| Field | Default | What it does |', '|---|---|---|'];
+  rows.push(`| \`enabled\` | \`${DEFAULT_CONFIG.enabled}\` | Setting it to \`false\` stops all protection; the bar reads "off" |`);
+  rows.push(`| \`mode\` | \`"${DEFAULT_CONFIG.mode}"\` | \`strict\` blocks, \`explore\` only warns (except irreversible commands) |`);
+  rows.push('| `disabled` | `[]` | A category (`SEC`), a taxonomy id (`SEC-03`) or a pattern key |');
+  rows.push('| `trustedPackages` | `[]` | Package names that pass without a registry lookup |');
+  rows.push(`| \`allowTestWrites\` | \`${DEFAULT_CONFIG.allowTestWrites}\` | \`true\` unlocks writing to test files (TEST-01) |`);
   for (const [k, v] of Object.entries(t)) rows.push(`| \`thresholds.${k}\` | \`${v}\` | ${notes[k] ?? ''} |`);
   const ui = {
     statusLine: '`compact` · `minimal` · `off`',
-    cleanScans: '`silent` · `summary` — temiz taramada bildirim',
-    heartbeat: 'oturum başı tek satır onay',
-    livenessCheck: '`ask` · `warn` · `off` — plugin yanıt vermediğinde davranış',
-    chatStatus: '`0` kapalı; `N` her N turda bir sohbete durum satırı. Durum çubuğunun görünmediği ortamlar için',
+    cleanScans: '`silent` · `summary` — whether a clean scan is announced',
+    heartbeat: 'one-line confirmation on the first turn',
+    livenessCheck: '`ask` · `warn` · `off` — behaviour when the plugin does not respond',
+    chatStatus: '`0` off; `N` posts a status row in chat every N turns, for places the status line is not visible',
   };
   for (const [k, v] of Object.entries(DEFAULT_CONFIG.ui)) {
     rows.push(`| \`ui.${k}\` | \`${JSON.stringify(v)}\` | ${ui[k] ?? ''} |`);
@@ -95,7 +88,7 @@ function configSchema() {
   return rows.join('\n');
 }
 
-// ── Üretilen dosyalar ────────────────────────────────────────────────────
+// ── Generated files ──────────────────────────────────────────────────────
 
 emit('templates/config.default.json', JSON.stringify({
   enabled: DEFAULT_CONFIG.enabled,
@@ -110,16 +103,16 @@ emit('templates/config.default.json', JSON.stringify({
 emit('templates/patterns.local.example.json', JSON.stringify({
   patterns: [
     {
-      key: 'ornek-todo-acil', id: 'KOD-03', scope: 'code', severity: 'warn',
-      match: 'TODO\\s*\\(acil\\)', flags: 'gi',
-      detects: 'Acil işaretli TODO — sahibi ve tarihi yok.',
-      fix: 'Ya şimdi yap ya da issue aç ve numarasını yaz.',
+      key: 'example-urgent-todo', id: 'CODE-03', scope: 'code', severity: 'warn',
+      match: 'TODO\\s*\\(urgent\\)', flags: 'gi',
+      detects: 'A TODO marked urgent with no owner and no date.',
+      fix: 'Either do it now, or open an issue and reference its number.',
     },
     {
-      key: 'ornek-yasak-import', id: 'KOD-07', scope: 'code', severity: 'block',
+      key: 'example-forbidden-import', id: 'CODE-07', scope: 'code', severity: 'block',
       match: "from ['\"]lodash['\"]", flags: 'g',
-      detects: 'Bu projede lodash kullanılmıyor.',
-      fix: 'Yerleşik dizi ve nesne yöntemlerini kullan.',
+      detects: 'This project does not use lodash.',
+      fix: 'Use the built-in array and object methods.',
     },
   ],
 }, null, 2) + '\n');
@@ -133,7 +126,7 @@ const semgrepRules = PATTERNS
     languages: [generic]
     severity: ${p.severity === 'block' ? 'ERROR' : 'WARNING'}
     message: >-
-      ${p.id} ${p.detects} Düzelt: ${p.fix}
+      ${p.id} ${p.detects} Fix: ${p.fix}
     paths:
       include:
 ${exts}
@@ -142,15 +135,15 @@ ${exts}
   }).join('\n');
 
 emit('templates/semgrep-slop.yml',
-`# LenaRise.SlopGuard — semgrep kuralları
+`# LenaRise.SlopGuard — semgrep rules
 #
-# ÜRETİLEN DOSYA. Elle düzenleme; kaynağı lib/patterns.mjs.
-# Yeniden üretmek için: npm run docs
+# GENERATED FILE. Do not edit; the source is lib/patterns.mjs.
+# To regenerate: npm run docs
 #
-# Bu dosya Claude Code'dan bağımsız çalışır: semgrep'i olan her CI kullanabilir.
-# Kapsam bilerek dar — yol ve komut kapsamındaki desenler (test dosyası kilidi,
-# yıkıcı komutlar, paket doğrulama) statik tarayıcıya çevrilemez, onlar hook
-# ve git katmanında kalır.
+# This file works independently of Claude Code: any CI with semgrep can use it.
+# The coverage is deliberately narrower — path and command scope patterns (the
+# test-file lock, destructive commands, package verification) cannot be expressed
+# as a static scanner, so they stay in the hook and git layers.
 
 rules:
 ${semgrepRules}
@@ -161,109 +154,109 @@ ${semgrepRules}
 emit('README.md',
 `# LenaRise.SlopGuard
 
-ÜRETİLEN DOSYA. Elle düzenleme; kaynağı \`lib/patterns.mjs\`, \`lib/config.mjs\` ve
-\`scripts/gen-docs.mjs\`. Yeniden üretmek için \`npm run docs\`.
+GENERATED FILE. Do not edit; the sources are \`lib/patterns.mjs\`, \`lib/config.mjs\`
+and \`scripts/gen-docs.mjs\`. To regenerate: \`npm run docs\`.
 
-Agentic geliştirmede üretilen çıktının kalitesini ve güvenliğini koruyan bir
-Claude Code plugin'i. Kural metni niyeti taşır, hook sınırı koyar: modelin
-atlayamayacağı yerde durur.
+A Claude Code plugin that protects the quality and safety of what gets produced
+during agentic development. Rule text carries the intent; hooks set the boundary,
+and stop where the model cannot step over.
 
-Sürüm ${VERSION} · ${PATTERN_COUNT} mekanik desen · ${TAXONOMY.length} taksonomi girdisi · sıfır runtime bağımlılığı.
+Version ${VERSION} · ${PATTERN_COUNT} mechanical patterns · ${TAXONOMY.length} taxonomy entries · zero runtime dependencies.
 
-## Ne yapar
+## What it does
 
-Üç katman, üç hedef kitle.
+Three layers, three audiences.
 
-1. **Makine katmanı** — Claude Code hook'ları. Model bunları atlayamaz;
-   harness çalıştırır.
-2. **İnsan katmanı** — sohbete gelen ölçüm tabanlı uyarılar. Bloklamaz, uyarır.
-3. **Repo katmanı** — git hook'u ve CI. Kodu hangi agent yazarsa yazsın çalışır.
+1. **Machine layer** — Claude Code hooks. The model cannot skip these; the
+   harness runs them.
+2. **Human layer** — measurement-based warnings delivered in chat. It warns, it
+   never blocks.
+3. **Repository layer** — a git hook and CI. These work whichever agent wrote the code.
 
 ${taxonomyTable()}
 
-### Hook davranışı
+### Hook behaviour
 
-| Hook | Olay | Davranış |
+| Hook | Event | Behaviour |
 |---|---|---|
-| \`session-start\` | SessionStart | Kural seti ve yetenek indeksini modele enjekte eder |
-| \`user-prompt\` | UserPromptSubmit | Tur sayacı, koç uyarıları, kalp atışı damgası |
-| \`pre-edit\` | PreToolUse Edit/Write | Test dosyası ve korumalı yol → **deny** |
-| \`post-edit\` | PostToolUse Edit/Write | Desen bulursa **block** ve ihlali deftere yazar |
-| \`pre-bash\` | PreToolUse Bash | Yıkıcı komut → **deny**; doğrulanmamış paket → **deny**; korumalı yola yönlendirme → **deny** |
-| \`post-bash\` | PostToolUse Bash | Test ve commit damgası; kabuk üzerinden yazılan dosyaları tarar |
-| \`stop-gate\` | Stop | Açık ihlal, doğrulanmamış kod ya da aşırı diff → **block** |
-| \`session-end\` | SessionEnd | Ölçüm tabanlı oturum özeti |
+| \`session-start\` | SessionStart | Injects the rule set and the capability index |
+| \`user-prompt\` | UserPromptSubmit | Turn counter, coach warnings, heartbeat stamp |
+| \`pre-edit\` | PreToolUse Edit/Write | Test files and protected paths → **deny** |
+| \`post-edit\` | PostToolUse Edit/Write | On a finding, **block** and record the violation |
+| \`pre-bash\` | PreToolUse Bash | Destructive command → **deny**; unverified package → **deny**; redirect to a protected path → **deny** |
+| \`post-bash\` | PostToolUse Bash | Test and commit stamps; scans files written through the shell |
+| \`stop-gate\` | Stop | Open violations, unverified code or an oversized diff → **block** |
+| \`session-end\` | SessionEnd | Measurement-based session summary |
 
-Sert durdurma garantisi \`pre-edit\` ve \`stop-gate\`'tedir. \`post-edit\`'in bloğu
-modele iletilir ama modeli durdurmaz — bu ölçüldü, \`docs/dogrulama-kaydi.md\`.
-Bu yüzden \`post-edit\` bulduğu ihlali oturum defterine yazar ve kilit
-\`stop-gate\`'te kurulur.
+The hard guarantee lives in \`pre-edit\` and \`stop-gate\`. A \`post-edit\` block
+reaches the model but does not stop it — that was measured, see
+\`docs/verification-log.md\`. So \`post-edit\` records what it found in the session
+ledger and the lock is built in \`stop-gate\`.
 
-## Kurulum
+## Installation
 
 \`\`\`bash
-claude plugin marketplace add ${SLUG}
+claude plugin marketplace add OWNER/LenaRise.SlopGuard
 claude plugin install lenarise-slopguard@lenarise-slopguard -y
 \`\`\`
 
-Ardından \`/slop-setup\` ve Claude Code'u yeniden başlat. Doğrulamak için
-\`/slop-doctor\`.
+Then run \`/slop-setup\` and restart Claude Code. To verify: \`/slop-doctor\`.
 
-\`/slop-setup\` şunları yapar ve **var olan hiçbir dosyayı ezmez**: yapılandırma
-dosyalarını yalnızca yoksa oluşturur, durum çubuğunu kaydeder ve sessiz ölüm
-koruması kuralını \`~/.claude/CLAUDE.md\` dosyasına ekler. Kural işaretçiler
-arasına yazılır; dosyanın geri kalanına dokunulmaz ve blok silinerek temiz
-kaldırılabilir. İstemiyorsan: \`/slop-setup --skip-claude-md\`.
+\`/slop-setup\` does the following and **never overwrites an existing file**: it
+creates the configuration files only when they are missing, registers the status
+line, and installs the silent-death protection rule into \`~/.claude/CLAUDE.md\`.
+The rule is written between markers; the rest of the file is untouched and
+deleting the block removes it cleanly. To skip it: \`/slop-setup --skip-claude-md\`.
 
-Bu kural neden otomatik: plugin öldüğünde çalışan tek katman odur — hook'lar
-kayıtlı değilse "çalışıyor musun?" diye soracak hook da yoktur. Ayrıca durum
-çubuğu her ortamda görünmez (desktop uygulamasının Code sekmesi statusLine
-render etmiyor), yani bazı kullanıcılar için sessiz ölümü yakalayan başka
-mekanizma kalmaz.
+Why that rule is automatic: it is the only layer that runs when the plugin is
+dead — if hooks are not registered, the hook that would ask "are you running?" is
+not there either. The status line is also not visible everywhere (the desktop
+app's Code tab does not render statusLine), so for some users no other mechanism
+would catch a silent death.
 
-| İş | Komut |
+| Task | Command |
 |---|---|
-| Güncelle | \`claude plugin update lenarise-slopguard@lenarise-slopguard\` |
-| Geçici kapat | \`claude plugin disable lenarise-slopguard\` — yapılandırma korunur |
-| Kaldır | \`claude plugin uninstall lenarise-slopguard\` |
+| Update | \`claude plugin update lenarise-slopguard\` |
+| Disable temporarily | \`claude plugin disable lenarise-slopguard\` — the configuration is preserved |
+| Remove | \`claude plugin uninstall lenarise-slopguard\` |
 
-Güncelleme \`~/.claude/lenarise-slopguard/\` içindeki hiçbir dosyaya dokunmaz.
+An update never touches anything in \`~/.claude/lenarise-slopguard/\`.
 
-## Oturumda ne olur
+## What happens during a session
 
 \`\`\`
-oturum açılır
-  └─ session-start: kural seti + yetenek indeksi   → durum: HAZIR
-sen yazarsın
-  └─ user-prompt: tur++ , kalp atışı damgası        → durum: CANLI
-      └─ eşik aşıldıysa sohbete uyarı
-Claude dosya yazmak ister
-  ├─ pre-edit  → test dosyası / .env / lockfile ise DENY
-  └─ post-edit → desen bulunursa BLOCK, ihlal deftere yazılır
-Claude komut çalıştırmak ister
-  ├─ pre-bash  → rm -rf / DROP TABLE / force push ise DENY
-  ├─ pre-bash  → paket kayıt defterinde yoksa DENY
-  └─ post-bash → test ya da commit ise damga
-Claude bitirmek ister
-  └─ stop-gate → açık ihlal veya doğrulanmamış kod varsa BLOCK
-oturum kapanır
-  └─ session-end: N tur · M dosya · K satır · J engellenen slop
+session opens
+  └─ session-start: rule set + capability index          → state: READY
+you type
+  └─ user-prompt: turn++ , heartbeat stamp               → state: LIVE
+      └─ threshold crossed → a warning in chat
+Claude wants to write a file
+  ├─ pre-edit  → test file / .env / lockfile: DENY
+  └─ post-edit → pattern found: BLOCK, violation recorded
+Claude wants to run a command
+  ├─ pre-bash  → rm -rf / DROP TABLE / force push: DENY
+  ├─ pre-bash  → package not in the registry: DENY
+  └─ post-bash → test or commit: stamp
+Claude wants to finish
+  └─ stop-gate → open violations or unverified code: BLOCK
+session closes
+  └─ session-end: N turns · M files · K lines · J slop blocked
 \`\`\`
 
-## Yapılandırma referansı
+## Configuration reference
 
-Bütün düzenleme \`~/.claude/lenarise-slopguard/\` içinde yapılır. Plugin
-dizinini düzenleme: güncelleme siler.
+All editing happens in \`~/.claude/lenarise-slopguard/\`. Do not edit the plugin
+directory: an update deletes it.
 
-| Dosya | İçerik |
+| File | Contents |
 |---|---|
-| \`config.json\` | kip, eşikler, kapatılan desenler, güvenilen paketler, görünürlük |
-| \`patterns.local.json\` | kendi desenlerin |
-| \`rules.local.md\` | serbest metin kuralların; her oturum başında enjekte edilir |
-| \`<repo>/.slopignore\` | proje bazlı yol muafiyeti |
+| \`config.json\` | mode, thresholds, disabled patterns, trusted packages, visibility |
+| \`patterns.local.json\` | your own patterns |
+| \`rules.local.md\` | free-text rules, injected at the start of every session |
+| \`<repo>/.slopignore\` | per-project path exemptions |
 
-Birleştirme sırası: plugin varsayılanları → \`config.json\` → \`patterns.local.json\`
-→ repo \`.slopignore\` → oturum kipi.
+Merge order: plugin defaults → \`config.json\` → \`patterns.local.json\` →
+repository \`.slopignore\` → session mode.
 
 ### config.json
 
@@ -275,298 +268,313 @@ ${configSchema()}
 {
   "patterns": [
     {
-      "key": "benzersiz-kisa-ad",
-      "id": "KOD-03",
+      "key": "unique-short-name",
+      "id": "CODE-03",
       "scope": "code",
       "severity": "warn",
-      "match": "TODO\\\\s*\\\\(acil\\\\)",
+      "match": "TODO\\\\s*\\\\(urgent\\\\)",
       "flags": "gi",
-      "detects": "Ne yakaladığı, tek cümle.",
-      "fix": "Ne yapılması gerektiği, tek cümle."
+      "detects": "What it catches, one sentence.",
+      "fix": "What should be done, one sentence."
     }
   ]
 }
 \`\`\`
 
-\`scope\` değerleri: \`code\` (kaynak dosya) · \`prose\` (metin dosyası) ·
-\`path\` (dosya yolu) · \`command\` (kabuk komutu). \`match\` bir JSON dizesidir,
-yani ters bölüler iki kez kaçışlanır. Yazdıktan sonra \`/slop-doctor\` ile
-desen sayısının arttığını doğrula.
+\`scope\` values: \`code\` (source file) · \`prose\` (text file) · \`path\` (file path) ·
+\`command\` (shell command). \`match\` is a JSON string, so backslashes are escaped
+twice. After writing one, confirm with \`/slop-doctor\` that the pattern count went up.
 
-### Desen kataloğu
+### Pattern catalogue
 
 ${patternCatalogue()}
 
-Devre dışı bırakma üç düzeyde çalışır: kategori (\`GUV\`), taksonomi ID'si
-(\`GUV-03\`) ya da tekil desen anahtarı (\`guv-03-aws-key\`).
+Disabling works at three levels: a category (\`SEC\`), a taxonomy id (\`SEC-03\`) or
+a single pattern key (\`sec-03-aws-key\`).
 
-${NEW_IDS.length > 0 ? `\`${NEW_IDS.join('`, `')}\` kaynak taksonomide yoktu; bu proje ekledi.` : ''}
+${NEW_IDS.length > 0 ? `\`${NEW_IDS.join('`, `')}\` are not in the source taxonomy; this project added them.` : ''}
 
-### Oyun geliştirme (OYN)
+### Game development (GAME)
 
-OYN desenleri motor API adlarına dayanır (\`transform.Translate\`, \`PlayerPrefs\`,
-\`get_node\`), bu yüzden oyun olmayan projelerde kendiliğinden sessiz kalır.
-Yine de tek satırla kapatılabilir: \`disabled: ["OYN"]\`.
+GAME patterns key off engine API names (\`transform.Translate\`, \`PlayerPrefs\`,
+\`get_node\`), so they stay silent in non-game projects on their own. They can
+still be switched off in one line: \`disabled: ["GAME"]\`.
 
-Sertlikleri bilerek \`uyarır\`: sıcak yol tespiti sezgiseldir ve yeni bir alanda
-blokla başlamak aracın ilk izlenimini yanlış pozitifle kurmak olurdu. Tek
-istisna **OYN-06** — istemcide tutulan para ve ilerleme bir güvenlik meselesi,
-oyuncu \`PlayerPrefs\` içeriğini düzenleyebilir.
+Their severity is \`warns\` by design: hot-path detection is a heuristic, and
+opening a new domain with blocks would introduce the tool through a false
+positive. **GAME-06** is the exception — economy and progression held on the
+client is a security matter, and the player can edit \`PlayerPrefs\`.
 
-**Motor üretimi dosyalar korumalıdır** ve bu koruma kipten bağımsızdır:
-\`.meta\`, \`.uasset\`, \`.umap\`, \`.unity\`, \`.prefab\`, \`.tscn\`, \`Library/\`,
-\`.godot/\`, \`Intermediate/\`, \`Saved/\`. Elle düzenlenen bir \`.meta\` sahnedeki
-tüm referansları koparır ve bozulma commit'ten çok sonra fark edilir. Bu
-dizinler tarama yürüyüşünde de atlanır — Unity'nin \`Library\` dizini yüz
-binlerce dosya içerebilir.
+**Engine-generated files are protected**, regardless of mode: \`.meta\`,
+\`.uasset\`, \`.umap\`, \`.unity\`, \`.prefab\`, \`.tscn\`, \`Library/\`, \`.godot/\`,
+\`Intermediate/\`, \`Saved/\`. A hand-edited \`.meta\` breaks every reference in the
+scene and the damage surfaces long after the commit. Those directories are also
+skipped during the scan walk — Unity's \`Library\` can hold hundreds of thousands
+of files.
 
-**Oyun kural metni yalnızca oyun projelerinde yüklenir.** \`session-start\` kökte
-motor imzası arar (Unity için \`Assets/\` + \`ProjectSettings/\`, Godot için
-\`project.godot\`, Unreal için \`*.uproject\`) ve bulamazsa hiç enjekte etmez;
-kullanılmayacak kuralı her oturuma yüklemek aşırı bağlam olurdu (AGT-02).
-Desenler bu koşula bağlı değil, yalnızca metin.
+**Game rule text loads only in game projects.** \`session-start\` looks for an
+engine signature at the root (\`Assets/\` + \`ProjectSettings/\` for Unity,
+\`project.godot\` for Godot, \`*.uproject\` for Unreal) and injects nothing when it
+finds none; loading rules that will never apply into every session would be too
+much context (AGENT-02). The patterns are not gated on this, only the text.
 
-### Satır içi muafiyet
+### Inline waiver
 
 \`\`\`js
-// slop-guard-ignore KOD-05: üçüncü parti SDK burada throw ediyor
+// slop-guard-ignore CODE-05: third-party SDK throws here
 \`\`\`
 
-Üç koşul birden aranır: yönerge bulgunun satırında ya da tam üstünde olacak,
-hangi deseni susturduğunu adlandıracak, gerekçe yazacak. Biri eksikse
-susturmaz ve neden reddedildiği bulguya iliştirilir. Kullanılan muafiyetler
-sayılır ve oturum özetinde raporlanır.
+Three conditions must hold together: the directive sits on the finding's line or
+the one directly above it, it names which pattern it silences, and it gives a
+reason. If any is missing it silences nothing — and why it was rejected is
+attached to the finding. Waivers that are used get counted and reported in the
+session summary.
 
-### Komutlar
+### Commands
 
-| Komut | Ne yapar |
+| Command | What it does |
 |---|---|
-| \`/slop-setup\` | Yapılandırmayı oluşturur, durum çubuğunu kaydeder. Var olanı ezmez |
-| \`/slop-status\` | Oturum sayaçları **ve** canlı tarama; hook kaydına güvenmez |
-| \`/slop-check [yol]\` | Talep üzerine tarama; git deposu gerektirmez |
-| \`/slop-doctor\` | Kurulum teşhisi; her satır ✅ ya da ❌ |
-| \`/slop-config\` | Ayarları değiştirir |
-| \`/slop-mode strict\\|explore\` | Oturum kipi; kalıcı yapılandırmaya dokunmaz |
-| \`/slop-repo-init\` | Repoya agent-agnostic koruma kurar |
+| \`/slop-setup\` | Creates the configuration, registers the status line. Never overwrites |
+| \`/slop-status\` | Session counters **and** a live scan; it does not trust the hook record |
+| \`/slop-check [path]\` | Scan on demand; no git repository required |
+| \`/slop-doctor\` | Installation diagnosis; every line is a tick or a cross |
+| \`/slop-config\` | Changes settings |
+| \`/slop-mode strict\\|explore\` | Session mode; the persistent configuration is untouched |
+| \`/slop-repo-init\` | Installs agent-agnostic protection into a repository |
 
-#### Nerede çalıştırılır
+#### Where it runs
 
-\`/slop-check\` ve \`/slop-status\` bir git deposu içinde olmak zorunda değil.
-Tarama kaynağı bulunduğun yere göre seçilir:
+\`/slop-check\` and \`/slop-status\` do not have to be inside a git repository. The
+scan source is chosen from where you are:
 
-| Bulunduğun yer | Taranan |
+| Where you are | What is scanned |
 |---|---|
-| Git deposu | Değişmiş dosyalar; hiç değişiklik yoksa izlenen dosyaların tamamı |
-| Sıradan klasör | Dosya sistemi yürünür — altındaki tüm depolar ve gevşek dosyalar dahil |
+| A git repository | Changed files; every tracked file when nothing has changed |
+| A plain folder | The filesystem is walked — every repository beneath it and any loose files |
 
-Klasör kipinde \`node_modules\`, \`dist\`, \`build\`, \`.venv\`, \`__pycache__\` ve
-benzeri gürültü dizinlerine hiç girilmez. İç içe her \`.slopignore\` yalnızca
-kendi alt ağacında geçerlidir; kardeş depolar birbirinin muafiyetinden
-etkilenmez.
+In folder mode, noise directories are never entered: \`node_modules\`, \`dist\`,
+\`build\`, \`.venv\`, \`__pycache__\`, and the game engine build directories. Every
+nested \`.slopignore\` applies only to its own subtree; sibling repositories do not
+inherit each other's exemptions.
 
-Böylece birden çok proje barındıran bir üst dizinde tek çağrıyla tarama
-yapılabilir; her depoya tek tek girmek gerekmez.
+That makes it possible to scan a parent directory holding several projects in one
+call, rather than entering each repository separately.
 
-### Durum çubuğu
+### Status line
 
-\`canlı\` demek için iki ayrı kanıt gerekir: kalp atışı damgasının bu oturumun
-kimliğini taşıması (kayıt) ve \`pre-edit\`'in sentetik yüke doğru cevap vermesi
-(çalışabilirlik). Belirsizlik \`canlı\` diye yuvarlanmaz.
+Saying \`live\` requires two separate proofs: the heartbeat stamp carries this
+session's id (registration), and \`pre-edit\` answers a synthetic payload correctly
+(operability). Uncertainty is never rounded up to \`live\`.
 
-| Gösterim | Anlamı |
+| Display | Meaning |
 |---|---|
-| \`SlopGuard hazır\` | Kurulu ve cevap veriyor, ama bu oturumda henüz tetiklenmedi |
-| \`SlopGuard canlı · …\` | İki kanıt da var |
-| \`SlopGuard ⚠️ kayıtsız\` | Mesaj atıldı ama hook tetiklenmedi |
-| \`SlopGuard ⚠️ bozuk\` | Script probe'a cevap vermiyor |
-| \`SlopGuard kapalı\` | \`enabled: false\` |
+| \`SlopGuard ready\` | Installed and answering, but not yet triggered in this session |
+| \`SlopGuard live · …\` | Both proofs are present |
+| \`SlopGuard unregistered\` | A message was sent but no hook fired |
+| \`SlopGuard broken\` | The script does not answer the probe |
+| \`SlopGuard off\` | \`enabled: false\` |
 
-## AI için: kullanıcıya nasıl yardım edersin
+The desktop app's Code tab does not render statusLine (measured). For those
+places, \`ui.chatStatus: N\` posts the same row into chat every N turns; it is off
+by default.
 
-Bu bölüm herhangi bir oturumdaki AI'ın okuyup işlem yapabilmesi için.
+## For an AI: how you help the user
 
-### Niyet → eylem
+This section exists so that an AI in any session can read it and act.
 
-| Kullanıcı ne der | Ne anlama gelir | Ne yap |
+### Intent to action
+
+| What the user says | What it means | What you do |
 |---|---|---|
-| "bu uyarı sürekli çıkıyor" | desen gürültülü | \`config.json\` → \`disabled\` listesine ID ekle |
-| "çok fazla blokluyor" | sert kip ağır | Önce hangi ID'ler tetikleniyor göster, sonra hedefli kapat |
-| "prototip yapıyorum" | geçici gevşetme | \`/slop-mode explore\` — kalıcı config'e dokunma |
-| "test dosyalarına yazabilmeli" | TST kilidi engel | \`allowTestWrites: true\`; gerekçesini sor |
-| "şu paketi hep engelliyor" | paket kapısı | Paketi doğrula, sonra \`trustedPackages\`'a ekle |
-| "diff sınırı küçük" | eşik dar | \`thresholds.maxDiffLines\` |
-| "şunu da yakalasın" | yeni desen | \`patterns.local.json\`; önce dene |
-| "kendi kuralımı ekle" | kişisel kural | \`rules.local.md\`, kısa tut |
-| "bu repoda hiç çalışmasın" | proje muafiyeti | Repo kökünde \`.slopignore\` |
-| "ne durumdayım" | görünürlük | \`/slop-status\` |
+| "this warning keeps coming up" | the pattern is noisy | add the id to \`disabled\` in \`config.json\` |
+| "it blocks too much" | strict mode feels heavy | first show which ids are firing, then disable them specifically |
+| "I am prototyping" | a temporary relaxation | \`/slop-mode explore\` — leave the persistent config alone |
+| "it should let me write test files" | the TEST lock is in the way | \`allowTestWrites: true\`; ask for the reason |
+| "it keeps blocking this package" | the package gate | verify the package, then add it to \`trustedPackages\` |
+| "the diff limit is too small" | the threshold is tight | \`thresholds.maxDiffLines\` |
+| "it should catch this too" | a new pattern | \`patterns.local.json\`; test it first |
+| "add my own rule" | a personal rule | \`rules.local.md\`, keep it short |
+| "turn it off for this repo" | a project exemption | \`.slopignore\` at the repository root |
+| "where do I stand" | visibility | \`/slop-status\` |
 
-### Güvenli ve güvensiz düzenlemeler
+### Safe and unsafe edits
 
-| Güvenli | Güvensiz |
+| Safe | Unsafe |
 |---|---|
-| \`~/.claude/lenarise-slopguard/\` altındaki dosyalar | Plugin cache'i — güncelleme siler |
-| Tek desen ya da tek ID kapatmak | Kategori kapatmak, özellikle GUV |
-| \`/slop-mode explore\` (oturumluk) | \`config.json\` → \`mode: "explore"\` (kalıcı) |
-| Eşiği ölçüye dayanarak değiştirmek | Eşiği "rahatsız ediyor" diye kaldırmak |
-| Gerekçeli satır içi muafiyet | \`.slopignore\`'a geniş glob yazmak |
+| Files under \`~/.claude/lenarise-slopguard/\` | The plugin cache — an update deletes it |
+| Disabling one pattern or one id | Disabling a category, especially SEC |
+| \`/slop-mode explore\` (this session) | \`config.json\` → \`mode: "explore"\` (permanent) |
+| Changing a threshold based on a measurement | Removing a threshold because it is annoying |
+| A reasoned inline waiver | A broad glob in \`.slopignore\` |
 
-Bir deseni kapatırken **neyi kaybettiğini söyle**. GUV kapatmayı kendiliğinden
-önerme; kullanıcı açıkça isterse yap ve riski yaz.
+When disabling a pattern, **say what is lost**. Never propose disabling SEC on
+your own initiative; if the user explicitly asks, do it and write down the risk.
 
-### Düzenleme sonrası doğrulama
+### Verification after an edit
 
 \`\`\`bash
-jq -e . ~/.claude/lenarise-slopguard/config.json      # JSON geçerli mi
+jq -e . ~/.claude/lenarise-slopguard/config.json      # is the JSON valid
 \`\`\`
 
-Sonra \`/slop-doctor\` çalıştır ve desen sayısının beklediğin gibi olduğunu
-doğrula. \`config.json\`, \`patterns.local.json\` ve \`.slopignore\` anında geçerli
-olur; \`hooks.json\` ve manifest değişiklikleri yeniden başlatma ister.
+Then run \`/slop-doctor\` and confirm the pattern count is what you expected.
+\`config.json\`, \`patterns.local.json\` and \`.slopignore\` take effect immediately;
+changes to \`hooks.json\` or the manifest require a restart.
 
-## Sorun giderme
+## Troubleshooting
 
-| Belirti | Muhtemel sebep | Ne yap |
+| Symptom | Likely cause | What to do |
 |---|---|---|
-| Çubuk \`⚠️ kayıtsız\` | Hook kaydolmamış | Claude Code'u yeniden başlat, sonra \`/slop-doctor\` |
-| Çubuk \`⚠️ bozuk\` | \`node\` yolu ya da dosya izni | \`/slop-doctor\` ❌ satırlarını izle |
-| Çubuk hiç yok | \`statusLine\` kayıtlı değil | \`/slop-setup\` |
-| Hiçbir şey engellenmiyor | Plugin devre dışı ya da \`enabled: false\` | \`claude plugin list\`, sonra \`/slop-doctor\` |
-| Testi olmayan repoda kilitleniyor | Kod yazıldı, test yok, kapı bekliyor | \`allowTestWrites: true\` ya da \`/slop-mode explore\` |
-| Paket kurulumu hep engelleniyor | Ağ yok; kapı fail-closed | Paketi doğrula, \`trustedPackages\`'a ekle |
-| \`plugin update\` "not found" diyor | Komut marketplace nitelikli ad ister | \`claude plugin update lenarise-slopguard@lenarise-slopguard\` |
-| Kurulumdan sonra hiçbir şey olmuyor | Hook'lar oturum başında yüklenir | Claude Code'u yeniden başlat |
+| The bar reads \`unregistered\` | Hooks did not register | Restart Claude Code, then \`/slop-doctor\` |
+| The bar reads \`broken\` | The \`node\` path or a file permission | Follow the ❌ lines from \`/slop-doctor\` |
+| No bar at all | \`statusLine\` is not registered | \`/slop-setup\` |
+| Nothing is being blocked | The plugin is disabled or \`enabled: false\` | \`claude plugin list\`, then \`/slop-doctor\` |
+| It locks up in a repository with no tests | Code was written, no test exists, the gate is waiting | \`allowTestWrites: true\` or \`/slop-mode explore\` |
+| Package installs are always blocked | No network; the gate fails closed | Verify the package, add it to \`trustedPackages\` |
 
-## Bilinen sınırlar
+## Known limits
 
-Gizlenmiyor:
+Not hidden:
 
-- Regex taraması yanlış pozitif üretir. Kaçış yolu gerekçeli satır içi muafiyet.
-- Guard-and-Go (KOD-04) regex'le tam yakalanamaz; sezgisel.
-- Repo geneli duplikasyon (KOD-01) tek dosyaya bakan tarayıcıda görünmez; CI katmanında jscpd.
-- İş mantığı hataları (MTK) mekanik olarak yakalanamaz; yalnızca kural metniyle taşınır.
-- \`post-edit\` bloğu modeli durdurmaz; garanti \`stop-gate\`'te.
-- Bash üzerinden yazma **kısmen** kapsanır. Hedefi komutun kendisinde açıkça
-  görünen biçimler ayrıştırılır — \`>\`, \`>>\`, \`tee\`, \`sed -i\`, \`cp\`, \`mv\`,
-  \`touch\` — ve bu dosyalar hem korumalı yol kilidinden geçer hem içerikleri
-  taranır. Hedefi komuttan okunamayan yazmalar (\`make\`, \`npm run build\`, keyfi
-  script'ler) görünmez. \`/slop-check\`, \`/slop-status\`, pre-commit hook'u ve CI
-  canlı tarama yaptığı için o boşluğu kapatır.
-- Paket doğrulaması ağ ister ve zaman aşımında engelleyerek kapanır.
+- Regex scanning produces false positives. The escape hatch is a reasoned inline waiver.
+- Guard-and-go (CODE-04) cannot be caught reliably by regex; it is heuristic.
+- Repository-wide duplication (CODE-01) is invisible to a per-file scanner; jscpd covers it in CI.
+- Business logic errors (LOGIC) cannot be caught mechanically; they are carried by rule text alone.
+- A \`post-edit\` block does not stop the model; the guarantee is in \`stop-gate\`.
+- Writing through Bash is **partly** covered. Shapes whose target is visible in the
+  command are parsed — \`>\`, \`>>\`, \`tee\`, \`sed -i\`, \`cp\`, \`mv\`, \`touch\` — and those
+  files go through both the protected-path lock and a content scan. Writes whose
+  target cannot be read from the command (\`make\`, \`npm run build\`, custom scripts)
+  are invisible. \`/slop-check\`, \`/slop-status\`, the pre-commit hook and CI close
+  that gap with a live scan.
+- Package verification needs the network and fails closed on timeout.
 
-## Kaldırma
+## Removal
 
 \`\`\`bash
 claude plugin uninstall lenarise-slopguard
 claude plugin marketplace remove lenarise-slopguard
 \`\`\`
 
-\`~/.claude/settings.json\` içindeki \`statusLine\` girdisini ve
-\`~/.claude/lenarise-slopguard/\` dizinini elle sil. \`/slop-setup\` yedek
-bıraktıysa \`settings.json.slopguard-yedek\` dosyası oradadır.
+Delete the \`statusLine\` entry in \`~/.claude/settings.json\`, the
+\`~/.claude/lenarise-slopguard/\` directory, and the marked block in
+\`~/.claude/CLAUDE.md\`. If \`/slop-setup\` left backups they are at
+\`settings.json.slopguard-backup\` and \`CLAUDE.md.slopguard-backup\`.
 `);
 
-// ── CLAUDE.md — bu repoda çalışan agent'a ────────────────────────────────
+// ── CLAUDE.md — for an agent working in this repository ──────────────────
 
 emit('CLAUDE.md',
-`# LenaRise.SlopGuard deposunda çalışırken
+`# Working in the LenaRise.SlopGuard repository
 
-ÜRETİLEN DOSYA. Elle düzenleme; kaynağı \`scripts/gen-docs.mjs\`.
+GENERATED FILE. Do not edit; the source is \`scripts/gen-docs.mjs\`.
 
-Bu depo bir slop koruma aracıdır. Slop'a karşı bir araç, kendi kurallarını
-ihlal ederek yazılamaz — buradaki maddeler temenni değil, bağlayıcı.
+This repository is a slop protection tool. A tool against slop cannot be written
+by breaking its own rules — the items below are binding, not aspirational.
 
-## Bağlayıcı taahhütler
+## Binding commitments
 
-| Taahhüt | Kategori |
+| Commitment | Category |
 |---|---|
-| Sıfır runtime bağımlılığı — yalnızca Node stdlib | GUV-02 |
-| Desen tanımı tek kaynakta (\`lib/patterns.mjs\`); hook, skill, semgrep ve README ondan türer | KOD-01 |
-| Doküman koddan üretilir (\`npm run docs\`), elle senkron tutulmaz | DOK-07 |
-| Boş \`catch\` yok — hata \`stderr\`'e yazılır, sessizce yutulmaz | KOD-05 |
-| Hook testleri gerçek stdin yüküyle çalışır; test gevşetilerek geçilmez | TST-01 · TST-02 |
-| "Çalışıyor" denmeden önce komut çıktısı gösterilir | TST-05 |
-| Başlıklarda emoji yok, buzzword yok | DOK-04 · DOK-01 |
-| Süre tahmini verilmez; kapsam dosya, adım ve bilinmeyen sayısıyla ifade edilir | SUR-08 |
-| Her adımda commit; tek dev commit yok | AGT-06 · SUR-02 |
-| Kendi kendini tarama: kaynak kendi tarayıcısından geçer | tümü |
+| Zero runtime dependencies — Node stdlib only | SEC-02 |
+| Pattern definitions in a single source (\`lib/patterns.mjs\`); hooks, skills, semgrep and the README derive from it | CODE-01 |
+| Documentation generated from code (\`npm run docs\`), never synced by hand | DOC-07 |
+| No empty \`catch\` — errors go to \`stderr\`, never swallowed | CODE-05 |
+| Hook tests run with real stdin payloads; a test is never weakened to pass | TEST-01 · TEST-02 |
+| The command output is shown before anything is called working | TEST-05 |
+| No emoji in headings, no buzzwords | DOC-04 · DOC-01 |
+| No time estimates; scope is expressed as files, steps and unknowns | PROC-08 |
+| A commit at every step; no single enormous commit | AGENT-06 · PROC-02 |
+| Self-scan: the source passes through its own scanner | all |
 
-Son madde en sertidir: kendi tarayıcımız kendi kodumuzu reddediyorsa ya desen
-yanlıştır ya kod. İkisinden biri düzeltilir, **muafiyet yazılmaz**. Kural iki
-yönlü işler — takılması gerekirken takılmıyorsa desen genişletilir.
+The last item is the strictest: if our own scanner rejects our own code then
+either the pattern is wrong or the code is. One of them gets fixed and **no
+waiver is written**. The rule cuts both ways — if it should trip and does not,
+the pattern gets widened.
 
-## Değişiklikten önce
+## Before making a change
 
 \`\`\`bash
-npm test          # ${PATTERN_COUNT} desen, boru testleri dahil
-npm run selfscan  # kendi kaynağımız kendi tarayıcımızdan
-npm run docs      # üretilen dokümanı tazele
+npm test          # ${PATTERN_COUNT} patterns, pipe tests included
+npm run selfscan  # our source through our own scanner
+npm run docs      # refresh the generated documentation
 \`\`\`
 
-\`npm run docs -- --check\` üretilen dosya bayatsa 1 ile çıkar; CI kapısı budur.
+\`npm run docs -- --check\` exits 1 when a generated file is stale; that is the CI gate.
 
-## Mimarinin dayandığı ölçümler
+## The measurements the architecture rests on
 
-Bu depodaki tasarım kararları tahmine değil ölçüme dayanır. Hepsi
-\`docs/dogrulama-kaydi.md\` içinde, tekrar çalıştırılabilir biçimde:
+The design decisions here are based on measurement, not assumption. All of them
+are in \`docs/verification-log.md\` in a form that can be re-run:
 
-- Hook'lar bypass permissions kipinde çalışır; \`PreToolUse\` deny aracı
-  gerçekten durdurur, \`Stop\` block turu bitirtmez.
-- \`PostToolUse\` block modele iletilir ama modeli durdurmaz. Sert garanti
-  bu yüzden \`stop-gate\`'tedir.
-- \`PostToolUse\` başarısız Bash komutunda hiç tetiklenmez; \`tool_response\`
-  çıkış kodu taşımaz. "Test geçti" bilgisi tetiklenmenin varlığından gelir.
-- \`statusLine\` stdin'de \`session_id\` alır ve bu hook'ların gördüğüyle aynıdır.
-- \`process.exit()\` bekleyen stdout yazmasını beklemez; boru tamponunu aşan
-  çıktı kesilir. Hook'lar \`exitWhenFlushed()\` kullanır.
+- Hooks work in bypass permissions mode; a \`PreToolUse\` deny really stops the
+  tool, and a \`Stop\` block prevents the turn from ending.
+- A \`PostToolUse\` block reaches the model but does not stop it. That is why the
+  hard guarantee lives in \`stop-gate\`.
+- \`PostToolUse\` does not fire at all when a Bash command fails, and
+  \`tool_response\` carries no exit code. "The tests passed" is known from the
+  firing itself.
+- \`statusLine\` receives \`session_id\` on stdin, and it is the same one the hooks see.
+- \`process.exit()\` does not wait for a pending stdout write; output beyond the
+  pipe buffer is truncated. Hooks use \`exitWhenFlushed()\`.
+- \`commandSegments\` must split on newlines: a \`git commit\` on the second line of
+  a multi-line block was invisible, so commits were never recorded.
 
-Yeni bir platform davranışına dayanacaksan önce ölç, sonra yaz. Ölçtüğünü
-\`docs/dogrulama-kaydi.md\`'ye ekle.
+If you are about to rely on a new platform behaviour, measure it first and write
+what you measured into \`docs/verification-log.md\`.
 
-## Dizin haritası
+## Language
 
-| Yol | İçerik |
+Identifiers, messages, comments and documentation are English, so that any agent
+reads the same directives and the plugin works anywhere. The two prose patterns
+(DOC-01, PROC-08) deliberately keep non-English alternatives: they match written
+text, and text comes in many languages.
+
+## Directory map
+
+| Path | Contents |
 |---|---|
-| \`lib/patterns.mjs\` | Desen defteri — tek kaynak |
-| \`lib/scan.mjs\` · \`lib/ignore.mjs\` | Eşleştirme motoru ve muafiyet politikası |
-| \`lib/config.mjs\` · \`lib/session.mjs\` · \`lib/coach.mjs\` | Yapılandırma, oturum durumu, eşikler |
-| \`lib/hook.mjs\` · \`lib/report.mjs\` · \`lib/heartbeat.mjs\` | Hook koşucusu, çıktı sözleşmesi, canlılık |
-| \`hooks/\` | Sekiz hook + \`hooks.json\` |
-| \`bin/statusline.mjs\` | Durum çubuğu; plugin ölse bile çalışır |
-| \`scripts/\` | Komut script'leri, tarayıcı CLI'ları, doküman üreteci |
-| \`test/\` | ${'`node --test`'}; boru testleri gerçek süreçte çalışır |
+| \`lib/patterns.mjs\` | Pattern registry — the single source |
+| \`lib/scan.mjs\` · \`lib/ignore.mjs\` | Matching engine and waiver policy |
+| \`lib/config.mjs\` · \`lib/session.mjs\` · \`lib/coach.mjs\` | Configuration, session state, thresholds |
+| \`lib/hook.mjs\` · \`lib/report.mjs\` · \`lib/heartbeat.mjs\` | Hook runner, output contract, liveness |
+| \`lib/commands.mjs\` · \`lib/project.mjs\` | Shell command understanding, engine detection |
+| \`hooks/\` | Eight hooks plus \`hooks.json\` |
+| \`bin/statusline.mjs\` | Status line; works even when the plugin is dead |
+| \`scripts/\` | Command scripts, scanner CLIs, the documentation generator |
+| \`test/\` | ${'`node --test`'}; pipe tests run in a real process |
 `);
 
-// ── skill içindeki üretilen bölümler ─────────────────────────────────────
+// ── generated sections inside the skill ──────────────────────────────────
 
 const skillFile = join(ROOT, 'skills/slop-config/SKILL.md');
 if (existsSync(skillFile)) {
   let skill = readFileSync(skillFile, 'utf8');
   const inject = (name, body) => {
-    const re = new RegExp(`(<!-- ÜRETİLEN: ${name} -->)[\\s\\S]*?(<!-- /ÜRETİLEN: ${name} -->)`);
+    const re = new RegExp(`(<!-- GENERATED: ${name} -->)[\\s\\S]*?(<!-- /GENERATED: ${name} -->)`);
     if (!re.test(skill)) {
-      process.stderr.write(`gen-docs: SKILL.md içinde "${name}" işaretçisi yok\n`);
+      process.stderr.write(`gen-docs: no "${name}" marker in SKILL.md\n`);
       return;
     }
     skill = skill.replace(re, `$1\n${body}\n$2`);
   };
-  inject('config-şeması', configSchema());
-  inject('desen-kataloğu', patternCatalogue());
+  inject('config-schema', configSchema());
+  inject('pattern-catalogue', patternCatalogue());
   emit('skills/slop-config/SKILL.md', skill);
 }
 
-// ── Sonuç ────────────────────────────────────────────────────────────────
+// ── Result ───────────────────────────────────────────────────────────────
 
 if (CHECK) {
   if (stale.length === 0) {
-    process.stdout.write('Üretilen doküman güncel.\n');
+    process.stdout.write('Generated documentation is current.\n');
     process.exit(0);
   }
-  process.stdout.write(`Üretilen doküman bayat (${stale.length}):\n`);
+  process.stdout.write(`Generated documentation is stale (${stale.length}):\n`);
   for (const rel of stale) process.stdout.write(`  ${rel}\n`);
-  process.stdout.write('\nTazelemek için: npm run docs\n');
+  process.stdout.write('\nTo refresh: npm run docs\n');
   process.exit(1);
 }
 
 process.stdout.write(written.length === 0
-  ? 'Doküman zaten güncel.\n'
-  : `${written.length} dosya üretildi:\n${written.map((r) => `  ${r}`).join('\n')}\n`);
+  ? 'Documentation is already current.\n'
+  : `${written.length} file(s) generated:\n${written.map((r) => `  ${r}`).join('\n')}\n`);

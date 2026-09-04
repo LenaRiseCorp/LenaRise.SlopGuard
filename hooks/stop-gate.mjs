@@ -1,22 +1,22 @@
 #!/usr/bin/env node
 /**
- * Stop → doğrulama kapısı.
+ * Stop → the verification gate.
  *
- * Sert garantinin ikinci ve asıl ayağı. Ölçüm şunu gösterdi: PreToolUse deny
- * aracı durdurur, Stop block turu bitirtmez; PostToolUse block ise yalnızca
- * modele iletilir ve görmezden gelinebilir. Bu yüzden post-edit'in bulduğu
- * ihlal oturum defterine yazılıyor ve kilit burada kuruluyor.
+ * The second and decisive leg of the hard guarantee. Measurement showed that a
+ * PreToolUse deny stops the tool and a Stop block prevents the turn from ending,
+ * while a PostToolUse block only reaches the model and can be ignored. That is
+ * why post-edit records what it finds in the ledger and the lock is built here.
  *
- * Üç gerekçeyle bloklar:
- *   1. Defterde düzeltilmemiş ihlal var
- *   2. Kod değişti ama bu turda doğrulama çalışmadı (TST-05)
- *   3. Son commit'ten beri biriken diff gözden geçirilemez boyutta (SUR-02)
+ * Three reasons to block:
+ *   1. Unfixed violations sit in the ledger
+ *   2. Code changed but no verification ran this turn (TEST-05)
+ *   3. The diff accumulated since the last commit is too large to review (PROC-02)
  *
- * Döngü koruması: aynı gerekçeyle sınırsız bloklamak kendi AGT-08 kuralımızı
- * ihlal ederdi. Parmak izi tutulur; ihlal kümesi değişiyorsa ilerleme vardır
- * ve sayaç sıfırlanır, değişmiyorsa tavana gelince kapı açılır — ama sessizce
- * değil, aşıldığı açıkça söylenerek. Kapının aşıldığını gizlemek, korumanın
- * hiç olmamasından beter olurdu (INS-04).
+ * Loop guard: blocking forever on the same reason would break our own AGENT-08
+ * rule. A fingerprint is tracked; if the violation set is changing there is
+ * progress and the counter resets, and if it is not, the gate opens at the
+ * ceiling — but not silently. Hiding that the gate was passed would be worse
+ * than having no gate (HUMAN-04).
  */
 
 import { createHash } from 'node:crypto';
@@ -34,29 +34,29 @@ runHook('stop-gate', ({ payload, config, state }) => {
 
   const open = openViolations(state);
   if (open.length > 0) {
-    reasons.push(`ihlal:${open.map((v) => `${v.file}:${v.id}:${v.line}`).sort().join(',')}`);
-    detail.push(`  ${open.length} düzeltilmemiş ihlal:`);
+    reasons.push(`violations:${open.map((v) => `${v.file}:${v.id}:${v.line}`).sort().join(',')}`);
+    detail.push(`  ${open.length} unfixed violation(s):`);
     for (const v of open.slice(0, 10)) detail.push(`    ${v.id}  ${v.file}:${v.line}  ${v.title}`);
-    if (open.length > 10) detail.push(`    … ve ${open.length - 10} tane daha`);
+    if (open.length > 10) detail.push(`    … and ${open.length - 10} more`);
   }
 
   if (state.codeWritesSinceVerify > 0 && !state.testRunAt) {
-    reasons.push(`dogrulama:${state.codeWritesSinceVerify}`);
-    detail.push(`  ${state.codeWritesSinceVerify} kod yazımı yapıldı, bu turda hiç test çalışmadı (TST-05).`);
-    detail.push('    "Çalışıyor" demeden önce çalıştır.');
+    reasons.push(`verification:${state.codeWritesSinceVerify}`);
+    detail.push(`  ${state.codeWritesSinceVerify} code write(s) happened and no test ran this turn (TEST-05).`);
+    detail.push('    Run it before saying it works.');
   }
 
   const limit = config.thresholds.maxDiffLines;
   if (state.linesSinceCommit > limit) {
     reasons.push(`diff:${Math.floor(state.linesSinceCommit / 100)}`);
-    detail.push(`  Son commit'ten beri ${state.linesSinceCommit} satır değişti, eşik ${limit} (SUR-02).`);
-    detail.push('    Gözden geçirilebilir parçalara böl ve commit et.');
+    detail.push(`  ${state.linesSinceCommit} lines changed since the last commit, threshold ${limit} (PROC-02).`);
+    detail.push('    Split it into reviewable pieces and commit.');
   }
 
   if (reasons.length === 0) return;
 
   if (config.mode === 'explore') {
-    notify(`${BRAND} — keşif kipi, kapı bloklamıyor\n\n${detail.join('\n')}`);
+    notify(`${BRAND} — explore mode, the gate is not blocking\n\n${detail.join('\n')}`);
     return;
   }
 
@@ -65,13 +65,13 @@ runHook('stop-gate', ({ payload, config, state }) => {
   const max = config.thresholds.maxStopBlocks;
 
   if (attempts > max) {
-    notify(`${BRAND} — kapı AŞILDI\n\n`
-      + `  Aynı gerekçeyle ${attempts - 1} kez bloklandı, ilerleme olmadı; döngüye girmemek için\n`
-      + `  geçiriliyor (AGT-08). Aşağıdakiler hâlâ açık:\n\n${detail.join('\n')}\n\n`
-      + `  Bu bir onay değil. Devam etmeden önce sen bak.`);
+    notify(`${BRAND} — gate BYPASSED\n\n`
+      + `  Blocked ${attempts - 1} time(s) for the same reason with no progress; letting it through\n`
+      + `  to avoid a loop (AGENT-08). The following are still open:\n\n${detail.join('\n')}\n\n`
+      + `  This is not approval. Look at it before continuing.`);
     return;
   }
 
-  block(`${BRAND} — tur bitirilemez (${attempts}/${max})\n\n${detail.join('\n')}\n\n`
-    + `  Bunları çöz, sonra bitir. Geçici olarak gevşetmek istersen: /slop-mode explore`);
+  block(`${BRAND} — cannot end turn (${attempts}/${max})\n\n${detail.join('\n')}\n\n`
+    + `  Resolve these, then finish. To relax it temporarily: /slop-mode explore`);
 });

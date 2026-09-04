@@ -1,94 +1,94 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PATTERNS, TAXONOMY, PATTERN_COUNT, titleOf } from '../lib/patterns.mjs';
-import { scanContent, scanPath, scanCommand, actionable, suppressed, stripCodeSpans, classify } from '../lib/scan.mjs';
+import { scanContent, scanPath, scanCommand, actionable, stripCodeSpans, classify } from '../lib/scan.mjs';
 
 const ids = (fs) => fs.map((f) => f.key);
 
-test('taksonomi bütünlüğü: her desen ID kanonik listede', () => {
+test('taxonomy integrity: every pattern id is in the canonical list', () => {
   for (const p of PATTERNS) assert.ok(titleOf(p.id), `${p.key} → ${p.id}`);
-  assert.equal(TAXONOMY.length, 71, '62 kanonik + SUR-08 + 8 OYN');
+  assert.equal(TAXONOMY.length, 71, '62 canonical + PROC-08 + 8 GAME');
 });
 
-test('desen şeması: her desende detects, fix, geçerli severity', () => {
+test('pattern schema: every pattern has detects, fix and a valid severity', () => {
   for (const p of PATTERNS) {
-    assert.ok(p.detects?.length > 0, `${p.key}: detects eksik`);
-    assert.ok(p.fix?.length > 0, `${p.key}: fix eksik`);
+    assert.ok(p.detects?.length > 0, `${p.key}: detects missing`);
+    assert.ok(p.fix?.length > 0, `${p.key}: fix missing`);
     assert.ok(['block', 'warn'].includes(p.severity), `${p.key}: severity`);
     assert.ok(['code', 'prose', 'path', 'command'].includes(p.scope), `${p.key}: scope`);
   }
   assert.equal(PATTERN_COUNT, PATTERNS.length);
 });
 
-// ── Pozitif eşleşmeler: her block deseni gerçek bir yükü yakalamalı ────────
+// ── Positive matches: every block pattern must catch a real payload ────────
 
 const CODE_CASES = [
-  ['kod-05-empty-catch',    'a.js', 'try { risky() } catch (e) {}'],
-  ['kod-05-except-pass',    'a.py', 'try:\n    risky()\nexcept ValueError:\n    pass'],
-  ['kod-05-catch-noop',     'a.js', 'fetch(u).catch(() => {})'],
-  ['kod-04-guard-and-go',   'a.js', 'if (false) { legacyPath() }'],
-  ['tst-04-tautological-assert', 'a.py', 'def test_x():\n    assert True'],
-  ['tst-01-skipped-test',   'a.js', 'it.skip("bozuk", () => {})'],
-  ['tst-03-fake-impl',      'a.py', 'def parse():\n    raise NotImplementedError'],
-  ['guv-03-aws-key',        'a.js', 'const k = "AKIAIOSFODNN7EXAMPLE"'],
-  ['guv-03-private-key',    'a.js', '-----BEGIN RSA PRIVATE KEY-----'],
-  ['guv-01-eval',           'a.js', 'const out = eval(userInput)'],
-  ['guv-05-sql-fstring',    'a.py', 'q = f"SELECT * FROM users WHERE id={uid}"'],
+  ['code-05-empty-catch',    'a.js', 'try { risky() } catch (e) {}'],
+  ['code-05-except-pass',    'a.py', 'try:\n    risky()\nexcept ValueError:\n    pass'],
+  ['code-05-catch-noop',     'a.js', 'fetch(u).catch(() => {})'],
+  ['code-04-guard-and-go',   'a.js', 'if (false) { legacyPath() }'],
+  ['test-04-tautological-assert', 'a.py', 'def test_x():\n    assert True'],
+  ['test-01-skipped-test',   'a.js', 'it.skip("broken", () => {})'],
+  ['test-03-fake-impl',      'a.py', 'def parse():\n    raise NotImplementedError'],
+  ['sec-03-aws-key',         'a.js', 'const k = "AKIAIOSFODNN7EXAMPLE"'],
+  ['sec-03-private-key',     'a.js', '-----BEGIN RSA PRIVATE KEY-----'],
+  ['sec-01-eval',            'a.js', 'const out = eval(userInput)'],
+  ['sec-05-sql-fstring',     'a.py', 'q = f"SELECT * FROM users WHERE id={uid}"'],
 ];
 
 for (const [key, file, body] of CODE_CASES) {
-  test(`yakalar: ${key}`, () => {
+  test(`catches: ${key}`, () => {
     const found = actionable(scanContent({ filePath: file, content: body }));
-    assert.ok(ids(found).includes(key), `beklenen ${key}, bulunan: ${ids(found).join(',') || 'hiçbiri'}`);
+    assert.ok(ids(found).includes(key), `expected ${key}, got: ${ids(found).join(',') || 'nothing'}`);
   });
 }
 
-test('yakalar: guv-03-inline-secret', () => {
+test('catches: sec-03-inline-secret', () => {
   const body = 'const config = { api_key: "sk_live_abcdefghijklmnop0123" }';
   const found = actionable(scanContent({ filePath: 'a.js', content: body }));
-  assert.ok(ids(found).includes('guv-03-inline-secret'), ids(found).join(','));
+  assert.ok(ids(found).includes('sec-03-inline-secret'), ids(found).join(','));
 });
 
 const COMMAND_CASES = [
-  ['agt-05-rm-recursive-force',  'rm -rf /var/data'],
-  ['agt-05-rm-recursive-force',  'rm -fr build'],
-  ['agt-05-git-force-push',      'git push --force origin main'],
-  ['agt-05-git-reset-hard',      'git reset --hard HEAD~3'],
-  ['agt-05-chmod-777',           'chmod -R 777 /srv'],
-  ['agt-05-sql-destructive',     'psql -c "DROP TABLE users"'],
-  ['agt-05-delete-without-where', 'psql -c "DELETE FROM sessions;"'],
-  ['mtk-02-package-install',     'npm install left-pad'],
-  ['mtk-02-package-install',     'pip install requests'],
-  ['dok-03-empty-commit-msg',    'git commit -m "fix stuff"'],
+  ['agent-05-rm-recursive-force',  'rm -rf /var/data'],
+  ['agent-05-rm-recursive-force',  'rm -fr build'],
+  ['agent-05-git-force-push',      'git push --force origin main'],
+  ['agent-05-git-reset-hard',      'git reset --hard HEAD~3'],
+  ['agent-05-chmod-777',           'chmod -R 777 /srv'],
+  ['agent-05-sql-destructive',     'psql -c "DROP TABLE users"'],
+  ['agent-05-delete-without-where', 'psql -c "DELETE FROM sessions;"'],
+  ['logic-02-package-install',     'npm install left-pad'],
+  ['logic-02-package-install',     'pip install requests'],
+  ['doc-03-empty-commit-msg',      'git commit -m "fix stuff"'],
 ];
 
 for (const [key, command] of COMMAND_CASES) {
-  test(`komut yakalar: ${key} — ${command}`, () => {
+  test(`command catches: ${key} — ${command}`, () => {
     const found = scanCommand({ command });
-    assert.ok(ids(found).includes(key), `beklenen ${key}, bulunan: ${ids(found).join(',') || 'hiçbiri'}`);
+    assert.ok(ids(found).includes(key), `expected ${key}, got: ${ids(found).join(',') || 'nothing'}`);
   });
 }
 
-test('yol yakalar: sürüm ekli dosya adı', () => {
-  assert.ok(ids(scanPath({ filePath: 'src/parser_v2.ts' })).includes('kod-01-versioned-filename'));
-  assert.ok(ids(scanPath({ filePath: 'src/utils.old.js' })).includes('kod-01-versioned-filename'));
+test('path catches: version-suffixed filename', () => {
+  assert.ok(ids(scanPath({ filePath: 'src/parser_v2.ts' })).includes('code-01-versioned-filename'));
+  assert.ok(ids(scanPath({ filePath: 'src/utils.old.js' })).includes('code-01-versioned-filename'));
 });
 
-// ── Yanlış pozitif kontrolü: temiz içerik hiçbir bulgu üretmemeli ─────────
+// ── False positive control: clean content must produce nothing ────────────
 
 const CLEAN_CODE = `
 export function parseAmount(raw) {
   try {
     return Number.parseFloat(raw);
   } catch (error) {
-    logger.warn('parseAmount başarısız', { raw, error });
+    logger.warn('parseAmount failed', { raw, error });
     throw error;
   }
 }
 
 async function load(url) {
   const res = await fetch(url).catch((error) => {
-    logger.error('istek başarısız', error);
+    logger.error('request failed', error);
     throw error;
   });
   return res.json();
@@ -97,9 +97,9 @@ async function load(url) {
 const query = 'SELECT id, name FROM users WHERE tenant = $1';
 `;
 
-test('yanlış pozitif yok: doğru yazılmış kod temiz geçer', () => {
+test('no false positives: correctly written code passes clean', () => {
   const found = actionable(scanContent({ filePath: 'clean.js', content: CLEAN_CODE }));
-  assert.deepEqual(ids(found), [], `beklenmedik bulgu: ${JSON.stringify(found.map((f) => [f.key, f.line]))}`);
+  assert.deepEqual(ids(found), [], `unexpected findings: ${JSON.stringify(found.map((f) => [f.key, f.line]))}`);
 });
 
 const CLEAN_COMMANDS = [
@@ -109,105 +109,105 @@ const CLEAN_COMMANDS = [
   'chmod 640 config.yml',
   'psql -c "DELETE FROM sessions WHERE expired_at < now()"',
   'npm run test',
-  'git commit -m "parseAmount NaN girdide sessizce 0 dönüyordu; artık hata fırlatıyor"',
+  'git commit -m "parseAmount silently returned 0 on NaN input; it now throws"',
 ];
 
 for (const command of CLEAN_COMMANDS) {
-  test(`temiz komut geçer: ${command}`, () => {
+  test(`clean command passes: ${command}`, () => {
     assert.deepEqual(scanCommand({ command }).map((f) => f.key), []);
   });
 }
 
-test('bilinmeyen uzantı taranmaz', () => {
+test('an unknown extension is not scanned', () => {
   assert.equal(classify('data.bin'), 'other');
   assert.deepEqual(scanContent({ filePath: 'data.bin', content: 'try{}catch(e){}' }), []);
 });
 
-// ── prose kapsamı: anmak ile kullanmak ayrımı ────────────────────────────
+// ── Prose scope: mentioning versus using ─────────────────────────────────
 
-test('prose: buzzword düz metinde yakalanır', () => {
-  const found = actionable(scanContent({ filePath: 'README.md', content: 'Bu araç seamlessly çalışır.' }));
-  assert.ok(ids(found).includes('dok-01-buzzword'));
+test('prose: a buzzword in plain text is caught', () => {
+  const found = actionable(scanContent({ filePath: 'README.md', content: 'This tool works seamlessly.' }));
+  assert.ok(ids(found).includes('doc-01-buzzword'));
 });
 
-test('prose: backtick içindeki buzzword yakalanmaz — anmak kullanmak değildir', () => {
-  const doc = 'Desen `seamlessly` ifadesini yakalar.\n\n```\nrobust and flexible\n```\n';
+test('prose: a buzzword inside backticks is not caught — mentioning is not using', () => {
+  const doc = 'The pattern catches the word `seamlessly`.\n\n```\nrobust and flexible\n```\n';
   const found = actionable(scanContent({ filePath: 'README.md', content: doc }));
   assert.deepEqual(ids(found), [], JSON.stringify(found.map((f) => [f.key, f.line])));
 });
 
-test('prose: emoji başlık yakalanır, gövdedeki emoji yakalanmaz', () => {
-  const found = actionable(scanContent({ filePath: 'd.md', content: '# 🚀 Başlangıç\n\nMetin içinde 🚀 sorun değil.\n' }));
-  assert.equal(ids(found).filter((k) => k === 'dok-04-emoji-heading').length, 1);
+test('prose: an emoji heading is caught, an emoji in the body is not', () => {
+  const found = actionable(scanContent({ filePath: 'd.md', content: '# 🚀 Getting started\n\nAn emoji 🚀 in the body is fine.\n' }));
+  assert.equal(ids(found).filter((k) => k === 'doc-04-emoji-heading').length, 1);
 });
 
-test('prose: temelsiz süre tahmini yakalanır', () => {
-  const found = actionable(scanContent({ filePath: 'p.md', content: 'Bu iş tahminen 3 gün sürer.\n' }));
-  assert.ok(ids(found).includes('sur-08-effort-estimate'));
+test('prose: an unfounded time estimate is caught', () => {
+  const found = actionable(scanContent({ filePath: 'p.md', content: 'This work takes about 3 days.\n' }));
+  assert.ok(ids(found).includes('proc-08-effort-estimate'));
 });
 
-test('kod dosyasında prose deseni çalışmaz', () => {
+test('prose patterns do not run on source files', () => {
   const found = actionable(scanContent({ filePath: 'a.js', content: 'const s = "seamlessly";' }));
   assert.deepEqual(ids(found), []);
 });
 
-test('stripCodeSpans satır numaralarını kaydırmaz', () => {
-  const src = 'bir\n```\nreddedilen\n```\nseamlessly\n';
+test('stripCodeSpans does not shift line numbers', () => {
+  const src = 'one\n```\nstripped\n```\nseamlessly\n';
   const stripped = stripCodeSpans(src);
   assert.equal(stripped.split('\n').length, src.split('\n').length);
   const found = actionable(scanContent({ filePath: 'x.md', content: src }));
   assert.equal(found[0].line, 5);
 });
 
-// ── Devre dışı bırakma üç düzeyde ────────────────────────────────────────
+// ── Disabling works at three levels ──────────────────────────────────────
 
-test('devre dışı: tekil desen key', () => {
-  const found = actionable(scanContent({ filePath: 'a.js', content: 'try{}catch(e){}', config: { disabled: ['kod-05-empty-catch'] } }));
+test('disabled: a single pattern key', () => {
+  const found = actionable(scanContent({ filePath: 'a.js', content: 'try{}catch(e){}', config: { disabled: ['code-05-empty-catch'] } }));
   assert.deepEqual(ids(found), []);
 });
 
-test('devre dışı: taksonomi ID', () => {
+test('disabled: a taxonomy id', () => {
   const body = 'try { a() } catch (e) {}\nfetch(u).catch(() => {})';
-  assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body, config: { disabled: ['KOD-05'] } }))), []);
+  assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body, config: { disabled: ['CODE-05'] } }))), []);
 });
 
-test('devre dışı: kategori', () => {
+test('disabled: a whole category', () => {
   const body = 'const k = "AKIAIOSFODNN7EXAMPLE"\nconst x = eval(y)';
-  assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body, config: { disabled: ['GUV'] } }))), []);
+  assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body, config: { disabled: ['SEC'] } }))), []);
 });
 
-test('satır ve sütun doğru raporlanır', () => {
-  const body = 'satır bir\nsatır iki\ntry { x() } catch (e) {}\n';
+test('line and column are reported correctly', () => {
+  const body = 'line one\nline two\ntry { x() } catch (e) {}\n';
   const [f] = actionable(scanContent({ filePath: 'a.js', content: body }));
   assert.equal(f.line, 3);
   assert.equal(f.excerpt, 'try { x() } catch (e) {}');
 });
 
-test('sur-08: fiil sondaki Türkçe biçimi de yakalar', () => {
-  const found = actionable(scanContent({ filePath: 'p.md', content: 'Bu iş 3 gün sürer.\n' }));
-  assert.ok(ids(found).includes('sur-08-effort-estimate'));
+test('proc-08 also catches the trailing-verb form', () => {
+  const found = actionable(scanContent({ filePath: 'p.md', content: 'Estimated 3 days of work.\n' }));
+  assert.ok(ids(found).includes('proc-08-effort-estimate'));
 });
 
-test('sur-08: ölçülmüş makine zamanını tahmin sanmaz', () => {
-  for (const line of ['Testler 2 dakika sürer.', '48 saat içinde yanıt veriyoruz.', 'Bu dosya 3 gün önce yazıldı.']) {
+test('proc-08 does not mistake measured machine time for an estimate', () => {
+  for (const line of ['The tests take 2 minutes.', 'We respond within 48 hours.', 'This file was written 3 days ago.']) {
     const found = actionable(scanContent({ filePath: 'p.md', content: line + '\n' }));
     assert.deepEqual(ids(found), [], line);
   }
 });
 
-test('yorumdan ibaret catch de boş catch sayılır', () => {
-  for (const body of ['try{a()}catch{ /* önemsiz */ }', 'try{a()}catch (e) {\n  // yok sayılır\n}']) {
+test('a comment-only catch counts as an empty catch', () => {
+  for (const body of ['try{a()}catch{ /* unimportant */ }', 'try{a()}catch (e) {\n  // ignored\n}']) {
     const found = actionable(scanContent({ filePath: 'a.js', content: body }));
-    assert.ok(ids(found).includes('kod-05-comment-only-catch'), body);
+    assert.ok(ids(found).includes('code-05-comment-only-catch'), body);
   }
 });
 
-test('gerçekten ele alınan catch yakalanmaz', () => {
-  const body = 'try{a()}catch (e) {\n  // ağ hatası beklenen durum\n  logger.warn(e);\n}';
+test('a catch that genuinely handles the error is not caught', () => {
+  const body = 'try{a()}catch (e) {\n  // a network error is expected here\n  logger.warn(e);\n}';
   assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body }))), []);
 });
 
-test('gömülü sır: bileşik adlar da yakalanır', () => {
+test('embedded secrets: compound names are caught too', () => {
   const cases = [
     'const secret_key = "abcdefghijklmnopqrst"',
     'access_token: "abcdefghijklmnopqrst"',
@@ -217,13 +217,13 @@ test('gömülü sır: bileşik adlar da yakalanır', () => {
   ];
   for (const body of cases) {
     const found = actionable(scanContent({ filePath: 'a.js', content: body }));
-    assert.ok(ids(found).includes('guv-03-inline-secret'), body);
+    assert.ok(ids(found).includes('sec-03-inline-secret'), body);
   }
 });
 
-test('gömülü sır: sır olmayan uzun dizeler yakalanmaz', () => {
+test('embedded secrets: long strings that are not secrets are left alone', () => {
   const cases = [
-    'const description = "uzunca bir açıklama metni burada"',
+    'const description = "a fairly long description string here"',
     'const tokenizer = buildTokenizer(options)',
     'const clientName = "abcdefghijklmnopqrst"',
     'const secretsManager = new SecretsManager()',

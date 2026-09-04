@@ -1,15 +1,15 @@
 {
   "name": "lenarise-slopguard",
-  "description": "Agentic kalite koruma: slop desenlerini hook katmanında engeller, insan tarafı sinyallerini sohbette uyarı olarak verir.",
-  "version": "0.3.1",
+  "description": "Quality protection for agentic development: blocks slop patterns in the hook layer and surfaces human-side signals as warnings in chat.",
+  "version": "0.4.0",
   "author": {
     "name": "LenaRise"
   },
   "keywords": [
-    "kalite",
-    "guvenlik",
-    "hook",
+    "quality",
+    "security",
+    "hooks",
     "slop",
-    "kod-incelemesi"
+    "code-review"
   ]
 }

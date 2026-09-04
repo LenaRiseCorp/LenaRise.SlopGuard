@@ -11,7 +11,7 @@ const C = await import('../lib/coach.mjs');
 const { DEFAULT_CONFIG, paths } = await import('../lib/config.mjs');
 const { scanContent } = await import('../lib/scan.mjs');
 
-const SID = 'test-oturum';
+const SID = 'test-session';
 beforeEach(() => rmSync(paths.session(SID), { force: true }));
 
 function captureStderr(fn) {
@@ -21,9 +21,9 @@ function captureStderr(fn) {
   try { return [fn(), buf]; } finally { process.stderr.write = original; }
 }
 
-// ── Kalıcılık ────────────────────────────────────────────────────────────
+// Seeded session state, so thresholds can be crossed deterministically.
 
-test('yeni oturum boş sayaçlarla başlar', () => {
+test('a new session starts with empty counters', () => {
   const s = S.loadSession(SID);
   assert.equal(s.turns, 0);
   assert.equal(s.blocked, 0);
@@ -31,7 +31,7 @@ test('yeni oturum boş sayaçlarla başlar', () => {
   assert.equal(s.version, S.SESSION_VERSION);
 });
 
-test('kaydet ve yeniden yükle: sayaçlar korunur', () => {
+test('save and reload: the counters survive', () => {
   const s = S.loadSession(SID);
   s.turns = 7; s.linesWritten = 420;
   assert.equal(S.saveSession(s), true);
@@ -39,29 +39,29 @@ test('kaydet ve yeniden yükle: sayaçlar korunur', () => {
   assert.equal(S.loadSession(SID).linesWritten, 420);
 });
 
-test('bozuk oturum dosyası sessizce yutulmaz — stderr yazar, sıfırdan başlar', () => {
+test('a corrupt session file is not swallowed — it writes to stderr and starts fresh', () => {
   writeFileSync(paths.session(SID), '{ bozuk');
   const [state, err] = captureStderr(() => S.loadSession(SID));
   assert.equal(state.turns, 0);
-  assert.match(err, /oturum dosyası okunamadı/);
+  assert.match(err, /session file could not be read/);
 });
 
-test('yazma atomik: geçici dosya bırakılmaz', () => {
+test('the write is atomic: no temp file is left behind', () => {
   const s = S.loadSession(SID);
   S.saveSession(s);
   assert.equal(existsSync(`${paths.session(SID)}.${process.pid}.tmp`), false);
   JSON.parse(readFileSync(paths.session(SID), 'utf8'));
 });
 
-test('updateSession oku-değiştir-yaz yapar ve mutator dönüşünü verir', () => {
+test('updateSession reads, mutates, writes and returns the mutator result', () => {
   const turn = S.updateSession(SID, (s) => S.recordTurn(s));
   assert.equal(turn, 1);
   assert.equal(S.loadSession(SID).turns, 1);
 });
 
-// ── Sayaçlar ─────────────────────────────────────────────────────────────
+// Seeded session state, so thresholds can be crossed deterministically.
 
-test('aynı dosyaya ardışık yazma sayılır, başka dosya sayacı sıfırlar', () => {
+test('consecutive writes to one file are counted; another file resets it', () => {
   const s = S.loadSession(SID);
   assert.equal(S.recordWrite(s, 'a.js', { added: 10 }), 1);
   assert.equal(S.recordWrite(s, 'a.js', { added: 5 }), 2);
@@ -71,14 +71,14 @@ test('aynı dosyaya ardışık yazma sayılır, başka dosya sayacı sıfırlar'
   assert.equal(Object.keys(s.filesWritten).length, 2);
 });
 
-test('okunan satır kavrayış borcu için sayılır', () => {
+test('lines read are counted for comprehension debt', () => {
   const s = S.loadSession(SID);
   S.recordRead(s, 60);
   S.recordRead(s, -5);
   assert.equal(s.linesRead, 60, 'negatif değer sayacı bozmamalı');
 });
 
-test('commit sayaçları sıfırlar ve doğrulamayı geçersiz kılar', () => {
+test('a commit resets the counters and invalidates verification', () => {
   const s = S.loadSession(SID);
   S.recordWrite(s, 'a.js', { added: 100, removed: 20 });
   S.recordTestRun(s);
@@ -88,127 +88,127 @@ test('commit sayaçları sıfırlar ve doğrulamayı geçersiz kılar', () => {
   assert.equal(s.testRunAt, null, 'yeni commit yeni doğrulama ister');
 });
 
-// ── İhlal defteri: stop-gate'in dayanağı ────────────────────────────────
+// Seeded session state, so thresholds can be crossed deterministically.
 
-test('ihlal defteri dosya bazlı tazelenir; düzeltilen ihlal kendiliğinden düşer', () => {
+test('the ledger refreshes per file; a fixed violation drops out on its own', () => {
   const s = S.loadSession(SID);
   const kirli = scanContent({ filePath: 'a.js', content: 'try{a()}catch(e){}' });
   assert.equal(S.recordViolations(s, 'a.js', kirli), 1);
   assert.equal(S.openViolations(s).length, 1);
   assert.equal(S.openViolations(s)[0].file, 'a.js');
 
-  const temiz = scanContent({ filePath: 'a.js', content: 'try{a()}catch(e){log(e)}' });
-  assert.equal(S.recordViolations(s, 'a.js', temiz), 0);
+  const clean = scanContent({ filePath: 'a.js', content: 'try{a()}catch(e){log(e)}' });
+  assert.equal(S.recordViolations(s, 'a.js', clean), 0);
   assert.deepEqual(S.openViolations(s), [], 'düzeltilen dosya defterden düşmeli');
 });
 
-test('susturulmuş bulgu deftere girmez ama sayılır', () => {
+test('a silenced finding stays out of the ledger but is counted', () => {
   const s = S.loadSession(SID);
-  const f = scanContent({ filePath: 'a.js', content: '// slop-guard-ignore KOD-05: gerekçe\ntry{a()}catch(e){}' });
+  const f = scanContent({ filePath: 'a.js', content: '// slop-guard-ignore CODE-05: gerekçe\ntry{a()}catch(e){}' });
   assert.equal(S.recordViolations(s, 'a.js', f), 0);
   assert.deepEqual(S.openViolations(s), []);
   assert.equal(s.suppressions, 1);
 });
 
-test('birden çok dosyanın ihlalleri ayrı tutulur', () => {
+test('violations from several files are kept apart', () => {
   const s = S.loadSession(SID);
   S.recordViolations(s, 'a.js', scanContent({ filePath: 'a.js', content: 'try{}catch(e){}' }));
   S.recordViolations(s, 'b.js', scanContent({ filePath: 'b.js', content: 'const k="AKIAIOSFODNN7EXAMPLE"' }));
   assert.equal(S.openViolations(s).length, 2);
   assert.deepEqual(S.openViolations(s).map((v) => v.file).sort(), ['a.js', 'b.js']);
-  assert.equal(s.byCategory.KOD, 1);
-  assert.equal(s.byCategory.GUV, 1);
+  assert.equal(s.byCategory.CODE, 1);
+  assert.equal(s.byCategory.SEC, 1);
 });
 
-test('uyarı oturumda bir kez talep edilebilir', () => {
+test('a warning can be claimed once per session', () => {
   const s = S.loadSession(SID);
   assert.equal(S.claimWarning(s, 'x'), true);
   assert.equal(S.claimWarning(s, 'x'), false);
   assert.equal(S.claimWarning(s, 'y'), true);
 });
 
-test('oturum özeti ölçüm verir, beyan değil', () => {
+test('the session summary reports measurement, not assertion', () => {
   const s = S.loadSession(SID);
   s.turns = 12; s.linesWritten = 420; s.blocked = 3; s.suppressions = 2;
   S.recordWrite(s, 'a.js');
   const text = S.sessionSummary(s);
-  assert.match(text, /12 tur/);
-  assert.match(text, /420 satır yazıldı/);
-  assert.match(text, /3 engellenen slop/);
-  assert.match(text, /2 muafiyet kullanıldı/);
+  assert.match(text, /12 turns/);
+  assert.match(text, /420 lines written/);
+  assert.match(text, /3 slop blocked/);
+  assert.match(text, /2 waivers used/);
 });
 
-// ── Koç katmanı: sahte oturum durumuyla eşikler ─────────────────────────
+// Seeded session state, so thresholds can be crossed deterministically.
 
 const cfg = { thresholds: { ...DEFAULT_CONFIG.thresholds } };
 
-test('bağlam çürümesi eşiği tur sayacıyla tetiklenir (AGT-01)', () => {
+test('the context rot threshold fires on the turn counter (AGENT-01)', () => {
   const s = S.loadSession(SID);
   s.turns = cfg.thresholds.contextTurns - 1;
   assert.deepEqual(C.evaluate(s, cfg), []);
   s.turns = cfg.thresholds.contextTurns;
   const w = C.evaluate(s, cfg);
   assert.equal(w.length, 1);
-  assert.equal(w[0].pattern, 'AGT-01');
-  assert.match(w[0].message, /40 tura ulaştı/);
+  assert.equal(w[0].pattern, 'AGENT-01');
+  assert.match(w[0].message, /reached 40 turns/);
 });
 
-test('uyarı oturumda yalnızca bir kez çıkar', () => {
+test('a warning appears only once per session', () => {
   const s = S.loadSession(SID);
   s.turns = 100;
   assert.equal(C.evaluate(s, cfg).length, 1);
   assert.equal(C.evaluate(s, cfg).length, 0, 'ikinci kez çıkmamalı');
 });
 
-test('kavrayış borcu yazılan eksi okunan ile ölçülür (INS-01)', () => {
+test('comprehension debt is measured as written minus read (HUMAN-01)', () => {
   const s = S.loadSession(SID);
   s.linesWritten = 800; s.linesRead = 400;
   assert.deepEqual(C.evaluate(s, cfg), [], '400 fark eşiğin altında');
   s.linesRead = 60;
   const w = C.evaluate(s, cfg);
-  assert.equal(w[0].pattern, 'INS-01');
-  assert.match(w[0].message, /800 satır üretildi, 60 satır okundu/);
+  assert.equal(w[0].pattern, 'HUMAN-01');
+  assert.match(w[0].message, /800 lines produced, 60 lines read/);
 });
 
-test('commitsiz ilerleme eşiği (AGT-06)', () => {
+test('the uncommitted progress threshold (AGENT-06)', () => {
   const s = S.loadSession(SID);
   s.linesSinceCommit = 300;
-  assert.equal(C.evaluate(s, cfg)[0].pattern, 'AGT-06');
+  assert.equal(C.evaluate(s, cfg)[0].pattern, 'AGENT-06');
 });
 
-test('zincirleme düzeltme eşiği (MTK-05)', () => {
+test('the cascading-patch threshold (LOGIC-05)', () => {
   const s = S.loadSession(SID);
   s.lastEditedFile = 'parser.ts'; s.consecutiveEdits = 3;
   const w = C.evaluate(s, cfg);
-  assert.equal(w[0].pattern, 'MTK-05');
+  assert.equal(w[0].pattern, 'LOGIC-05');
   assert.match(w[0].message, /parser\.ts/);
 });
 
-test('eşik config ile değiştirilebilir', () => {
+test('a threshold can be changed through the configuration', () => {
   const s = S.loadSession(SID);
   s.turns = 5;
   assert.deepEqual(C.evaluate(s, cfg), []);
   assert.equal(C.evaluate(s, { thresholds: { ...cfg.thresholds, contextTurns: 5 } }).length, 1);
 });
 
-test('birden çok eşik aynı anda aşılırsa hepsi raporlanır', () => {
+test('several thresholds crossed at once are all reported', () => {
   const s = S.loadSession(SID);
   s.turns = 50; s.linesSinceCommit = 900;
   assert.equal(C.evaluate(s, cfg).length, 2);
 });
 
-test('commit öncesi doğrulama her seferinde sorulur (TST-05)', () => {
+test('the pre-commit verification is asked every time (TEST-05)', () => {
   const s = S.loadSession(SID);
-  assert.equal(C.verifyBeforeCommit(s).pattern, 'TST-05');
-  assert.equal(C.verifyBeforeCommit(s).pattern, 'TST-05', 'bir kez kuralının dışında');
+  assert.equal(C.verifyBeforeCommit(s).pattern, 'TEST-05');
+  assert.equal(C.verifyBeforeCommit(s).pattern, 'TEST-05', 'bir kez kuralının dışında');
   S.recordTestRun(s);
   assert.equal(C.verifyBeforeCommit(s), null, 'test çalıştıysa sormaz');
 });
 
-test('uyarılar tek systemMessage gövdesinde birleşir', () => {
+test('warnings merge into one systemMessage body', () => {
   assert.equal(C.formatWarnings([]), '');
-  const one = C.formatWarnings([{ message: 'tek uyarı' }]);
-  assert.match(one, /^LenaRise\.SlopGuard\n\n {2}· tek uyarı$/);
-  const two = C.formatWarnings([{ message: 'bir' }, { message: 'iki' }]);
-  assert.match(two, /2 uyarı/);
+  const one = C.formatWarnings([{ message: 'single notice' }]);
+  assert.match(one, /^LenaRise\.SlopGuard\n\n {2}· single notice$/);
+  const two = C.formatWarnings([{ message: 'one' }, { message: 'two' }]);
+  assert.match(two, /2 notices/);
 });

@@ -1,14 +1,14 @@
 ---
-description: SlopGuard ayarlarını değiştir (eşik, kapatılan desen, güvenilen paket)
-argument-hint: "[ne yapmak istediğin]"
+description: Change SlopGuard settings (thresholds, disabled patterns, trusted packages)
+argument-hint: "[what you want to change]"
 allowed-tools: Bash(node:*), Read, Edit, Write
 ---
 
-Kullanıcının isteği: $ARGUMENTS
+The user's request: $ARGUMENTS
 
-`slop-config` skill'ini kullan. Skill tam şemayı, niyet → eylem eşlemesini ve
-güvenlik kurallarını taşır.
+Use the `slop-config` skill. It carries the full schema, the intent-to-action
+mapping and the safety rules.
 
-Değişiklikten önce mevcut durumu göster:
+Show the current state before changing anything:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/status.mjs"`

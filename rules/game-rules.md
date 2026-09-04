@@ -1,28 +1,27 @@
-## Oyun geliştirme (OYN)
+## Game development (GAME)
 
-Bu bölüm yalnızca oyun projelerinde yüklenir; motor imzası bulunmazsa hiç
-enjekte edilmez.
+This section loads only in game projects; with no engine signature it is never
+injected.
 
-- **Kare hızına bağlı kod yazma.** Hareket, sayaç ve yumuşatma `Time.deltaTime`
-  ile ölçeklenir. Ölçeklenmemiş kod 30 fps'de doğru, 144 fps'de bozuk çalışır —
-  ve bu, test edilen makinede görünmez.
-- **Sıcak yolda arama yapma.** `GameObject.Find`, `FindObjectOfType`,
-  `GetComponent`, `Camera.main` her karede çağrılmaz. Referansı `Awake` içinde
-  bir kez çöz ya da `[SerializeField]` ile bağla.
-- **Fiziği fizik adımında yürüt.** `Rigidbody` işlemleri `FixedUpdate` içine
-  gider; `Update` içinde kare hızına göre kayar.
-- **Sıcak yolda tahsis yapma.** Her karede LINQ, yeni koleksiyon ya da dize
-  birleştirme çöp üretir ve takılma olarak görünür.
-- **İstemciye güvenme.** Para, puan, ilerleme ve satın alma durumu `PlayerPrefs`
-  gibi düz metin depolarda tutulmaz; oyuncu onu düzenleyebilir.
-- **Sahne ağacına yol yazma.** `get_node("../../Player")` düğüm taşınınca
-  sessizce kopar. Dışa aktarılmış `NodePath` ya da sinyal kullan.
-- **Motor üretimi dosyalara dokunma.** `.meta`, `.uasset`, `.umap`, `.tscn`,
-  `Library/`, `Intermediate/` — bunları motor üretir. Elle düzenlenen bir
-  `.meta` sahnedeki tüm referansları koparır ve bozulma commit'ten çok sonra
-  fark edilir.
-- **Determinizm gerektiren yerde tohumsuz rastgelelik kullanma.** Tekrar
-  oynatma, ağ senkronu ve prosedürel üretim aynı tohumla aynı sonucu vermeli.
-- **Oyun dengesi değerlerini koda gömme.** Hasar, hız, fiyat ve süre kodda
-  sabit durursa tasarımcı onları değiştiremez; veri dosyasına ya da
-  ScriptableObject'e taşı.
+- **Do not write frame-rate dependent code.** Motion, timers and smoothing are
+  scaled by `Time.deltaTime`. Unscaled code is correct at 30 fps and broken at
+  144 — and that is invisible on the machine it was tested on.
+- **Do not search on the hot path.** `GameObject.Find`, `FindObjectOfType`,
+  `GetComponent` and `Camera.main` are not called every frame. Resolve the
+  reference once in `Awake`, or wire it with `[SerializeField]`.
+- **Run physics on the physics step.** `Rigidbody` work belongs in `FixedUpdate`;
+  inside `Update` it drifts with the frame rate.
+- **Do not allocate on the hot path.** LINQ, a new collection or string
+  concatenation every frame produces garbage and shows up as hitching.
+- **Do not trust the client.** Currency, score, progression and purchase state do
+  not live in plain-text stores such as `PlayerPrefs`; the player can edit them.
+- **Do not hardcode paths into the scene tree.** `get_node("../../Player")`
+  breaks silently when a node moves. Use an exported `NodePath` or a signal.
+- **Do not touch engine-generated files.** `.meta`, `.uasset`, `.umap`, `.tscn`,
+  `Library/`, `Intermediate/` — the engine writes these. A hand-edited `.meta`
+  breaks every reference in the scene, and the damage surfaces long after the commit.
+- **Do not use unseeded randomness where determinism matters.** Replays, network
+  sync and procedural generation must produce the same result from the same seed.
+- **Do not bury balance values in code.** Damage, speed, price and duration
+  hardcoded in source cannot be tuned by a designer; move them into data or a
+  ScriptableObject.

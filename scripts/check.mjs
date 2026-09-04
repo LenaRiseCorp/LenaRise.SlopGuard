@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * /slop-check [yol...] — talep üzerine tarama.
+ * /slop-check [path...] — scan on demand.
  *
- * Git deposunda: değişmiş dosyalar (yoksa izlenenlerin tamamı).
- * Sıradan bir klasörde: dosya sistemi yürünür. Komut bir depo içinde
- * çalıştırılmak zorunda değil — birden çok proje barındıran bir üst dizinde
- * de anlamlı, ve orada çalışmaması yapay bir kısıt olurdu.
+ * In a git repository: changed files, or every tracked file when nothing has
+ * changed. In a plain folder: the filesystem is walked. The command does not
+ * have to run inside a repository — it is meaningful in a parent directory
+ * holding several projects, and refusing to work there would be an artificial limit.
  */
 
 import { statSync } from 'node:fs';
@@ -23,7 +23,7 @@ function expand(target) {
   try {
     info = statSync(full);
   } catch (error) {
-    process.stderr.write(`${BRAND}: bulunamadı ${target} — ${error.message}\n`);
+    process.stderr.write(`${BRAND}: not found ${target} — ${error.message}\n`);
     return [];
   }
   if (info.isFile()) return [relative(root, full)];
@@ -40,7 +40,7 @@ if (args.length > 0) {
 }
 
 if (files.length === 0) {
-  process.stdout.write(`${BRAND}: taranacak dosya yok.\n`);
+  process.stdout.write(`${BRAND}: nothing to scan.\n`);
   process.exit(0);
 }
 

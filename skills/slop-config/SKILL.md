@@ -1,164 +1,165 @@
 ---
 name: slop-config
-description: LenaRise.SlopGuard ayarlarını değiştirmek için kullan — kullanıcı bir uyarının sürekli çıktığını, çok fazla bloklandığını, eşiğin dar geldiğini, bir paketin engellendiğini, test dosyalarına yazılamadığını söylediğinde ya da yeni desen eklemek, kendi kuralını yazmak, bir repoda korumayı kapatmak istediğinde. Ayrıca "prototip yapıyorum", "bu desen gürültülü", "şunu da yakalasın" gibi ifadelerde.
+description: Use this to change LenaRise.SlopGuard settings — when the user says a warning keeps appearing, that it blocks too much, that a threshold is too tight, that a package is being refused, that they cannot write test files, or when they want to add a pattern, write their own rule, or turn protection off for one repository. Also for phrases like "I am prototyping", "this pattern is noisy", "catch this too".
 ---
 
-# LenaRise.SlopGuard yapılandırması
+# LenaRise.SlopGuard configuration
 
-## Önce şunu bil
+## Know this first
 
-**Plugin dizinini asla düzenleme.** Güncelleme oradaki her şeyi siler.
-Tüm düzenleme `~/.claude/lenarise-slopguard/` içine yapılır; bu dizine
-güncelleme dokunmaz.
+**Never edit the plugin directory.** An update deletes everything in it. All
+edits go into `~/.claude/lenarise-slopguard/`, which an update never touches.
 
-| Dosya | Ne için |
+| File | Purpose |
 |---|---|
-| `config.json` | kip, eşikler, kapatılan desenler, güvenilen paketler |
-| `patterns.local.json` | senin eklediğin desenler |
-| `rules.local.md` | serbest metin kuralların; her oturum başında enjekte edilir |
-| `<repo>/.slopignore` | proje bazlı yol muafiyeti |
+| `config.json` | mode, thresholds, disabled patterns, trusted packages |
+| `patterns.local.json` | patterns you add |
+| `rules.local.md` | free-text rules, injected at the start of every session |
+| `<repo>/.slopignore` | per-project path exemptions |
 
-Oturum kipi (`/slop-mode`) hiçbir dosyaya yazmaz — yalnızca o oturumu etkiler.
+The session mode (`/slop-mode`) writes to no file — it affects that session only.
 
-## Niyet → eylem
+## Intent to action
 
-| Kullanıcı ne der | Ne anlama gelir | Ne yap |
+| What the user says | What it means | What you do |
 |---|---|---|
-| "bu uyarı sürekli çıkıyor" | desen gürültülü | `config.json` → `disabled` listesine desen ID'si ekle |
-| "çok fazla blokluyor" | sert kip ağır | Önce `/slop-status` ile hangi ID'lerin tetiklendiğini göster, sonra hedefli kapat. Tümünü gevşetme |
-| "prototip yapıyorum" | geçici gevşetme | `/slop-mode explore` — kalıcı config'e dokunma |
-| "test dosyalarına yazabilmeli" | TST kilidi engel | `config.json` → `allowTestWrites: true`. Gerekçesini sor ve `rules.local.md`'ye not düş |
-| "şu paketi hep engelliyor" | paket kapısı takıldı | Paketin gerçekten var olduğunu doğrula, sonra `trustedPackages`'a ekle |
-| "diff sınırı küçük" | eşik dar | `config.json` → `thresholds.maxDiffLines` |
-| "şunu da yakalasın" | yeni desen | `patterns.local.json`'a ekle, **önce boru testiyle dene** |
-| "kendi kuralımı ekle" | kişisel kural | `rules.local.md`'ye ekle, kısa tut |
-| "bu repoda hiç çalışmasın" | proje muafiyeti | Repo kökünde `.slopignore` |
-| "ne durumdayım" | görünürlük | `/slop-status` |
-| "çubuk görünmüyor / yanlış" | görünürlük ayarı | `config.json` → `ui.statusLine`; kayıt sorunuysa `/slop-doctor` |
+| "this warning keeps coming up" | the pattern is noisy | add the pattern id to `disabled` in `config.json` |
+| "it blocks too much" | strict mode feels heavy | first show which ids are firing with `/slop-status`, then disable them specifically. Do not loosen everything |
+| "I am prototyping" | a temporary relaxation | `/slop-mode explore` — leave the persistent config alone |
+| "it should let me write test files" | the TEST lock is in the way | `allowTestWrites: true` in `config.json`. Ask for the reason and note it |
+| "it keeps blocking this package" | the package gate tripped | verify the package really exists, then add it to `trustedPackages` |
+| "the diff limit is too small" | the threshold is tight | `thresholds.maxDiffLines` in `config.json` |
+| "it should catch this too" | a new pattern | add it to `patterns.local.json`, and **test it first** |
+| "add my own rule" | a personal rule | add it to `rules.local.md`, keep it short |
+| "turn it off for this repo" | a project exemption | `.slopignore` at the repository root |
+| "where do I stand" | visibility | `/slop-status` |
+| "the bar is missing or wrong" | a visibility setting | `ui.statusLine` in `config.json`; if it is a registration problem, `/slop-doctor` |
 
-## Güvenlik kuralları
+## Safety rules
 
-Bunlar tercih değil, kural:
+These are rules, not preferences:
 
-1. **Bir deseni kapatırken neyi kaybettiğini söyle.** Örnek: "GUV-03'ü
-   kapatırsan kaynak koda gömülen API anahtarları artık yakalanmaz."
-2. **GUV kategorisini kapatmayı kendiliğinden önerme.** Kullanıcı açıkça
-   isterse yap, ama riski yaz.
-3. **Düzenlemeden önce yedekle**, sonra JSON'u doğrula:
-   `cp config.json config.json.yedek && jq -e . config.json`
-4. **En dar değişikliği yap.** Tek desen yeterken kategoriyi kapatma;
-   kategori yeterken kipi değiştirme.
-5. **Yeniden başlatma gerekip gerekmediğini söyle.** `config.json`,
-   `patterns.local.json` ve `.slopignore` anında geçerli olur. `hooks.json`
-   ve manifest değişiklikleri Claude Code'un yeniden başlatılmasını ister.
-6. **Muafiyeti kendiliğinden önerme.** Önce düzeltmeyi dene. Satır içi
-   muafiyet ancak desen gerçekten yanlış pozitifse ve kullanıcı onaylarsa
-   yazılır — ID ve gerekçe zorunlu, ikisinden biri eksikse susturmaz.
+1. **When disabling a pattern, say what is lost.** For example: "disabling SEC-03
+   means API keys committed to source will no longer be caught."
+2. **Never propose disabling the SEC category on your own initiative.** Do it if
+   the user explicitly asks, and write down the risk.
+3. **Back up before editing**, then validate the JSON:
+   `cp config.json config.json.backup && jq -e . config.json`
+4. **Make the narrowest change that works.** Do not disable a category when one
+   pattern is enough; do not change the mode when a category is enough.
+5. **Say whether a restart is needed.** `config.json`, `patterns.local.json` and
+   `.slopignore` take effect immediately. Changes to `hooks.json` or the manifest
+   require Claude Code to be restarted.
+6. **Do not propose a waiver on your own initiative.** Try the fix first. An
+   inline waiver is written only when the pattern really is a false positive and
+   the user agrees — the id and the reason are both required, and without either
+   it silences nothing.
 
-## config.json şeması
+## config.json schema
 
-<!-- ÜRETİLEN: config-şeması -->
-| Alan | Varsayılan | Ne yapar |
+<!-- GENERATED: config-schema -->
+| Field | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | `false` yapılırsa tüm koruma durur, çubuk "kapalı" gösterir |
-| `mode` | `"strict"` | `strict` engeller, `explore` yalnızca uyarır (geri dönüşsüz komutlar hariç) |
-| `disabled` | `[]` | Kategori (`GUV`), taksonomi ID (`GUV-03`) ya da desen anahtarı |
-| `trustedPackages` | `[]` | Kayıt defterine sorulmadan geçen paket adları |
-| `allowTestWrites` | `false` | `true` yapılırsa test dosyalarına yazma kilidi açılır (TST-01) |
-| `thresholds.maxDiffLines` | `400` | Stop kapısı: son commit'ten beri değişen satır eşiği (SUR-02) |
-| `thresholds.contextTurns` | `40` | Koç uyarısı: oturum tur eşiği (AGT-01) |
-| `thresholds.contextUsedPercent` | `75` | Bağlam doluluk oranı eşiği; durum çubuğu ölçer (AGT-01) |
-| `thresholds.comprehensionGap` | `500` | Koç uyarısı: yazılan eksi okunan satır farkı (INS-01) |
-| `thresholds.uncommittedLines` | `300` | Koç uyarısı: commit'siz biriken satır (AGT-06) |
-| `thresholds.consecutiveFixes` | `3` | Koç uyarısı: aynı dosyaya ardışık düzeltme (MTK-05) |
-| `thresholds.packageCheckTimeoutMs` | `2500` | Paket kayıt defteri sorgusu; aşılırsa engeller (GUV-02) |
-| `thresholds.maxStopBlocks` | `2` | Aynı gerekçeyle en fazla kaç kez bloklanır (AGT-08) |
+| `enabled` | `true` | Setting it to `false` stops all protection; the bar reads "off" |
+| `mode` | `"strict"` | `strict` blocks, `explore` only warns (except irreversible commands) |
+| `disabled` | `[]` | A category (`SEC`), a taxonomy id (`SEC-03`) or a pattern key |
+| `trustedPackages` | `[]` | Package names that pass without a registry lookup |
+| `allowTestWrites` | `false` | `true` unlocks writing to test files (TEST-01) |
+| `thresholds.maxDiffLines` | `400` | Stop gate: lines changed since the last commit (PROC-02) |
+| `thresholds.contextTurns` | `40` | Coach warning: session turn threshold (AGENT-01) |
+| `thresholds.contextUsedPercent` | `75` | Context fill ratio threshold; measured by the status line (AGENT-01) |
+| `thresholds.comprehensionGap` | `500` | Coach warning: lines written minus lines read (HUMAN-01) |
+| `thresholds.uncommittedLines` | `300` | Coach warning: lines accumulated without a commit (AGENT-06) |
+| `thresholds.consecutiveFixes` | `3` | Coach warning: consecutive patches to the same file (LOGIC-05) |
+| `thresholds.packageCheckTimeoutMs` | `2500` | Package registry lookup; exceeding it blocks (SEC-02) |
+| `thresholds.maxStopBlocks` | `2` | How often the same reason may block before the gate opens (AGENT-08) |
 | `ui.statusLine` | `"compact"` | `compact` · `minimal` · `off` |
-| `ui.cleanScans` | `"silent"` | `silent` · `summary` — temiz taramada bildirim |
-| `ui.heartbeat` | `true` | oturum başı tek satır onay |
-| `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — plugin yanıt vermediğinde davranış |
-| `ui.chatStatus` | `0` | `0` kapalı; `N` her N turda bir sohbete durum satırı. Durum çubuğunun görünmediği ortamlar için |
-<!-- /ÜRETİLEN: config-şeması -->
+| `ui.cleanScans` | `"silent"` | `silent` · `summary` — whether a clean scan is announced |
+| `ui.heartbeat` | `true` | one-line confirmation on the first turn |
+| `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — behaviour when the plugin does not respond |
+| `ui.chatStatus` | `0` | `0` off; `N` posts a status row in chat every N turns, for places the status line is not visible |
+<!-- /GENERATED: config-schema -->
 
-## patterns.local.json şeması
+## patterns.local.json schema
 
 ```json
 {
   "patterns": [
     {
-      "key": "benzersiz-kisa-ad",
-      "id": "KOD-03",
+      "key": "unique-short-name",
+      "id": "CODE-03",
       "scope": "code",
       "severity": "warn",
-      "match": "TODO\\s*\\(acil\\)",
+      "match": "TODO\\s*\\(urgent\\)",
       "flags": "gi",
-      "detects": "Ne yakaladığı, tek cümle.",
-      "fix": "Ne yapılması gerektiği, tek cümle."
+      "detects": "What it catches, one sentence.",
+      "fix": "What should be done, one sentence."
     }
   ]
 }
 ```
 
-| Alan | Zorunlu | Not |
+| Field | Required | Note |
 |---|---|---|
-| `key` | evet | benzersiz; `disabled` listesinde bununla kapatılır |
-| `id` | evet | taksonomi ID'si; mesajda bu görünür |
-| `scope` | evet | `code` · `prose` · `path` · `command` |
-| `match` | evet | JSON dizesi olarak regex — ters bölüler **iki kez** kaçışlanır |
-| `severity` | hayır | `block` (varsayılan) veya `warn` |
-| `flags` | hayır | varsayılan `g` |
-| `detects` / `fix` | hayır | yazılması şiddetle önerilir; mesajda görünür |
+| `key` | yes | unique; this is what `disabled` uses to switch it off |
+| `id` | yes | taxonomy id; this is what appears in the message |
+| `scope` | yes | `code` · `prose` · `path` · `command` |
+| `match` | yes | a regex as a JSON string — backslashes are escaped **twice** |
+| `severity` | no | `block` (default) or `warn` |
+| `flags` | no | defaults to `g` |
+| `detects` / `fix` | no | strongly recommended; they appear in the message |
 
-`match` yazarken en sık hata kaçış katmanıdır. Yazdıktan sonra **mutlaka** dene:
+The most common mistake when writing `match` is the escaping layer. After writing
+it, **always** try it:
 
 ```bash
-node -e 'import("/YOL/lib/config.mjs").then(m=>{const r=m.loadConfig({});console.log(r.problems,r.config.localPatterns.map(p=>[p.key,String(p.match)]))})'
+node -e 'import("/PATH/lib/config.mjs").then(m=>{const r=m.loadConfig({});console.log(r.problems,r.config.localPatterns.map(p=>[p.key,String(p.match)]))})'
 ```
 
-Sorun listesi boş değilse desen yüklenmemiştir. Sessizce bırakma.
+If the problem list is not empty the pattern did not load. Do not leave it at that.
 
-## Desen kataloğu
+## Pattern catalogue
 
-<!-- ÜRETİLEN: desen-kataloğu -->
-| ID | Kanonik ad | Desen anahtarı | Kapsam | Sertlik | Ne yakalar |
-|---|---|---|---|---|---|
-| AGT-05 | Gereğinden fazla yetki | `agt-05-chmod-777` | kabuk komutu | engeller | Herkese yazma izni. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-delete-without-where` | kabuk komutu | engeller | WHERE siz DELETE — tablonun tamamını siler. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-git-force-push` | kabuk komutu | engeller | Zorlamalı push — başkasının işini siler. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-git-reset-hard` | kabuk komutu | engeller | Commit edilmemiş çalışma sert sıfırlanıyor. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-rm-recursive-force` | kabuk komutu | engeller | Özyinelemeli zorlamalı silme — geri dönüşü yok. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-sql-destructive` | kabuk komutu | engeller | Yıkıcı şema komutu. |
-| DOK-01 | Şişkin, buzzword dolu doküman | `dok-01-buzzword` | metin dosyası | uyarır | İçerik taşımayan pazarlama dili. |
-| DOK-03 | İçi boş commit mesajı ve PR açıklaması | `dok-03-empty-commit-msg` | kabuk komutu | uyarır | İçi boş commit mesajı — neyin neden değiştiğini söylemiyor. |
-| DOK-04 | Emoji ve başlık enflasyonu | `dok-04-emoji-heading` | metin dosyası | uyarır | Emoji ile başlayan başlık. |
-| GUV-01 | Güvensiz varsayılanı seçmek | `guv-01-eval` | kaynak dosya | engeller | Dinamik kod yürütme. |
-| GUV-03 | Gömülü sırlar ve uydurma kimlik bilgileri | `guv-03-aws-key` | kaynak dosya | engeller | AWS erişim anahtarı kimliği. |
-| GUV-03 | Gömülü sırlar ve uydurma kimlik bilgileri | `guv-03-inline-secret` | kaynak dosya | engeller | Kaynak koda gömülü sır. |
-| GUV-03 | Gömülü sırlar ve uydurma kimlik bilgileri | `guv-03-private-key` | kaynak dosya | engeller | Gömülü özel anahtar. |
-| GUV-05 | Girdi doğrulama eksikliği | `guv-05-sql-concat` | kaynak dosya | engeller | SQL sorgusunun dize birleştirmeyle kurulması — enjeksiyon yüzeyi. |
-| GUV-05 | Girdi doğrulama eksikliği | `guv-05-sql-fstring` | kaynak dosya | engeller | f-string ile kurulan SQL — enjeksiyon yüzeyi. |
-| KOD-01 | Kopyala-yapıştır çoğalması | `kod-01-versioned-filename` | dosya yolu | engeller | Sürüm ekli dosya adı — eskisinin yanına yenisi yazılıyor. |
-| KOD-04 | Guard-and-Go: silmek yerine sarmalamak | `kod-04-guard-and-go` | kaynak dosya | uyarır | Ölü dala alınmış kod — silmek yerine sarmalanmış. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-catch-noop` | kaynak dosya | engeller | Boş .catch() — reddedilen promise sessizce yutuluyor. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-comment-only-catch` | kaynak dosya | engeller | Yalnızca yorum içeren catch gövdesi — hata yine yutuluyor. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-empty-catch` | kaynak dosya | engeller | Boş catch gövdesi — hata yakalanıp yutuluyor. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-except-pass` | kaynak dosya | engeller | except: pass — istisna sessizce yutuluyor. |
-| MTK-02 | Var olmayan paket önerisi | `mtk-02-package-install` | kabuk komutu | engeller | Paket kurulumu — adı doğrulanmadan kurulursa slopsquatting yüzeyi (GUV-02). |
-| OYN-01 | Kare hızına bağlı hareket | `oyn-01-framerate-bagimli-hareket` | kaynak dosya | uyarır | Hareket kare hızına bağlı — Time.deltaTime ile ölçeklenmemiş. |
-| OYN-02 | Her karede sahne araması | `oyn-02-her-karede-sahne-aramasi` | kaynak dosya | uyarır | Kare döngüsünde sahne araması ya da bileşen çözümlemesi. |
-| OYN-03 | Fiziğin kare döngüsünde yürütülmesi | `oyn-03-fizik-update-icinde` | kaynak dosya | uyarır | Fizik çağrısı Update içinde — fizik adımıyla senkron değil. |
-| OYN-04 | Sıcak yolda bellek tahsisi | `oyn-04-sicak-yolda-tahsis` | kaynak dosya | uyarır | Kare döngüsünde LINQ — her karede çöp üretir, takılma yaratır. |
-| OYN-05 | Her karede günlük yazımı | `oyn-05-her-karede-gunluk` | kaynak dosya | uyarır | Her karede günlük yazımı — editörde kare süresini gözle görülür düşürür. |
-| OYN-06 | İstemcide tutulan ekonomi ve ilerleme | `oyn-06-istemcide-ekonomi` | kaynak dosya | engeller | Ekonomi ya da ilerleme değeri istemcide saklanıyor (GUV-04). |
-| OYN-07 | Kırılgan sahne ağacı yolu | `oyn-07-kirilgan-dugum-yolu` | kaynak dosya | uyarır | Göreli sahne ağacı yolu — düğüm taşınınca sessizce kopar. |
-| SUR-08 | Temelsiz efor ve süre tahmini | `sur-08-effort-estimate` | metin dosyası | engeller | Ölçülemeyen süre tahmini. |
-| TST-01 | Testi silmek veya zayıflatmak | `tst-01-skipped-test` | kaynak dosya | engeller | Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. |
-| TST-03 | Sahte implementasyon | `tst-03-fake-impl` | kaynak dosya | uyarır | Sahte implementasyon — imza var, gövde yok. |
-| TST-04 | Totolojik test | `tst-04-tautological-assert` | kaynak dosya | engeller | Her koşulda geçen totolojik iddia — hiçbir şey doğrulamıyor. |
-<!-- /ÜRETİLEN: desen-kataloğu -->
+<!-- GENERATED: pattern-catalogue -->
+| ID | Pattern key | Scope | Severity | What it catches |
+|---|---|---|---|---|
+| AGENT-05 | `agent-05-chmod-777` | shell command | blocks | World-writable permissions. |
+| AGENT-05 | `agent-05-delete-without-where` | shell command | blocks | DELETE without WHERE — it empties the table. |
+| AGENT-05 | `agent-05-git-force-push` | shell command | blocks | Force push — it erases someone else’s work. |
+| AGENT-05 | `agent-05-git-reset-hard` | shell command | blocks | Uncommitted work is being hard-reset away. |
+| AGENT-05 | `agent-05-rm-recursive-force` | shell command | blocks | Recursive forced delete — there is no undo. |
+| AGENT-05 | `agent-05-sql-destructive` | shell command | blocks | Destructive schema command. |
+| CODE-01 | `code-01-versioned-filename` | file path | blocks | Version-suffixed filename — a new copy placed beside the old one. |
+| CODE-04 | `code-04-guard-and-go` | source file | warns | Code parked on a dead branch — wrapped instead of deleted. |
+| CODE-05 | `code-05-catch-noop` | source file | blocks | Empty .catch() — the rejected promise is silently swallowed. |
+| CODE-05 | `code-05-comment-only-catch` | source file | blocks | Catch body containing only comments — the error is still swallowed. |
+| CODE-05 | `code-05-empty-catch` | source file | blocks | Empty catch body — the error is caught and swallowed. |
+| CODE-05 | `code-05-except-pass` | source file | blocks | except: pass — the exception is silently swallowed. |
+| DOC-01 | `doc-01-buzzword` | text file | warns | Marketing language carrying no information. |
+| DOC-03 | `doc-03-empty-commit-msg` | shell command | warns | Empty commit message — it does not say what changed or why. |
+| DOC-04 | `doc-04-emoji-heading` | text file | warns | Heading that opens with an emoji. |
+| GAME-01 | `game-01-framerate-dependent-motion` | source file | warns | Motion is frame-rate dependent — not scaled by Time.deltaTime. |
+| GAME-02 | `game-02-scene-lookup-per-frame` | source file | warns | Scene lookup or component resolution inside the frame loop. |
+| GAME-03 | `game-03-physics-in-update` | source file | warns | Physics call inside Update — not synchronised with the physics step. |
+| GAME-04 | `game-04-hot-path-allocation` | source file | warns | LINQ inside the frame loop — garbage every frame, visible as hitching. |
+| GAME-05 | `game-05-logging-per-frame` | source file | warns | Logging every frame — measurably lowers frame time in the editor. |
+| GAME-06 | `game-06-client-side-economy` | source file | blocks | Economy or progression value stored on the client (SEC-04). |
+| GAME-07 | `game-07-fragile-node-path` | source file | warns | Relative scene tree path — it breaks silently when a node moves. |
+| LOGIC-02 | `logic-02-package-install` | shell command | blocks | Package install — installing an unverified name is a slopsquatting surface (SEC-02). |
+| PROC-08 | `proc-08-effort-estimate` | text file | blocks | A time estimate that cannot be measured. |
+| SEC-01 | `sec-01-eval` | source file | blocks | Dynamic code execution. |
+| SEC-03 | `sec-03-aws-key` | source file | blocks | AWS access key ID. |
+| SEC-03 | `sec-03-inline-secret` | source file | blocks | Secret committed to source. |
+| SEC-03 | `sec-03-private-key` | source file | blocks | Private key embedded in a file. |
+| SEC-05 | `sec-05-sql-concat` | source file | blocks | SQL built by string concatenation — an injection surface. |
+| SEC-05 | `sec-05-sql-fstring` | source file | blocks | SQL built with an f-string — an injection surface. |
+| TEST-01 | `test-01-skipped-test` | source file | blocks | A skipped test — the shortest route from red to green. |
+| TEST-03 | `test-03-fake-impl` | source file | warns | Fake implementation — a signature with no body. |
+| TEST-04 | `test-04-tautological-assert` | source file | blocks | An assertion that passes under every condition — it verifies nothing. |
+<!-- /GENERATED: pattern-catalogue -->
 
-## Değişiklikten sonra
+## After a change
 
-1. `jq -e . <dosya>` ile JSON'u doğrula.
-2. `/slop-doctor` çalıştır — desen sayısı beklediğin gibi mi?
-3. Değişikliğin ne yaptığını ve **neyi artık yakalamadığını** kullanıcıya özetle.
+1. Validate the JSON with `jq -e . <file>`.
+2. Run `/slop-doctor` — is the pattern count what you expected?
+3. Summarise for the user what the change does and **what it no longer catches**.

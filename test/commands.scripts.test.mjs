@@ -27,87 +27,87 @@ const session = (id, patch) => writeFileSync(join(cfg, `session-${id}.json`),
 
 // ── /slop-status ────────────────────────────────────────────────────────
 
-test('status oturum kimliğini kalp atışından bulur', () => {
-  beat('oturum-a');
-  session('oturum-a', { turns: 7, linesWritten: 120, linesRead: 30, blocked: 2, filesWritten: { 'a.js': 1 } });
+test('status resolves the session id from the heartbeat', () => {
+  beat('session-a');
+  session('session-a', { turns: 7, linesWritten: 120, linesRead: 30, blocked: 2, filesWritten: { 'a.js': 1 } });
   const r = run('scripts/status.mjs');
-  assert.match(r.stdout, /oturum oturum-a/);
+  assert.match(r.stdout, /session session-a/);
   assert.match(r.stdout, /7 tur/);
-  assert.match(r.stdout, /2 engellenen slop/);
-  assert.doesNotMatch(r.stdout, /kesin değil/, 'kalp atışı kesin kaynaktır');
+  assert.match(r.stdout, /2 slop blocked/);
+  assert.doesNotMatch(r.stdout, /kesin değil/, 'the heartbeat is the definitive source');
 });
 
-test('status açık ihlalleri ve doğrulama borcunu ayrı gösterir', () => {
-  beat('oturum-b');
-  session('oturum-b', { turns: 3, linesWritten: 40, violations: { 'src/a.js': [{ id: 'KOD-05', line: 12, title: 'Hata bastırma', shown: 'src/a.js' }] } });
+test('status shows open violations and verification debt separately', () => {
+  beat('session-b');
+  session('session-b', { turns: 3, linesWritten: 40, violations: { 'src/a.js': [{ id: 'CODE-05', line: 12, title: 'Hata bastırma', shown: 'src/a.js' }] } });
   const r = run('scripts/status.mjs');
-  assert.match(r.stdout, /Açık ihlaller/);
-  assert.match(r.stdout, /KOD-05 {2}src\/a\.js:12/);
-  assert.match(r.stdout, /bu turda test çalışmadı \(TST-05\)/);
+  assert.match(r.stdout, /Open violations/);
+  assert.match(r.stdout, /CODE-05 {2}src\/a\.js:12/);
+  assert.match(r.stdout, /no tests ran this turn \(TEST-05\)/);
 });
 
-test('status eşik aşımını işaretler', () => {
-  beat('oturum-c');
-  session('oturum-c', { turns: 2, linesWritten: 900, linesRead: 10, linesSinceCommit: 700 });
+test('status flags a crossed threshold', () => {
+  beat('session-c');
+  session('session-c', { turns: 2, linesWritten: 900, linesRead: 10, linesSinceCommit: 700 });
   const r = run('scripts/status.mjs');
-  assert.match(r.stdout, /kavrayış borcu eşiğin üstünde/);
-  assert.match(r.stdout, /eşiğin üstünde \(AGT-06\)/);
+  assert.match(r.stdout, /comprehension debt above threshold/);
+  assert.match(r.stdout, /above threshold \(AGENT-06\)/);
 });
 
-test('kayıt yoksa status uydurmaz', () => {
+test('with no record, status does not invent one', () => {
   const bos = mkdtempSync(join(tmpdir(), 'slopguard-bos-'));
   const r = run('scripts/status.mjs', [], { SLOPGUARD_CONFIG_DIR: bos });
-  assert.match(r.stdout, /kayıt bulunamadı/);
+  assert.match(r.stdout, /no record found/);
   assert.match(r.stdout, /slop-doctor/);
   rmSync(bos, { recursive: true, force: true });
 });
 
 // ── /slop-mode ──────────────────────────────────────────────────────────
 
-test('mode yalnızca oturuma yazar, config.json a dokunmaz', () => {
-  beat('oturum-d');
-  session('oturum-d', { turns: 1 });
+test('mode writes only to the session, never to config.json', () => {
+  beat('session-d');
+  session('session-d', { turns: 1 });
   writeFileSync(join(cfg, 'config.json'), JSON.stringify({ mode: 'strict' }));
   const r = run('scripts/mode.mjs', ['explore']);
   assert.equal(r.code, 0);
-  assert.match(r.stdout, /yalnızca bu oturum/);
-  assert.equal(JSON.parse(readFileSync(join(cfg, `session-oturum-d.json`), 'utf8')).modeOverride, 'explore');
-  assert.equal(JSON.parse(readFileSync(join(cfg, 'config.json'), 'utf8')).mode, 'strict', 'kalıcı kip değişmemeli');
+  assert.match(r.stdout, /for this session only/);
+  assert.equal(JSON.parse(readFileSync(join(cfg, `session-session-d.json`), 'utf8')).modeOverride, 'explore');
+  assert.equal(JSON.parse(readFileSync(join(cfg, 'config.json'), 'utf8')).mode, 'strict', 'the persistent mode must not change');
   rmSync(join(cfg, 'config.json'), { force: true });
 });
 
-test('mode keşif kipinin neyi gevşetmediğini söyler', () => {
-  beat('oturum-e'); session('oturum-e', { turns: 1 });
+test('mode says what explore does not relax', () => {
+  beat('session-e'); session('session-e', { turns: 1 });
   const r = run('scripts/mode.mjs', ['explore']);
-  assert.match(r.stdout, /Geri dönüşsüz komutlar ve korumalı yollar bu kipte de engellenir/);
+  assert.match(r.stdout, /Irreversible commands and protected paths are still blocked in this mode/);
 });
 
-test('geçersiz kip reddedilir ve kullanım gösterilir', () => {
+test('an invalid mode is refused and usage is shown', () => {
   const r = run('scripts/mode.mjs', ['kapali']);
   assert.equal(r.code, 1);
-  assert.match(r.stdout, /Kullanım: \/slop-mode strict\|explore/);
+  assert.match(r.stdout, /Usage: \/slop-mode strict\|explore/);
 });
 
 // ── /slop-setup ─────────────────────────────────────────────────────────
 
-test('setup dosyaları oluşturur ve ikinci çalıştırmada ezmez', () => {
+test('setup creates the files and does not overwrite on a second run', () => {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-setup-'));
   const h = mkdtempSync(join(tmpdir(), 'slopguard-setuphome-'));
   const first = run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
-  assert.match(first.stdout, /config\.json oluşturuldu/);
-  assert.match(first.stdout, /statusLine kaydedildi/);
+  assert.match(first.stdout, /config\.json created/);
+  assert.match(first.stdout, /statusLine registered/);
 
   const conf = JSON.parse(readFileSync(join(c, 'config.json'), 'utf8'));
   assert.equal(conf.mode, 'strict');
   assert.equal(conf.thresholds.maxDiffLines, 400);
 
   const second = run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
-  assert.match(second.stdout, /config\.json zaten var, dokunulmadı/);
-  assert.match(second.stdout, /statusLine güncel/, 'kendi girdisini yabancı sanmamalı');
+  assert.match(second.stdout, /config\.json already exists, left alone/);
+  assert.match(second.stdout, /statusLine is current/, 'it must not mistake its own entry for a stranger');
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
 
-test('setup ürettiği örnek desen gerçekten derlenir ve eşleşir', async () => {
+test('the example pattern setup writes really compiles and matches', async () => {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-ornek-'));
   const h = mkdtempSync(join(tmpdir(), 'slopguard-ornekhome-'));
   run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
@@ -115,29 +115,29 @@ test('setup ürettiği örnek desen gerçekten derlenir ve eşleşir', async () 
     import('${join(ROOT, 'lib/config.mjs')}').then(m => {
       const { config, problems } = m.loadConfig({});
       process.stdout.write(JSON.stringify({
-        problems, matched: config.localPatterns[0].match.test('TODO (acil) bunu düzelt'),
+        problems, matched: config.localPatterns[0].match.test('TODO (urgent) fix this'),
       }));
     });`], { encoding: 'utf8', env: { ...process.env, SLOPGUARD_CONFIG_DIR: c } });
   const parsed = JSON.parse(out);
-  assert.deepEqual(parsed.problems, [], 'örnek desen sorunsuz yüklenmeli');
-  assert.equal(parsed.matched, true, 'kullanıcının göreceği ilk örnek çalışmalı');
+  assert.deepEqual(parsed.problems, [], 'the example pattern must load without problems');
+  assert.equal(parsed.matched, true, 'the first example the user sees must work');
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
 
-test('setup kullanıcının kendi statusLine girdisini ezmez', () => {
+test('setup does not overwrite an existing statusLine entry', () => {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-sl-'));
   const h = mkdtempSync(join(tmpdir(), 'slopguard-slhome-'));
   mkdirSync(join(h, '.claude'), { recursive: true });
   writeFileSync(join(h, '.claude/settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'my-own-bar' } }));
   const r = run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
-  assert.match(r.stdout, /başka bir komuta ayarlı, dokunulmadı/);
+  assert.match(r.stdout, /points at a different command, left alone/);
   assert.equal(JSON.parse(readFileSync(join(h, '.claude/settings.json'), 'utf8')).statusLine.command, 'my-own-bar');
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
 
 // ── /slop-repo-init ─────────────────────────────────────────────────────
 
-test('repo-init dosyaları kurar ve var olanı ezmez', () => {
+test('repo-init installs the files and does not overwrite existing ones', () => {
   const repo = mkdtempSync(join(tmpdir(), 'slopguard-ri-'));
   execFileSync('git', ['init', '-q'], { cwd: repo });
   const r = run('scripts/repo-init.mjs', [], {}, repo);
@@ -150,15 +150,15 @@ test('repo-init dosyaları kurar ve var olanı ezmez', () => {
 
   const agents = readFileSync(join(repo, 'AGENTS.md'), 'utf8');
   assert.match(agents, /# AGENTS\.md/);
-  assert.match(agents, /## Güvenlik \(GUV\)/, 'kural setinden türetilmeli');
+  assert.match(agents, /## Security \(SEC\)/, 'must derive from the rule set');
 
-  writeFileSync(join(repo, 'AGENTS.md'), 'elle yazılmış');
+  writeFileSync(join(repo, 'AGENTS.md'), 'hand written');
   run('scripts/repo-init.mjs', [], {}, repo);
-  assert.equal(readFileSync(join(repo, 'AGENTS.md'), 'utf8'), 'elle yazılmış', 'ikinci çalıştırma ezmemeli');
+  assert.equal(readFileSync(join(repo, 'AGENTS.md'), 'utf8'), 'hand written', 'the second run must not overwrite');
   rmSync(repo, { recursive: true, force: true });
 });
 
-test('repo-init git deposu olmayan yerde açıkça reddeder', () => {
+test('repo-init refuses clearly outside a git repository', () => {
   const plain = mkdtempSync(join(tmpdir(), 'slopguard-plain-'));
   const r = run('scripts/repo-init.mjs', [], {}, plain);
   assert.equal(r.code, 1);
@@ -168,35 +168,35 @@ test('repo-init git deposu olmayan yerde açıkça reddeder', () => {
 
 // ── /slop-doctor ────────────────────────────────────────────────────────
 
-test('doctor tüm hook boru testlerini geçirir', () => {
+test('doctor passes every hook pipe test', () => {
   const r = run('scripts/doctor.mjs');
   const probeLines = r.stdout.split('\n').filter((l) => /\.mjs —/.test(l));
-  assert.ok(probeLines.length >= 7, `beklenen en az 7 boru testi, gelen ${probeLines.length}`);
+  assert.ok(probeLines.length >= 7, `expected at least 7 pipe tests, got ${probeLines.length}`);
   const failed = probeLines.filter((l) => l.includes('❌'));
-  assert.deepEqual(failed, [], 'hiçbir hook boru testi başarısız olmamalı');
+  assert.deepEqual(failed, [], 'no hook pipe test may fail');
 });
 
-test('doctor probe u yan etkisiz çalıştırır', () => {
+test('doctor runs the probe without side effects', () => {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-doc-'));
   run('scripts/doctor.mjs', [], { SLOPGUARD_CONFIG_DIR: c });
   const leftovers = readdirSync(c).filter((f) => f.startsWith('session-') || f === 'heartbeat.json');
-  assert.deepEqual(leftovers, [], 'teşhis kendi kalp atışını damgalayıp canlı görüntüsü üretmemeli');
+  assert.deepEqual(leftovers, [], 'the diagnosis must not stamp its own heartbeat and fake liveness');
   rmSync(c, { recursive: true, force: true });
 });
 
-test('doctor eksik kurulumu sorun olarak bildirir', () => {
+test('doctor reports an incomplete installation as a problem', () => {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-doc2-'));
   const r = run('scripts/doctor.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: c });
   assert.equal(r.code, 1);
-  assert.match(r.stdout, /kalp atışı damgası yok/);
-  assert.match(r.stdout, /Sonuç: \d+ sorun bulundu/);
+  assert.match(r.stdout, /no heartbeat stamp/);
+  assert.match(r.stdout, /Result: \d+ problem/);
   rmSync(c, { recursive: true, force: true });
 });
 
-test('setup sürümlü cache yolu değil, sabit başlatıcı kaydeder', () => {
-  // Kurulum provasında ölçüldü: cache yolu sürüm numarası içeriyor ve her
-  // güncelleme statusLine'ı sessizce kırıyordu. Koruma var sanılırken bozuk
-  // olması, bu aracın engellemek için var olduğu durumun kendisi.
+test('setup registers a fixed launcher, not a versioned cache path', () => {
+  // setup and doctor must share one recognition test.
+  // setup and doctor must share one recognition test.
+  // setup and doctor must share one recognition test.
   const c = mkdtempSync(join(tmpdir(), 'slopguard-launcher-'));
   const h = mkdtempSync(join(tmpdir(), 'slopguard-launcherhome-'));
   run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
@@ -210,16 +210,16 @@ test('setup sürümlü cache yolu değil, sabit başlatıcı kaydeder', () => {
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
 
-test('başlatıcı kurulu sürüm yokken sessiz kalmaz', () => {
+test('the launcher does not stay silent when no version is installed', () => {
   const h = mkdtempSync(join(tmpdir(), 'slopguard-yok-'));
   const out = execFileSync(process.execPath, [join(ROOT, 'templates/statusline-launcher.mjs')], {
     input: '{}', encoding: 'utf8', env: { ...process.env, HOME: h }, stdio: ['pipe', 'pipe', 'pipe'],
   });
-  assert.match(out, /kurulu değil/, 'kaldırılmış plugin çubuktan görünmeli');
+  assert.match(out, /not installed/, 'a removed plugin must be visible on the bar');
   rmSync(h, { recursive: true, force: true });
 });
 
-test('başlatıcı en yüksek sürüme devreder', () => {
+test('the launcher forwards to the highest installed version', () => {
   const h = mkdtempSync(join(tmpdir(), 'slopguard-cok-'));
   const base = join(h, '.claude/plugins/cache/lenarise-slopguard/lenarise-slopguard');
   for (const v of ['0.1.2', '0.1.10', '0.1.9']) {
@@ -233,10 +233,10 @@ test('başlatıcı en yüksek sürüme devreder', () => {
   rmSync(h, { recursive: true, force: true });
 });
 
-test('eski sürümlü statusLine girdisi başlatıcıya taşınır', () => {
-  // Erken sürümler settings.json'a sürümlü cache yolu yazıyordu. O girdi
-  // "bizim" olduğu için dokunulmadan bırakılırsa çubuk her güncellemede
-  // kırık kalırdı — kurulum provasında görüldü.
+test('an older versioned statusLine entry is migrated to the launcher', () => {
+  // setup and doctor must share one recognition test.
+  // setup and doctor must share one recognition test.
+  // setup and doctor must share one recognition test.
   const c = mkdtempSync(join(tmpdir(), 'slopguard-tasima-'));
   const h = mkdtempSync(join(tmpdir(), 'slopguard-tasimahome-'));
   mkdirSync(join(h, '.claude'), { recursive: true });
@@ -244,16 +244,16 @@ test('eski sürümlü statusLine girdisi başlatıcıya taşınır', () => {
   writeFileSync(join(h, '.claude/settings.json'), JSON.stringify({ statusLine: { type: 'command', command: eski } }));
 
   const r = run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
-  assert.match(r.stdout, /sürümsüz başlatıcıya taşındı/);
+  assert.match(r.stdout, /moved to the version-independent launcher/);
   const cmd = JSON.parse(readFileSync(join(h, '.claude/settings.json'), 'utf8')).statusLine.command;
   assert.match(cmd, /statusline-launcher\.mjs/);
   assert.doesNotMatch(cmd, /plugins\/cache/);
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
 
-test('doctor başlatıcıyı tanır ve sürümlü yolu sorun sayar', () => {
-  // setup ve doctor aynı ölçütü kullanmalı; ayrı ayrı yazılınca biri
-  // diğerinin yazdığı girdiyi yabancı sandı.
+test('doctor recognises the launcher and flags a versioned path', () => {
+  // setup and doctor must share one recognition test.
+  // setup and doctor must share one recognition test.
   const mk = (cmd) => {
     const c = mkdtempSync(join(tmpdir(), 'slopguard-dsl-'));
     const h = mkdtempSync(join(tmpdir(), 'slopguard-dslhome-'));
@@ -264,16 +264,16 @@ test('doctor başlatıcıyı tanır ve sürümlü yolu sorun sayar', () => {
     return out;
   };
   assert.match(mk('node "/h/.claude/lenarise-slopguard/statusline-launcher.mjs"'),
-    /✅ statusLine kayıtlı \(sürümden bağımsız/);
+    /✅ statusLine is registered \(version-independent/);
   assert.match(mk('node "/h/.claude/plugins/cache/lenarise-slopguard/lenarise-slopguard/0.1.1/bin/statusline.mjs"'),
-    /sürümlü cache yoluna ayarlı/);
-  assert.match(mk('my-own-bar'), /başka bir komuta ayarlı/);
+    /versioned cache path/);
+  assert.match(mk('my-own-bar'), /points at a different command/);
 });
 
-// ── Canlılık kuralının CLAUDE.md'ye kurulması ───────────────────────────
+// setup and doctor must share one recognition test.
 
-const BASLANGIC = '<!-- LenaRise.SlopGuard: canlılık kuralı — başlangıç -->';
-const BITIS = '<!-- LenaRise.SlopGuard: canlılık kuralı — bitiş -->';
+const START = '<!-- LenaRise.SlopGuard: liveness rule — start -->';
+const END = '<!-- LenaRise.SlopGuard: liveness rule — end -->';
 
 function setupHome(claudeMdContent) {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-cm-'));
@@ -287,62 +287,62 @@ function setupHome(claudeMdContent) {
     clean: () => { rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true }); } };
 }
 
-test('CLAUDE.md yoksa oluşturulur ve kural eklenir', () => {
+test('CLAUDE.md is created with the rule when it does not exist', () => {
   const w = setupHome();
-  assert.match(w.run().stdout, /CLAUDE\.md oluşturuldu/);
-  assert.ok(w.md().includes(BASLANGIC) && w.md().includes(BITIS));
+  assert.match(w.run().stdout, /CLAUDE\.md created with the liveness rule/);
+  assert.ok(w.md().includes(START) && w.md().includes(END));
   assert.match(w.md(), /heartbeat\.json/);
   w.clean();
 });
 
-test('var olan CLAUDE.md korunur, kural sonuna eklenir', () => {
-  const w = setupHome('# Benim kurallarım\n\nTarih ISO 8601.\n');
-  assert.match(w.run().stdout, /sonuna canlılık kuralı eklendi/);
+test('an existing CLAUDE.md is preserved and the rule is appended', () => {
+  const w = setupHome('# My rules\n\nDates are ISO 8601.\n');
+  assert.match(w.run().stdout, /liveness rule appended/);
   const md = w.md();
-  assert.match(md, /# Benim kurallarım/, 'kullanıcının içeriği korunmalı');
-  assert.match(md, /Tarih ISO 8601/);
-  assert.ok(md.indexOf('# Benim kurallarım') < md.indexOf(BASLANGIC));
+  assert.match(md, /# My rules/, 'the user content must be preserved');
+  assert.match(md, /Dates are ISO 8601/);
+  assert.ok(md.indexOf('# My rules') < md.indexOf(START));
   w.clean();
 });
 
-test('ikinci çalıştırma tekrar eklemez', () => {
-  const w = setupHome('# Kurallarım\n');
+test('a second run does not add it again', () => {
+  const w = setupHome('# My rules\n');
   w.run();
   const ilk = w.md();
-  assert.match(w.run().stdout, /canlılık kuralı güncel/);
-  assert.equal(w.md(), ilk, 'dosya hiç değişmemeli');
-  assert.equal(w.md().split(BASLANGIC).length - 1, 1, 'blok bir kez bulunmalı');
+  assert.match(w.run().stdout, /liveness rule is current/);
+  assert.equal(w.md(), ilk, 'the file must not change at all');
+  assert.equal(w.md().split(START).length - 1, 1, 'the block must appear exactly once');
   w.clean();
 });
 
-test('eski blok tazelenirken kullanıcının metnine dokunulmaz', () => {
-  const w = setupHome(`# Üstteki metin\n\n${BASLANGIC}\nESKİ İÇERİK\n${BITIS}\n\n# Alttaki metin\n`);
-  assert.match(w.run().stdout, /tazelendi \(yalnızca işaretli blok\)/);
+test('refreshing an old block leaves the user text untouched', () => {
+  const w = setupHome(`# Text above\n\n${START}\nOLD CONTENT\n${END}\n\n# Text below\n`);
+  assert.match(w.run().stdout, /refreshed \(only the marked block\)/);
   const md = w.md();
-  assert.match(md, /# Üstteki metin/);
-  assert.match(md, /# Alttaki metin/);
-  assert.doesNotMatch(md, /ESKİ İÇERİK/);
+  assert.match(md, /# Text above/);
+  assert.match(md, /# Text below/);
+  assert.doesNotMatch(md, /OLD CONTENT/);
   assert.match(md, /ui\.livenessCheck/);
   w.clean();
 });
 
-test('--skip-claude-md ile atlanabilir', () => {
-  const w = setupHome('# Dokunma\n');
-  assert.match(w.run(['--skip-claude-md']).stdout, /atlandı/);
-  assert.equal(w.md(), '# Dokunma\n');
+test('--skip-claude-md opts out', () => {
+  const w = setupHome('# Do not touch\n');
+  assert.match(w.run(['--skip-claude-md']).stdout, /skipped/);
+  assert.equal(w.md(), '# Do not touch\n');
   w.clean();
 });
 
-test('blok silinerek temiz kaldırılabilir', () => {
-  const w = setupHome('# Kalıcı\n');
+test('deleting the block removes it cleanly', () => {
+  const w = setupHome('# Permanent\n');
   w.run();
   const md = w.md();
-  const temiz = md.slice(0, md.indexOf(BASLANGIC)) + md.slice(md.indexOf(BITIS) + BITIS.length);
-  assert.match(temiz.trim(), /^# Kalıcı$/, 'blok çıkınca geriye yalnızca kullanıcının metni kalmalı');
+  const clean = md.slice(0, md.indexOf(START)) + md.slice(md.indexOf(END) + END.length);
+  assert.match(clean.trim(), /^# Permanent$/, 'removing the block must leave only the user text');
   w.clean();
 });
 
-// ── /slop-status canlı ölçüm yapar ──────────────────────────────────────
+// setup and doctor must share one recognition test.
 
 function statusRepo(sessionPatch, uiConfig) {
   const c = mkdtempSync(join(tmpdir(), 'slopguard-st-'));
@@ -356,51 +356,51 @@ function statusRepo(sessionPatch, uiConfig) {
     clean: () => { rmSync(c, { recursive: true, force: true }); rmSync(repo, { recursive: true, force: true }); } };
 }
 
-test('status ui.chatStatus ayarından bağımsız her zaman cevap döner', () => {
+test('status always answers regardless of ui.chatStatus', () => {
   for (const ui of [{ chatStatus: 0 }, { chatStatus: 2 }, undefined]) {
     const w = statusRepo({ turns: 3 }, ui);
     const out = w.run();
-    assert.match(out, /oturum canli/, `chatStatus=${JSON.stringify(ui)}`);
-    assert.match(out, /Canlı tarama/);
+    assert.match(out, /session canli/, `chatStatus=${JSON.stringify(ui)}`);
+    assert.match(out, /Live scan/);
     w.clean();
   }
 });
 
-test('canlı tarama hook kaydından bağımsız gerçeği bulur', () => {
+test('the live scan finds the truth independently of the hook record', () => {
   const w = statusRepo({ turns: 5, filesWritten: { 'x.js': 1 } });
-  // Hook hiç çalışmamış gibi: oturumda ihlal kaydı yok ama dosyada var.
-  writeFileSync(join(w.repo, 'kirli.js'), 'try{ a() }catch(e){}\n');
+  // setup and doctor must share one recognition test.
+  writeFileSync(join(w.repo, 'dirty.js'), 'try{ a() }catch(e){}\n');
   const out = w.run();
-  assert.match(out, /Canlı tarama.*1 bulgu/);
-  assert.match(out, /kirli\.js/);
-  assert.match(out, /KOD-05 {2}satır 1/);
+  assert.match(out, /Live scan.*1 finding/);
+  assert.match(out, /dirty\.js/);
+  assert.match(out, /CODE-05 {2}line 1/);
   w.clean();
 });
 
-test('canlı tarama temizken bunu açıkça söyler', () => {
+test('the live scan says so plainly when it is clean', () => {
   const w = statusRepo({ turns: 2, filesWritten: { 'a.js': 1 } });
-  writeFileSync(join(w.repo, 'temiz.js'), 'export const a = 1;\n');
-  assert.match(w.run(), /Canlı tarama.*· temiz/);
+  writeFileSync(join(w.repo, 'clean.js'), 'export const a = 1;\n');
+  assert.match(w.run(), /Live scan.*· clean/);
   w.clean();
 });
 
-test('hook kaydı boşken sebebi söylenir — boş sayaç temiz demek değil', () => {
+test('when the hook record is empty the reason is given', () => {
   const w = statusRepo({ turns: 9, filesWritten: {} });
   const out = w.run();
-  assert.match(out, /hiç dosya yazımı kaydedilmedi/);
-  assert.match(out, /Bash içinden yazıldı/);
-  assert.match(out, /post-edit yalnızca Edit\/Write araçlarını dinler/);
+  assert.match(out, /no file writes were recorded/);
+  assert.match(out, /written through Bash/);
+  assert.match(out, /post-edit only listens to the Edit and Write tools/);
   w.clean();
 });
 
-test('hook kaydı doluyken uyarı çıkmaz', () => {
+test('no note appears when the hook record is populated', () => {
   const w = statusRepo({ turns: 9, filesWritten: { 'a.js': 2 } });
-  assert.doesNotMatch(w.run(), /hiç dosya yazımı kaydedilmedi/);
+  assert.doesNotMatch(w.run(), /no file writes were recorded/);
   w.clean();
 });
 
-test('oturum sayaçları hook kaynaklı olduğu belirtilir', () => {
+test('the session counters are labelled as coming from hooks', () => {
   const w = statusRepo({ turns: 4, filesWritten: { 'a.js': 1 } });
-  assert.match(w.run(), /Ölçüm .*\(hook kaydı\)/);
+  assert.match(w.run(), /Measured .*\(from hook records\)/);
   w.clean();
 });

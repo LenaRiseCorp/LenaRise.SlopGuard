@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 /**
- * PostToolUse: Bash → doğrulama ve commit damgası.
+ * PostToolUse: Bash → verification and commit stamps, plus content scanning for
+ * files written through the shell.
  *
- * Neden ayrı bir hook: PostToolUse başarısız Bash komutunda hiç tetiklenmiyor
- * (ölçüldü, docs/dogrulama-kaydi.md). Bu yüzden buraya gelmiş olmak, komutun
- * başarıyla bittiğinin kanıtı. Test damgasını komut öncesinde atmak,
- * çalışmamış hatta çökmüş bir testi "geçti" saymak olurdu — engellemeye
- * çalıştığımız şeyin ta kendisi (TST-05).
+ * Why this is a separate hook: PostToolUse does not fire at all when a Bash
+ * command fails (measured — docs/verification-log.md). Reaching this point is
+ * therefore proof that the command succeeded. Stamping "tests ran" before the
+ * command would mean counting a test that never ran, or crashed, as passing —
+ * exactly what we are here to prevent (TEST-05).
  *
- * Asimetri bilerek: tetiklenme başarıyı kanıtlar, tetiklenmeme başarısızlığı
- * kanıtlamaz. Damga yoksa "doğrulanmadı" denir, "başarısız" denmez.
+ * The asymmetry is deliberate: firing proves success, not firing does not prove
+ * failure. With no stamp we say "not verified", never "failed".
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -27,12 +28,9 @@ runHook('post-bash', ({ payload, config, state, repoRoot }) => {
   if (isTestCommand(command)) recordTestRun(state);
   if (isCommitCommand(command)) recordCommit(state);
 
-  // Kabuk üzerinden yazılan dosyaların içeriği taranır. post-edit bunları
-  // hiç görmüyordu; komut Bash matcher'ından geçiyor ve orada yalnızca
-  // komutun kendisi taranıyordu, yazılan içerik değil.
-  //
-  // Bu hook yalnızca komut başarıyla bittiğinde tetiklenir (ölçüldü), yani
-  // buraya gelmişse dosya gerçekten yazılmıştır.
+  // Content of files written through the shell. post-edit never saw these: the
+  // command goes through the Bash matcher, where only the command itself was
+  // scanned, not the content written.
   const all = [];
   for (const target of writeTargets(command)) {
     const absolute = resolve(payload.cwd ?? process.cwd(), target);
@@ -45,7 +43,7 @@ runHook('post-bash', ({ payload, config, state, repoRoot }) => {
     try {
       content = readFileSync(absolute, 'utf8');
     } catch (error) {
-      fail('post-bash', `yazılan dosya okunamadı (${shown}) — ${error.message}`);
+      fail('post-bash', `written file could not be read (${shown}) — ${error.message}`);
       continue;
     }
 
@@ -65,8 +63,8 @@ runHook('post-bash', ({ payload, config, state, repoRoot }) => {
     .join('\n\n');
 
   if (blocking) {
-    block(`${text}\n\n  Kabuk üzerinden yazıldı ama tarama atlanmaz. Düzelt — `
-      + `stop kapısı açık ihlali bekliyor.`);
+    block(`${text}\n\n  Written through the shell, but the scan is not skipped. Fix it — `
+      + `the stop gate is waiting on the open violation.`);
   } else {
     notify(`${BRAND}\n\n${text}`);
   }

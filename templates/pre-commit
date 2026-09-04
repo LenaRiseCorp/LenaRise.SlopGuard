@@ -1,13 +1,14 @@
 #!/bin/sh
-# LenaRise.SlopGuard — git düzeyinde tarama.
+# LenaRise.SlopGuard — scanning at the git level.
 #
-# Claude Code hook'ları yalnızca Claude Code'u kapsar. Bu hook, kodu hangi
-# agent yazarsa yazsın çalışır: Cursor, Codex, Copilot, ya da insan.
+# Claude Code hooks only cover Claude Code. This hook runs whichever agent wrote
+# the code: Cursor, Codex, Copilot, or a human.
 #
-# Tarayıcıyı üç yerde arar. Hiçbiri yoksa commit'i ENGELLEMEZ ama sessiz de
-# kalmaz: ekipteki herkesin plugin'i kurmuş olması beklenemez, ve birinin
-# commit'ini elindeki araç eksik diye reddetmek düşmanca olurdu. Asıl kapı
-# CI katmanında; bu hook erken uyarı.
+# It looks for the scanner in three places. If none of them has it the commit is
+# NOT blocked, but it does not stay silent either: not everyone on a team can be
+# expected to have the plugin installed, and refusing someone's commit because
+# their tooling is incomplete would be hostile. The real gate is in CI; this hook
+# is an early warning.
 
 set -e
 
@@ -15,8 +16,8 @@ find_scanner() {
   if [ -n "$SLOPGUARD_HOME" ] && [ -f "$SLOPGUARD_HOME/scripts/scan-staged.mjs" ]; then
     echo "$SLOPGUARD_HOME/scripts/scan-staged.mjs"; return 0
   fi
-  for dir in "$HOME"/.claude/plugins/cache/*/lenarise-slopguard \
-             "$HOME"/.claude/plugins/*/lenarise-slopguard \
+  for dir in "$HOME"/.claude/plugins/cache/*/lenarise-slopguard/*/ \
+             "$HOME"/.claude/plugins/cache/*/lenarise-slopguard \
              "$HOME"/.claude/skills/lenarise-slopguard; do
     if [ -f "$dir/scripts/scan-staged.mjs" ]; then echo "$dir/scripts/scan-staged.mjs"; return 0; fi
   done
@@ -24,14 +25,14 @@ find_scanner() {
 }
 
 if ! command -v node >/dev/null 2>&1; then
-  echo "LenaRise.SlopGuard: node bulunamadı, bu commit taranmadı." >&2
+  echo "LenaRise.SlopGuard: node not found, this commit was not scanned." >&2
   exit 0
 fi
 
 SCANNER=$(find_scanner) || {
-  echo "LenaRise.SlopGuard: tarayıcı bulunamadı, bu commit taranmadı." >&2
-  echo "  Kurmak için: claude plugin install lenarise-slopguard@lenarise-slopguard" >&2
-  echo "  Ya da SLOPGUARD_HOME değişkenini plugin dizinine ayarla." >&2
+  echo "LenaRise.SlopGuard: scanner not found, this commit was not scanned." >&2
+  echo "  To install: claude plugin install lenarise-slopguard@lenarise-slopguard" >&2
+  echo "  Or point SLOPGUARD_HOME at the plugin directory." >&2
   exit 0
 }
 

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isTestCommand, isCommitCommand, parseInstall, packageName, verifyPackages, writeTargets } from '../lib/commands.mjs';
 
-test('test komutları tanınır', () => {
+test('test commands are recognised', () => {
   for (const c of ['npm test', 'npm run test', 'pnpm test', 'yarn test', 'node --test test/',
                    'npx vitest', 'pytest -q', 'go test ./...', 'cargo test', 'bundle exec rspec',
                    'dotnet test', 'make test', './gradlew build test']) {
@@ -10,19 +10,19 @@ test('test komutları tanınır', () => {
   }
 });
 
-test('test olmayan komutlar tanınmaz', () => {
+test('non-test commands are not recognised', () => {
   for (const c of ['npm run build', 'git status', 'ls test/', 'echo test', 'npm install jest']) {
     assert.equal(isTestCommand(c), false, c);
   }
 });
 
-test('commit komutu tanınır', () => {
+test('a commit command is recognised', () => {
   assert.ok(isCommitCommand('git commit -m "x"'));
   assert.ok(isCommitCommand('cd repo && git commit --amend'));
   assert.equal(isCommitCommand('git status'), false);
 });
 
-test('paket adı sürüm, extra ve karşılaştırıcıdan arındırılır', () => {
+test('a package name is stripped of version, extras and comparators', () => {
   assert.equal(packageName('left-pad'), 'left-pad');
   assert.equal(packageName('left-pad@1.2.3'), 'left-pad');
   assert.equal(packageName('@scope/pkg'), '@scope/pkg');
@@ -32,7 +32,7 @@ test('paket adı sürüm, extra ve karşılaştırıcıdan arındırılır', () 
   assert.equal(packageName('"django"'), 'django');
 });
 
-test('kurulum komutu ayrıştırılır', () => {
+test('an install command is parsed', () => {
   assert.deepEqual(parseInstall('npm install left-pad'), { registry: 'npm', packages: ['left-pad'] });
   assert.deepEqual(parseInstall('npm i -D vitest @types/node'), { registry: 'npm', packages: ['vitest', '@types/node'] });
   assert.deepEqual(parseInstall('pip install requests flask'), { registry: 'pypi', packages: ['requests', 'flask'] });
@@ -40,44 +40,44 @@ test('kurulum komutu ayrıştırılır', () => {
   assert.deepEqual(parseInstall('cargo add serde'), { registry: 'crates', packages: ['serde'] });
 });
 
-test('zincirli komutta yalnızca kurulum segmenti okunur', () => {
+test('only the install segment of a chained command is read', () => {
   assert.deepEqual(parseInstall('cd frontend && npm install axios'), { registry: 'npm', packages: ['axios'] });
 });
 
-test('yerel yol ve URL paket sayılmaz', () => {
+test('a local path or URL is not a package', () => {
   assert.deepEqual(parseInstall('npm install ./local-pkg').packages, []);
   assert.deepEqual(parseInstall('npm install https://example.com/p.tgz').packages, []);
 });
 
-test('kurulum olmayan komut null döner', () => {
+test('a non-install command returns null', () => {
   assert.equal(parseInstall('npm run build'), null);
   assert.equal(parseInstall('git push'), null);
 });
 
-test('go get kayıt defteri olmadan ayrıştırılır', () => {
+test('go get is parsed without a registry', () => {
   assert.equal(parseInstall('go get github.com/x/y').registry, null);
 });
 
-// verifyPackages ağ olmadan sınanır: kontrol fonksiyonu enjekte edilir.
+// verifyPackages is exercised without the network: the check function is injected.
 
-test('hepsi varsa geçer', async () => {
+test('it passes when all of them exist', async () => {
   const r = await verifyPackages(['react'], 'npm', { check: async () => 'exists' });
   assert.deepEqual(r, { ok: true, missing: [], unknown: [] });
 });
 
-test('var olmayan paket engellenir — slopsquatting yüzeyi', async () => {
+test('a non-existent package is blocked — a slopsquatting surface', async () => {
   const r = await verifyPackages(['halusine-paket'], 'npm', { check: async () => 'missing' });
   assert.equal(r.ok, false);
   assert.deepEqual(r.missing, ['halusine-paket']);
 });
 
-test('doğrulanamayan paket de engellenir — fail-closed', async () => {
+test('an unverifiable package is blocked too — fail-closed', async () => {
   const r = await verifyPackages(['react'], 'npm', { check: async () => 'unknown' });
   assert.equal(r.ok, false);
   assert.deepEqual(r.unknown, ['react']);
 });
 
-test('güvenilen paket kayıt defterine hiç sorulmaz', async () => {
+test('a trusted package is never asked about in the registry', async () => {
   let asked = 0;
   const r = await verifyPackages(['react', 'vue'], 'npm', {
     trusted: ['React'],
@@ -87,31 +87,31 @@ test('güvenilen paket kayıt defterine hiç sorulmaz', async () => {
   assert.equal(r.ok, true);
 });
 
-test('kurulum komutu test komutu sayılmaz — TST-05 tuzağı', () => {
+test('an install command is not counted as a test run', () => {
   for (const c of ['npm install jest', 'pip install pytest', 'yarn add vitest', 'echo "go test"']) {
     assert.equal(isTestCommand(c), false, c);
   }
 });
 
-test('ortam değişkeni öneki test komutunu gizlemez', () => {
+test('an environment prefix does not hide a test command', () => {
   assert.ok(isTestCommand('CI=1 npm test'));
   assert.ok(isTestCommand('cd api && NODE_ENV=test pytest -q'));
 });
 
-test('metin içindeki commit komut sayılmaz', () => {
-  assert.equal(isCommitCommand('echo "git commit yapmayı unutma"'), false);
+test('a commit mentioned in text is not a command', () => {
+  assert.equal(isCommitCommand('echo "do not forget to git commit"'), false);
   assert.ok(isCommitCommand('git -C repo commit -m "x"'));
 });
 
-test('git alt komutu bayraklara aldanmaz', () => {
+test('the git subcommand is not fooled by flags', () => {
   assert.equal(isCommitCommand('git log --grep commit'), false, 'log commit değildir');
   assert.equal(isCommitCommand('git -C repo status'), false);
   assert.ok(isCommitCommand('git -c user.name=x commit -m "y"'));
 });
 
-// ── Bash üzerinden yazma hedefleri ──────────────────────────────────────
+// verifyPackages is exercised without the network: the check function is injected.
 
-test('yönlendirme hedefleri bulunur', () => {
+test('redirection targets are found', () => {
   assert.deepEqual(writeTargets('cat > src/x.js'), ['src/x.js']);
   assert.deepEqual(writeTargets("cat > src/x.js <<'EOF'"), ['src/x.js']);
   assert.deepEqual(writeTargets('echo hi >> log.txt'), ['log.txt']);
@@ -119,13 +119,13 @@ test('yönlendirme hedefleri bulunur', () => {
   assert.deepEqual(writeTargets('python3 - > out.json'), ['out.json']);
 });
 
-test('tanıtıcı yönlendirmesi ve /dev hedefi dosya sayılmaz', () => {
+test('descriptor redirections and /dev targets are not files', () => {
   assert.deepEqual(writeTargets('npm test 2>&1 | grep ok'), []);
   assert.deepEqual(writeTargets('ls > /dev/null'), []);
   assert.deepEqual(writeTargets('cmd >&2'), []);
 });
 
-test('tee, sed -i, cp, mv ve touch hedefleri', () => {
+test('tee, sed -i, cp, mv and touch targets', () => {
   assert.deepEqual(writeTargets('cat a | tee -a out.log'), ['out.log']);
   assert.deepEqual(writeTargets("sed -i '' -e 's/a/b/' config.json"), ['config.json']);
   assert.deepEqual(writeTargets('cp template.js dest.js'), ['dest.js']);
@@ -133,7 +133,7 @@ test('tee, sed -i, cp, mv ve touch hedefleri', () => {
   assert.deepEqual(writeTargets('touch a.js b.js'), ['a.js', 'b.js']);
 });
 
-test('yazmayan komutlar hedef üretmez', () => {
+test('commands that write nothing produce no targets', () => {
   for (const c of ['git status --porcelain', 'npm run build', 'ls -la', 'sed -e s/a/b/ x.js']) {
     assert.deepEqual(writeTargets(c), [], c);
   }

@@ -8,7 +8,7 @@ const ws = makeWorkspace();
 after(() => ws.cleanup());
 
 const prompt = (sid) => pipe('hooks/user-prompt.mjs', {
-  session_id: sid, cwd: ws.repo, hook_event_name: 'UserPromptSubmit', prompt: 'devam',
+  session_id: sid, cwd: ws.repo, hook_event_name: 'UserPromptSubmit', prompt: 'go on',
 }, { cfgDir: ws.cfgDir });
 
 const end = (sid) => pipe('hooks/session-end.mjs', {
@@ -19,128 +19,128 @@ const sessionFile = (sid) => join(ws.cfgDir, `session-${sid}.json`);
 const session = (sid) => JSON.parse(readFileSync(sessionFile(sid), 'utf8'));
 const seed = (sid, patch) => writeFileSync(sessionFile(sid), JSON.stringify({ version: 1, sessionId: sid, ...patch }));
 
-test('her kullanıcı mesajı tur sayacını artırır', () => {
-  prompt('tur'); prompt('tur'); prompt('tur');
-  assert.equal(session('tur').turns, 3);
+test('every user message increments the turn counter', () => {
+  prompt('turns'); prompt('turns'); prompt('turns');
+  assert.equal(session('turns').turns, 3);
 });
 
-test('ilk turda tek satır onay çıkar (ui.heartbeat)', () => {
-  const r = prompt('onay');
-  assert.match(r.json.systemMessage, /etkin — sert kip · \d+ desen/);
-  assert.equal(prompt('onay').stdout, '', 'ikinci turda tekrar etmez');
+test('the first turn shows the one-line confirmation (ui.heartbeat)', () => {
+  const r = prompt('confirm');
+  assert.match(r.json.systemMessage, /active — strict mode · \d+ patterns/);
+  assert.equal(prompt('confirm').stdout, '', 'it does not repeat on the second turn');
 });
 
-test('ui.heartbeat kapalıysa onay çıkmaz — ayar gerçekten okunuyor', () => {
+test('with ui.heartbeat off there is no confirmation — the setting is really read', () => {
   ws.config({ ui: { heartbeat: false } });
-  assert.equal(prompt('sessiz-onay').stdout, '');
+  assert.equal(prompt('silent-confirm').stdout, '');
   ws.config({});
 });
 
-test('eşik altında ve ilk tur dışında uyarı çıkmaz', () => {
-  prompt('sessiz');
-  assert.equal(prompt('sessiz').stdout, '');
+test('below the threshold and past the first turn, nothing is emitted', () => {
+  prompt('quiet');
+  assert.equal(prompt('quiet').stdout, '');
 });
 
-test('kalp atışı bu oturumun kimliğiyle damgalanır — kayıt kanıtı', () => {
-  prompt('kimlik');
+test('the heartbeat is stamped with this session id — the registration proof', () => {
+  prompt('identity');
   const beat = JSON.parse(readFileSync(join(ws.cfgDir, 'heartbeat.json'), 'utf8'));
-  assert.equal(beat.sessionId, 'kimlik');
+  assert.equal(beat.sessionId, 'identity');
   assert.equal(beat.event, 'UserPromptSubmit');
 });
 
-test('bağlam çürümesi eşiği sohbete uyarı düşürür (AGT-01)', () => {
-  seed('uzun', { turns: 39, warned: [] });   // turn 40 olacak, ilk tur değil
-  const r = prompt('uzun');
-  assert.match(r.json.systemMessage, /40 tura ulaştı/);
-  assert.match(r.json.systemMessage, /AGT-01/);
+test('the context rot threshold delivers a warning to chat (AGENT-01)', () => {
+  seed('long', { turns: 39, warned: [] });   // becomes turn 40, not the first turn
+  const r = prompt('long');
+  assert.match(r.json.systemMessage, /reached 40 turns/);
+  assert.match(r.json.systemMessage, /AGENT-01/);
 });
 
-test('aynı uyarı ikinci kez çıkmaz', () => {
-  seed('tekrar', { turns: 39, warned: [] });
-  assert.match(prompt('tekrar').json.systemMessage, /AGT-01/);
-  assert.equal(prompt('tekrar').stdout, '', 'tekrar eden uyarı görmezden gelinir');
+test('the same warning does not appear twice', () => {
+  seed('repeat', { turns: 39, warned: [] });
+  assert.match(prompt('repeat').json.systemMessage, /AGENT-01/);
+  assert.equal(prompt('repeat').stdout, '', 'a repeated warning gets ignored');
 });
 
-test('kavrayış borcu uyarısı ölçümle konuşur (INS-01)', () => {
-  seed('borc', { turns: 1, linesWritten: 800, linesRead: 60, warned: [] });
-  assert.match(prompt('borc').json.systemMessage, /800 satır üretildi, 60 satır okundu/);
+test('the comprehension debt warning speaks in measurements (HUMAN-01)', () => {
+  seed('debt', { turns: 1, linesWritten: 800, linesRead: 60, warned: [] });
+  assert.match(prompt('debt').json.systemMessage, /800 lines produced, 60 lines read/);
 });
 
-test('birden çok eşik tek mesajda birleşir', () => {
-  seed('coklu', { turns: 45, linesSinceCommit: 900, warned: [] });
-  const msg = prompt('coklu').json.systemMessage;
-  assert.match(msg, /2 uyarı/);
-  assert.match(msg, /AGT-01/);
-  assert.match(msg, /AGT-06/);
+test('several thresholds crossed at once are merged into one message', () => {
+  seed('multi', { turns: 45, linesSinceCommit: 900, warned: [] });
+  const msg = prompt('multi').json.systemMessage;
+  assert.match(msg, /2 notices/);
+  assert.match(msg, /AGENT-01/);
+  assert.match(msg, /AGENT-06/);
 });
 
-test('eşik config ile değiştirilebilir', () => {
+test('a threshold can be changed through the configuration', () => {
   ws.config({ thresholds: { contextTurns: 3 } });
-  seed('esik', { turns: 2, warned: [] });
-  assert.match(prompt('esik').json.systemMessage, /3 tura ulaştı/);
+  seed('threshold', { turns: 2, warned: [] });
+  assert.match(prompt('threshold').json.systemMessage, /reached 3 turns/);
   ws.config({});
 });
 
-// ── oturum sonu ─────────────────────────────────────────────────────────
-
-test('boş oturumda özet basılmaz — gürültü olurdu', () => {
-  assert.equal(end('bos-oturum').stdout, '');
+test('chatStatus is off by default — an unrequested row is noise', () => {
+  prompt('off-status'); prompt('off-status'); prompt('off-status');
+  assert.equal(prompt('off-status').stdout, '');
 });
 
-test('oturum özeti ölçüm verir', () => {
-  seed('ozet', { turns: 12, linesWritten: 420, blocked: 3, suppressions: 2, filesWritten: { 'a.js': 1 } });
-  const msg = end('ozet').json.systemMessage;
-  assert.match(msg, /oturum özeti/);
-  assert.match(msg, /12 tur/);
-  assert.match(msg, /420 satır yazıldı/);
-  assert.match(msg, /3 engellenen slop/);
-  assert.match(msg, /2 muafiyet kullanıldı/);
-});
-
-test('açık ihlal özet satırında görünür', () => {
-  seed('acik', { turns: 2, linesWritten: 10, violations: { 'a.js': [{ id: 'KOD-05', line: 1, shown: 'a.js' }] } });
-  assert.match(end('acik').json.systemMessage, /1 açık ihlal/);
-});
-
-test('eski oturum dosyaları temizlenir, güncel olan korunur', () => {
-  seed('eski', { turns: 1 });
-  seed('yeni', { turns: 1, linesWritten: 5 });
-  const old = Date.now() / 1000 - 8 * 86400;
-  utimesSync(sessionFile('eski'), old, old);
-  end('yeni');
-  assert.equal(existsSync(sessionFile('eski')), false, '7 günden eski silinmeli');
-  assert.equal(existsSync(sessionFile('yeni')), true);
-});
-
-test('chatStatus varsayılanı kapalı — sormadan gelen satır gürültüdür', () => {
-  prompt('kapali-durum'); prompt('kapali-durum'); prompt('kapali-durum');
-  assert.equal(prompt('kapali-durum').stdout, '');
-});
-
-test('chatStatus: 2 her iki turda bir durum satırı düşürür', () => {
+test('chatStatus: 2 posts a status row every second turn', () => {
   ws.config({ ui: { chatStatus: 2, heartbeat: false } });
-  assert.equal(prompt('periyot').stdout, '', 'tur 1: yok');
-  assert.match(prompt('periyot').json.systemMessage, /sert · 0 engellendi · tur 2\/40/, 'tur 2: var');
-  assert.equal(prompt('periyot').stdout, '', 'tur 3: yok');
-  assert.match(prompt('periyot').json.systemMessage, /tur 4\/40/, 'tur 4: var');
+  assert.equal(prompt('period').stdout, '', 'turn 1: nothing');
+  assert.match(prompt('period').json.systemMessage, /strict · 0 blocked · turn 2\/40/, 'turn 2: present');
+  assert.equal(prompt('period').stdout, '', 'turn 3: nothing');
+  assert.match(prompt('period').json.systemMessage, /turn 4\/40/, 'turn 4: present');
   ws.config({});
 });
 
-test('durum satırı açık ihlali ve doğrulama borcunu taşır', () => {
+test('the status row carries open violations and verification debt', () => {
   ws.config({ ui: { chatStatus: 1, heartbeat: false } });
-  seed('dolu', { turns: 0, blocked: 3, suppressions: 1, warned: [],
-    violations: { 'a.js': [{ id: 'KOD-05', line: 1, shown: 'a.js' }] } });
-  const msg = prompt('dolu').json.systemMessage;
-  assert.match(msg, /3 engellendi/);
-  assert.match(msg, /1 açık ihlal/);
-  assert.match(msg, /1 muafiyet/);
-  assert.match(msg, /test yok/);
+  seed('full', { turns: 0, blocked: 3, suppressions: 1, warned: [],
+    violations: { 'a.js': [{ id: 'CODE-05', line: 1, shown: 'a.js' }] } });
+  const msg = prompt('full').json.systemMessage;
+  assert.match(msg, /3 blocked/);
+  assert.match(msg, /1 open/);
+  assert.match(msg, /1 waived/);
+  assert.match(msg, /no tests/);
   ws.config({});
 });
 
-test('geçersiz chatStatus sessizce kabul edilmez', () => {
-  ws.config({ ui: { chatStatus: 'her zaman' } });
-  const r = prompt('gecersiz');
-  assert.match(r.stderr, /ui\.chatStatus: 0 veya pozitif tam sayı bekleniyordu/);
+test('an invalid chatStatus is not accepted silently', () => {
+  ws.config({ ui: { chatStatus: 'always' } });
+  const r = prompt('invalid');
+  assert.match(r.stderr, /ui\.chatStatus: expected 0 or a positive integer/);
   ws.config({});
+});
+
+// ── Session end ─────────────────────────────────────────────────────────
+
+test('an empty session prints no summary — it would be noise', () => {
+  assert.equal(end('empty-session').stdout, '');
+});
+
+test('the session summary reports measurements', () => {
+  seed('summary', { turns: 12, linesWritten: 420, blocked: 3, suppressions: 2, filesWritten: { 'a.js': 1 } });
+  const msg = end('summary').json.systemMessage;
+  assert.match(msg, /session summary/);
+  assert.match(msg, /12 turns/);
+  assert.match(msg, /420 lines written/);
+  assert.match(msg, /3 slop blocked/);
+  assert.match(msg, /2 waivers used/);
+});
+
+test('open violations appear in the summary line', () => {
+  seed('open', { turns: 2, linesWritten: 10, violations: { 'a.js': [{ id: 'CODE-05', line: 1, shown: 'a.js' }] } });
+  assert.match(end('open').json.systemMessage, /1 open violations/);
+});
+
+test('old session files are pruned and the current one is kept', () => {
+  seed('old', { turns: 1 });
+  seed('new', { turns: 1, linesWritten: 5 });
+  const stamp = Date.now() / 1000 - 8 * 86400;
+  utimesSync(sessionFile('old'), stamp, stamp);
+  end('new');
+  assert.equal(existsSync(sessionFile('old')), false, 'older than 7 days should be removed');
+  assert.equal(existsSync(sessionFile('new')), true);
 });

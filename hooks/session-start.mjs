@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * SessionStart → kural seti ve yetenek indeksi enjeksiyonu.
+ * SessionStart → injects the rule set and the capability index.
  *
- * Ölçüldü: additionalContext gerçekten modelin bağlamına giriyor
- * (docs/dogrulama-kaydi.md). Bu katman kuralın *niyetini* taşır; sınırı
- * hook'lar koyar. İkisi ayrı olmak zorunda: Replit vakasında talimat büyük
- * harfle ve tekrar tekrar verilmişti, yine de ihlal edildi.
+ * Measured: additionalContext really does enter the model's context
+ * (docs/verification-log.md). This layer carries the *intent* of the rules; the
+ * boundary is set by the hooks. The two must stay separate: in the Replit case
+ * the instruction was given in capitals, repeatedly, and was still violated.
  *
- * Boyut bilinçli tutuluyor. Tam README'yi her oturumda yüklemek AGT-02'nin
- * (aşırı bağlam) kendisi olurdu; buraya yalnızca kural seti, yetenek indeksi
- * ve kullanıcının kendi kuralları girer.
+ * Size is deliberate. Loading the whole README into every session would be
+ * AGENT-02 (too much context) itself; only the rule set, the capability index
+ * and the user's own rules go in.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -31,7 +31,7 @@ function readIfPresent(file, label) {
   try {
     return readFileSync(file, 'utf8');
   } catch (error) {
-    fail('session-start', `${label} okunamadı (${file}) — ${error.message}`);
+    fail('session-start', `${label} could not be read (${file}) — ${error.message}`);
     return null;
   }
 }
@@ -41,25 +41,26 @@ runHook('session-start', ({ config, repoRoot }) => {
 
   const sections = [];
 
-  const base = readIfPresent(BASE_RULES, 'kural seti');
+  const base = readIfPresent(BASE_RULES, 'rule set');
   if (base) sections.push(base.trim());
-  else fail('session-start', 'kural seti bulunamadı; yalnızca yetenek indeksi enjekte edilecek');
+  else fail('session-start', 'rule set not found; only the capability index will be injected');
 
-  // Oyun kuralları yalnızca motor imzası bulunursa. Kullanılmayacak kuralı her
-  // oturuma yüklemek aşırı bağlamdır (AGT-02) ve uzun kural seti okunmaz olur.
+  // Game rules only when an engine signature is present. Loading rules that will
+  // never apply into every session is too much context (AGENT-02), and a long
+  // rule set stops being read.
   const engines = detectEngines(repoRoot);
   if (engines.length > 0) {
-    const game = readIfPresent(GAME_RULES, 'oyun kuralları');
-    if (game) sections.push(`${game.trim()}\n\nTespit edilen motor: ${engines.join(', ')}.`);
-    else fail('session-start', 'oyun kuralları bulunamadı; OYN desenleri yine de etkin');
+    const game = readIfPresent(GAME_RULES, 'game rules');
+    if (game) sections.push(`${game.trim()}\n\nEngine detected: ${engines.join(', ')}.`);
+    else fail('session-start', 'game rules not found; GAME patterns remain active regardless');
   }
 
   let local = readIfPresent(paths.localRules, 'rules.local.md');
   if (local && local.trim().length > 0) {
     if (local.length > LOCAL_RULES_MAX) {
-      local = `${local.slice(0, LOCAL_RULES_MAX)}\n\n[rules.local.md kısaltıldı: ${local.length} karakterin ilk ${LOCAL_RULES_MAX}'i alındı. Kısa tut — uzun kural seti okunmaz.]`;
+      local = `${local.slice(0, LOCAL_RULES_MAX)}\n\n[rules.local.md was truncated: the first ${LOCAL_RULES_MAX} of ${local.length} characters were used. Keep it short — a long rule set does not get read.]`;
     }
-    sections.push(`## Kullanıcının kendi kuralları\n\n${local.trim()}`);
+    sections.push(`## The user's own rules\n\n${local.trim()}`);
   }
 
   sections.push(capabilityIndex(config, {

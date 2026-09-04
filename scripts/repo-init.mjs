@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * /slop-repo-init — repo katmanını kurar (agent-agnostic).
+ * /slop-repo-init — installs the repository layer (agent-agnostic).
  *
- * Claude Code hook'ları yalnızca Claude Code'u kapsar. Buradaki dosyalar
- * kodu hangi agent yazarsa yazsın çalışır: git hook'u herkesi, CI hepsini.
+ * Claude Code hooks only cover Claude Code. The files here work whichever agent
+ * writes the code: the git hook covers everyone on this machine, CI covers everyone.
  *
- * Var olan dosya ezilmez; üzerine yazmak kullanıcının kendi kurulumunu
- * sessizce değiştirmek olurdu.
+ * Existing files are never overwritten; doing so would quietly change the user's
+ * own setup.
  */
 
 import { writeFileSync, readFileSync, existsSync, mkdirSync, copyFileSync, chmodSync } from 'node:fs';
@@ -21,83 +21,83 @@ let repo;
 try {
   repo = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 } catch (error) {
-  process.stdout.write(`${BRAND}: git repo bulunamadı — ${error.message}\n`);
-  process.stdout.write('Repo kiti bir git deposuna kurulur. Önce: git init\n');
+  process.stdout.write(`${BRAND}: no git repository found — ${error.message}\n`);
+  process.stdout.write('The repository kit installs into a git repository. Run git init first.\n');
   process.exit(1);
 }
 
-const out = [`${BRAND} repo kiti — ${repo}`, ''];
+const out = [`${BRAND} repository kit — ${repo}`, ''];
 const done = (t) => out.push(`  + ${t}`);
 const kept = (t) => out.push(`  = ${t}`);
 const warn = (t) => out.push(`  ! ${t}`);
 
 function writeIfAbsent(rel, content, label) {
   const file = join(repo, rel);
-  if (existsSync(file)) { kept(`${rel} zaten var, dokunulmadı`); return; }
+  if (existsSync(file)) { kept(`${rel} already exists, left alone`); return; }
   try {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, content);
     done(`${rel} — ${label}`);
   } catch (error) {
-    warn(`${rel} yazılamadı — ${error.message}`);
+    warn(`${rel} could not be written — ${error.message}`);
   }
 }
 
-// AGENTS.md kural setinden türetilir; ikinci bir kopya tutmak DOK-07 olurdu.
+// AGENTS.md derives from the rule set; keeping a second copy would be DOC-07.
 let baseRules = null;
 try {
   baseRules = readFileSync(join(ROOT, 'rules', 'base-rules.md'), 'utf8');
 } catch (error) {
-  warn(`kural seti okunamadı, AGENTS.md üretilemedi — ${error.message}`);
+  warn(`the rule set could not be read, so AGENTS.md was not generated — ${error.message}`);
 }
 if (baseRules) {
   const body = baseRules.replace(/^# .*$/m,
-    '# AGENTS.md\n\nBu dosyayı Cursor, Codex, Copilot ve Claude Code okur.\n'
-    + 'Kaynağı LenaRise.SlopGuard kural setidir; elle düzenlersen bir dahaki\n'
-    + '/slop-repo-init üzerine yazmaz, ama kaynakla ayrışır.');
-  writeIfAbsent('AGENTS.md', body, 'ortak kural dosyası (agent-agnostic)');
+    '# AGENTS.md\n\nCursor, Codex, Copilot and Claude Code all read this file.\n'
+    + 'It is generated from the LenaRise.SlopGuard rule set; editing it by hand is safe\n'
+    + '(a later /slop-repo-init will not overwrite it) but it will drift from the source.');
+  writeIfAbsent('AGENTS.md', body, 'shared rule file (agent-agnostic)');
 }
 
 writeIfAbsent('.slopignore',
-  '# LenaRise.SlopGuard — yol muafiyeti\n'
-  + '# Her satır bir glob. Dizin adı altındaki her şeyi kapsar.\n'
-  + '# Bir yolu buraya eklemek onu TAMAMEN taramanın dışına çıkarır.\n\n'
+  '# LenaRise.SlopGuard — path exemptions\n'
+  + '# One glob per line. Naming a directory covers everything beneath it.\n'
+  + '# Adding a path here removes it from scanning ENTIRELY.\n\n'
   + 'node_modules\ndist\nbuild\nvendor\n\n'
-  + '# Oyun motoru üretim dizinleri — varsa açın\n'
+  + '# Game engine build directories — uncomment if they apply\n'
   + '# Library\n# Temp\n# Builds\n# .godot\n# Binaries\n# Intermediate\n# Saved\n',
-  'proje bazlı muafiyet listesi');
+  'per-project exemption list');
 
 const workflow = join(ROOT, 'templates', 'github-workflow-slop-gate.yml');
 if (existsSync(workflow)) {
   try {
-    writeIfAbsent('.github/workflows/slop-gate.yml', readFileSync(workflow, 'utf8'), 'CI kapısı');
-    out.push('     Not: iş akışındaki OWNER yerine gerçek GitHub hesabını yaz.');
+    writeIfAbsent('.github/workflows/slop-gate.yml', readFileSync(workflow, 'utf8'), 'CI gate');
+    out.push('     Note: replace OWNER in the workflow with the real GitHub account.');
   } catch (error) {
-    warn(`CI şablonu okunamadı — ${error.message}`);
+    warn(`the CI template could not be read — ${error.message}`);
   }
 } else {
-  warn('CI şablonu bulunamadı');
+  warn('the CI template was not found');
 }
 
 const hookSource = join(ROOT, 'templates', 'pre-commit');
 const hookTarget = join(repo, '.git', 'hooks', 'pre-commit');
 if (!existsSync(hookSource)) {
-  warn('pre-commit şablonu bulunamadı');
+  warn('the pre-commit template was not found');
 } else if (existsSync(hookTarget)) {
-  kept('.git/hooks/pre-commit zaten var, dokunulmadı');
-  out.push(`     Bizimkini eklemek için içeriğini şuradan al: ${hookSource}`);
+  kept('.git/hooks/pre-commit already exists, left alone');
+  out.push(`     To add ours, take the contents from: ${hookSource}`);
 } else {
   try {
     mkdirSync(dirname(hookTarget), { recursive: true });
     copyFileSync(hookSource, hookTarget);
     chmodSync(hookTarget, 0o755);
-    done('.git/hooks/pre-commit — git düzeyinde tarama');
+    done('.git/hooks/pre-commit — scanning at the git level');
   } catch (error) {
-    warn(`pre-commit kurulamadı — ${error.message}`);
+    warn(`pre-commit could not be installed — ${error.message}`);
   }
 }
 
 out.push('');
-out.push('  Git hook\'u yalnızca senin makinende çalışır ve klonlanmaz.');
-out.push('  Ekip için asıl kapı CI iş akışıdır.');
+out.push('  The git hook runs only on your machine and is not cloned.');
+out.push('  For the team, the CI workflow is the real gate.');
 process.stdout.write(out.join('\n') + '\n');

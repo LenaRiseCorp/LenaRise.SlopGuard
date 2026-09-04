@@ -1,18 +1,18 @@
 ---
-description: Bu repoya agent-agnostic slop korumasını kur (AGENTS.md, git hook, CI)
+description: Install agent-agnostic slop protection into this repository (AGENTS.md, git hook, CI)
 allowed-tools: Bash(node:*)
 ---
 
-Çalıştır:
+Run:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/repo-init.mjs"`
 
-Kurulan dosyaların ne işe yaradığını kullanıcıya kısaca anlat:
+Briefly explain what each installed file does:
 
-- `AGENTS.md` — Cursor, Codex, Copilot ve Claude Code'un okuduğu ortak kural dosyası
-- `.slopignore` — bu repoda taranmayacak yollar
-- `.git/hooks/pre-commit` — yalnızca bu makinede çalışır, klonlanmaz
-- `.github/workflows/slop-gate.yml` — asıl kapı; ekipteki herkesi kapsar
+- `AGENTS.md` — the shared rule file read by Cursor, Codex, Copilot and Claude Code
+- `.slopignore` — paths that are not scanned in this repository
+- `.git/hooks/pre-commit` — runs only on this machine, and is not cloned
+- `.github/workflows/slop-gate.yml` — the real gate; it covers the whole team
 
-CI şablonundaki `OWNER` yer tutucusunu gerçek GitHub hesabıyla değiştirmesi
-gerektiğini söyle. Bunu sen tahmin etme, sor.
+Tell the user to replace the `OWNER` placeholder in the CI template with the real
+GitHub account. Do not guess it — ask.

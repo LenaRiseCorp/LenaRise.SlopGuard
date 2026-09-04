@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * CI: bir referansa göre değişen dosyaları tarar.
+ * CI: scans the files changed against a reference.
  *
- * Kullanım: node scripts/scan-diff.mjs --base <sha|ref>
- * --base verilmezse ya da geçersizse tüm izlenen dosyalar taranır; sessizce
- * hiçbir şey taramamak, taramış gibi görünüp korumasız kalmak olurdu.
+ * Usage: node scripts/scan-diff.mjs --base <sha|ref>
+ * With no --base, or an invalid one, every tracked file is scanned. Silently
+ * scanning nothing would mean appearing to check while leaving things unchecked.
  */
 import { repoRoot, gitFiles, runScan } from './scan-cli.mjs';
 
@@ -16,19 +16,19 @@ const root = repoRoot();
 if (!root) process.exit(1);
 
 let files = null;
-let label = 'tüm izlenen dosyalar';
+let label = 'all tracked files';
 
 if (base && /^[0-9a-zA-Z._\/-]+$/.test(base)) {
   files = gitFiles(['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], root);
   label = `${base}...HEAD`;
   if (files === null) {
-    process.stderr.write('LenaRise.SlopGuard: temel referans çözülemedi, tüm dosyalar taranıyor\n');
+    process.stderr.write('LenaRise.SlopGuard: the base reference could not be resolved, scanning every file\n');
   }
 }
 
 if (files === null) {
   files = gitFiles(['ls-files'], root);
-  label = 'tüm izlenen dosyalar';
+  label = 'all tracked files';
 }
 if (!files) process.exit(1);
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { deny, block, notify, inject, fail, summarize, formatFindings, formatFinding, formatCleanScan } from '../lib/report.mjs';
 import { scanContent, scanCommand } from '../lib/scan.mjs';
 
-/** stdout'u yakalar, yazılan tek JSON nesnesini döndürür. */
+/** Captures stdout and returns the single JSON object written. */
 function capture(fn) {
   const original = process.stdout.write;
   let buf = '';
@@ -20,101 +20,101 @@ function captureStderr(fn) {
   return buf;
 }
 
-// Şemalar docs/dogrulama-kaydi.md'de fiilen sınandı; testler sözleşmeyi kilitliyor.
+// The schemas were exercised for real (docs/verification-log.md); these tests lock the contract.
 
-test('deny şeması PreToolUse sözleşmesine uyar', () => {
-  const out = capture(() => deny('test dosyası korumalı'));
+test('the deny shape matches the PreToolUse contract', () => {
+  const out = capture(() => deny('test file is protected'));
   assert.deepEqual(out, {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: 'test dosyası korumalı',
+      permissionDecisionReason: 'test file is protected',
     },
   });
 });
 
-test('block şeması PostToolUse ve Stop sözleşmesine uyar', () => {
-  assert.deepEqual(capture(() => block('KOD-05 satır 3')), { decision: 'block', reason: 'KOD-05 satır 3' });
+test('the block shape matches the PostToolUse and Stop contract', () => {
+  assert.deepEqual(capture(() => block('CODE-05 line 3')), { decision: 'block', reason: 'CODE-05 line 3' });
 });
 
-test('notify kullanıcı kanalına systemMessage yazar', () => {
-  assert.deepEqual(capture(() => notify('oturum uzadı')), { systemMessage: 'oturum uzadı' });
+test('notify writes systemMessage to the user channel', () => {
+  assert.deepEqual(capture(() => notify('the session has grown long')), { systemMessage: 'the session has grown long' });
 });
 
-test('inject modele additionalContext enjekte eder', () => {
-  assert.deepEqual(capture(() => inject('SessionStart', 'kural seti')), {
-    hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'kural seti' },
+test('inject adds additionalContext for the model', () => {
+  assert.deepEqual(capture(() => inject('SessionStart', 'rule set')), {
+    hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'rule set' },
   });
 });
 
-test('fail stderr yazar ve stdout kirletmez — hata sessizce yutulmaz', () => {
+test('fail writes to stderr and leaves stdout untouched — errors are not swallowed', () => {
   let stdout = null;
-  const err = captureStderr(() => { stdout = capture(() => fail('post-edit', new Error('disk dolu'))); });
-  assert.equal(stdout, null, 'stdout boş kalmalı, yoksa hook protokolü bozulur');
-  assert.match(err, /LenaRise\.SlopGuard \[post-edit\] hata: Error: disk dolu/);
+  const err = captureStderr(() => { stdout = capture(() => fail('post-edit', new Error('disk full'))); });
+  assert.equal(stdout, null, 'stdout must stay empty or the hook protocol breaks');
+  assert.match(err, /LenaRise\.SlopGuard \[post-edit\] error: Error: disk full/);
 });
 
-test('fail Error olmayan değeri de yutmaz', () => {
-  assert.match(captureStderr(() => fail('pre-bash', 'düz metin hata')), /düz metin hata/);
+test('fail does not swallow a non-Error value either', () => {
+  assert.match(captureStderr(() => fail('pre-bash', 'plain text error')), /plain text error/);
 });
 
-// ── Sayım ve biçimlendirme ───────────────────────────────────────────────
+// ── Counting and formatting ──────────────────────────────────────────────
 
 const findings = scanContent({
   filePath: 'a.js',
   content: [
     'try { a() } catch (e) {}',
     'const k = "AKIAIOSFODNN7EXAMPLE"',
-    '// slop-guard-ignore KOD-04: bilerek ölü dal, migration bitince silinecek',
+    '// slop-guard-ignore CODE-04: deliberate dead branch, removed when the migration lands',
     'if (false) { legacy() }',
   ].join('\n'),
 });
 
-test('summarize sert kipte blokları sayar', () => {
+test('summarize counts blocks in strict mode', () => {
   const s = summarize(findings, { mode: 'strict' });
-  assert.equal(s.blocked, 2, 'boş catch + AWS anahtarı');
-  assert.equal(s.suppressed, 1, 'muaf tutulan guard-and-go');
+  assert.equal(s.blocked, 2, 'empty catch plus the AWS key');
+  assert.equal(s.suppressed, 1, 'the waived guard-and-go');
   assert.equal(s.warned, 0);
 });
 
-test('summarize keşif kipinde hiçbir şeyi bloklamaz', () => {
+test('summarize blocks nothing in explore mode', () => {
   const s = summarize(findings, { mode: 'explore' });
   assert.equal(s.blocked, 0);
   assert.equal(s.warned, 2);
 });
 
-test('formatFindings susturulmuş bulguyu listeye almaz ama sayısını söyler', () => {
+test('formatFindings omits a suppressed finding but reports the count', () => {
   const text = formatFindings(findings, { config: { mode: 'strict' }, target: 'a.js' });
-  assert.match(text, /2 desen engellendi \(sert kip\)/);
-  assert.match(text, /KOD-05/);
-  assert.match(text, /GUV-03/);
-  assert.doesNotMatch(text, /KOD-04/, 'susturulan bulgu listelenmemeli');
-  assert.match(text, /1 bulgu satır içi muafiyetle susturuldu/);
+  assert.match(text, /2 pattern blocked \(strict mode\)/);
+  assert.match(text, /CODE-05/);
+  assert.match(text, /SEC-03/);
+  assert.doesNotMatch(text, /CODE-04/, 'a suppressed finding must not be listed');
+  assert.match(text, /1 finding\(s\) silenced by an inline waiver/);
 });
 
-test('formatFindings temiz listede boş dize döner', () => {
+test('formatFindings returns an empty string for a clean list', () => {
   assert.equal(formatFindings([], { config: {} }), '');
 });
 
-test('formatFinding düzeltme önerisini ve alıntıyı taşır', () => {
+test('formatFinding carries the fix and the excerpt', () => {
   const [f] = scanContent({ filePath: 'a.js', content: 'try { a() } catch (e) {}' });
   const text = formatFinding(f);
-  assert.match(text, /satır 1/);
-  assert.match(text, /Hata bastırma/);
+  assert.match(text, /line 1/);
+  assert.match(text, /Error suppression/);
   assert.match(text, /> try \{ a\(\) \} catch \(e\) \{\}/);
-  assert.match(text, /Düzelt: Hatayı logla/);
+  assert.match(text, /Fix: Log it, rethrow it/);
 });
 
-test('formatFinding geçersiz muafiyeti kullanıcıya söyler', () => {
-  const [f] = scanContent({ filePath: 'a.js', content: '// slop-guard-ignore KOD-05\ntry { a() } catch (e) {}' });
-  assert.match(formatFinding(f), /muafiyeti geçersiz — gerekçe yazılmamış/);
+test('formatFinding tells the user when a waiver is invalid', () => {
+  const [f] = scanContent({ filePath: 'a.js', content: '// slop-guard-ignore CODE-05\ntry { a() } catch (e) {}' });
+  assert.match(formatFinding(f), /waiver on line 1 is not valid — no reason was given/);
 });
 
-test('komut bulgusu satır yerine "komut" der', () => {
+test('a command finding says "command" instead of a line number', () => {
   const [f] = scanCommand({ command: 'rm -rf /tmp/x' });
-  assert.match(formatFinding(f), /AGT-05 {2}komut/);
+  assert.match(formatFinding(f), /AGENT-05 {2}command/);
 });
 
-test('temiz tarama satırı', () => {
-  assert.equal(formatCleanScan(4), 'LenaRise.SlopGuard: 4 dosya tarandı · temiz');
+test('the clean scan line', () => {
+  assert.equal(formatCleanScan(4), 'LenaRise.SlopGuard: 4 file(s) scanned · clean');
 });

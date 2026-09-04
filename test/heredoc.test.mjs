@@ -3,17 +3,18 @@ import assert from 'node:assert/strict';
 import { scanCommand, stripHeredocs } from '../lib/scan.mjs';
 
 /**
- * Heredoc gövdesi komut kapsamında taranmaz.
+ * A heredoc body is not scanned in command scope.
  *
- * Bu ayrım aracın kendi geliştirilmesinde ortaya çıktı: yıkıcı bir komuttan
- * *söz eden* commit mesajı, yıkıcı komut sanılıp engellendi. Gövde veridir;
- * dosyaya yazılıyorsa post-bash içerik taramasından geçer, yani kapsam kaybı yok.
+ * This distinction surfaced while developing the tool: a commit message that
+ * *referred* to a destructive command was mistaken for one and blocked. The body
+ * is data; if it is written to a file, that file goes through the post-bash
+ * content scan, so nothing is lost.
  */
 
 const DESTRUCTIVE = ['rm', '-rf', '/veri'].join(' ');
 const keys = (command) => scanCommand({ command }).map((f) => f.key);
 
-test('heredoc gövdesindeki yıkıcı ifade komut sayılmaz', () => {
+test('a destructive phrase in a heredoc body is not a command', () => {
   const command = [
     "git commit -F - <<'EOF'",
     `Mesajda ${DESTRUCTIVE} geçiyor ama çalıştırılmıyor.`,
@@ -23,37 +24,37 @@ test('heredoc gövdesindeki yıkıcı ifade komut sayılmaz', () => {
   assert.deepEqual(keys(command), []);
 });
 
-test('heredoc dışındaki yıkıcı komut yakalanmaya devam eder', () => {
+test('a destructive command outside a heredoc is still caught', () => {
   const command = [DESTRUCTIVE, "cat > x <<'EOF'", 'zararsız', 'EOF'].join('\n');
-  assert.ok(keys(command).includes('agt-05-rm-recursive-force'));
+  assert.ok(keys(command).includes('agent-05-rm-recursive-force'));
 });
 
-test('heredoc kapanışından sonrası tekrar taranır', () => {
+test('scanning resumes after the heredoc closes', () => {
   const command = ["cat > x <<'EOF'", `${DESTRUCTIVE}-icerde`, 'EOF', `${DESTRUCTIVE}-disarda`].join('\n');
   const found = scanCommand({ command });
-  assert.equal(found.length, 1, 'yalnızca gövde dışındaki yakalanmalı');
+  assert.equal(found.length, 1, 'only the one outside the body should be caught');
   assert.match(found[0].excerpt, /disarda/);
 });
 
-test('tırnaksız ve tire ekli sınırlayıcılar da tanınır', () => {
+test('unquoted and dash-prefixed delimiters are recognised too', () => {
   for (const opener of ['<<EOF', "<<-'EOF'", '<<"EOF"']) {
     const command = ['cat > x ' + opener, DESTRUCTIVE, 'EOF'].join('\n');
     assert.deepEqual(keys(command), [], opener);
   }
 });
 
-test('farklı sınırlayıcı adı gövdeyi erken kapatmaz', () => {
+test('a different delimiter name does not close the body early', () => {
   const command = ["cat > x <<'PY'", DESTRUCTIVE, 'EOF', DESTRUCTIVE, 'PY'].join('\n');
-  assert.deepEqual(keys(command), [], 'gövde PY satırına kadar sürmeli');
+  assert.deepEqual(keys(command), [], 'the body must run to the PY line');
 });
 
-test('stripHeredocs satır sayısını ve numaralarını korur', () => {
+test('stripHeredocs preserves line count and numbering', () => {
   const command = ["cat > x <<'EOF'", 'bir', 'iki', 'EOF', DESTRUCTIVE].join('\n');
   assert.equal(stripHeredocs(command).split('\n').length, command.split('\n').length);
-  assert.equal(scanCommand({ command })[0].line, 5, 'satır numarası kaymamalı');
+  assert.equal(scanCommand({ command })[0].line, 5, 'the line number must not shift');
 });
 
-test('heredoc olmayan komutlar etkilenmez', () => {
+test('commands without a heredoc are unaffected', () => {
   assert.deepEqual(stripHeredocs('npm test'), 'npm test');
-  assert.ok(keys('git push --force origin main').includes('agt-05-git-force-push'));
+  assert.ok(keys('git push --force origin main').includes('agent-05-git-force-push'));
 });

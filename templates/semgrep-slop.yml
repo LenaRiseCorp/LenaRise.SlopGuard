@@ -1,19 +1,19 @@
-# LenaRise.SlopGuard — semgrep kuralları
+# LenaRise.SlopGuard — semgrep rules
 #
-# ÜRETİLEN DOSYA. Elle düzenleme; kaynağı lib/patterns.mjs.
-# Yeniden üretmek için: npm run docs
+# GENERATED FILE. Do not edit; the source is lib/patterns.mjs.
+# To regenerate: npm run docs
 #
-# Bu dosya Claude Code'dan bağımsız çalışır: semgrep'i olan her CI kullanabilir.
-# Kapsam bilerek dar — yol ve komut kapsamındaki desenler (test dosyası kilidi,
-# yıkıcı komutlar, paket doğrulama) statik tarayıcıya çevrilemez, onlar hook
-# ve git katmanında kalır.
+# This file works independently of Claude Code: any CI with semgrep can use it.
+# The coverage is deliberately narrower — path and command scope patterns (the
+# test-file lock, destructive commands, package verification) cannot be expressed
+# as a static scanner, so they stay in the hook and git layers.
 
 rules:
-  - id: slopguard-kod-04-guard-and-go
+  - id: slopguard-code-04-guard-and-go
     languages: [generic]
     severity: WARNING
     message: >-
-      KOD-04 Ölü dala alınmış kod — silmek yerine sarmalanmış. Düzelt: Kodu sil. Geri lazım olursa git geçmişinde duruyor.
+      CODE-04 Code parked on a dead branch — wrapped instead of deleted. Fix: Delete it. If you need it back, it is in the git history.
     paths:
       include:
       - "*.js"
@@ -48,11 +48,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\bif\\s*\\(\\s*(?:false|0)\\s*\\)|\\bif\\s+False\\s*:"
-  - id: slopguard-kod-05-empty-catch
+  - id: slopguard-code-05-empty-catch
     languages: [generic]
     severity: ERROR
     message: >-
-      KOD-05 Boş catch gövdesi — hata yakalanıp yutuluyor. Düzelt: Hatayı logla, yeniden fırlat ya da açıkça ele al.
+      CODE-05 Empty catch body — the error is caught and swallowed. Fix: Log it, rethrow it, or handle it explicitly.
     paths:
       include:
       - "*.js"
@@ -87,11 +87,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*\\}"
-  - id: slopguard-kod-05-comment-only-catch
+  - id: slopguard-code-05-comment-only-catch
     languages: [generic]
     severity: ERROR
     message: >-
-      KOD-05 Yalnızca yorum içeren catch gövdesi — hata yine yutuluyor. Düzelt: Hatayı logla ya da yeniden fırlat. Gerekçe yorumu ele alma yerine geçmez.
+      CODE-05 Catch body containing only comments — the error is still swallowed. Fix: Log it or rethrow it. A justification comment is not error handling.
     paths:
       include:
       - "*.js"
@@ -126,11 +126,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*(?:\\/\\/[^\\n]*\\s*|\\/\\*(?:[^*]|\\*(?!\\/)){0,400}\\*\\/\\s*)+\\}"
-  - id: slopguard-kod-05-except-pass
+  - id: slopguard-code-05-except-pass
     languages: [generic]
     severity: ERROR
     message: >-
-      KOD-05 except: pass — istisna sessizce yutuluyor. Düzelt: Hatayı logla ya da yeniden fırlat.
+      CODE-05 except: pass — the exception is silently swallowed. Fix: Log it or rethrow it.
     paths:
       include:
       - "*.js"
@@ -165,11 +165,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "^[ \\t]*except\\b[^\\n:]*:[ \\t]*(?:\\n[ \\t]+)?pass[ \\t]*$"
-  - id: slopguard-kod-05-catch-noop
+  - id: slopguard-code-05-catch-noop
     languages: [generic]
     severity: ERROR
     message: >-
-      KOD-05 Boş .catch() — reddedilen promise sessizce yutuluyor. Düzelt: Hatayı logla ya da yukarı taşı.
+      CODE-05 Empty .catch() — the rejected promise is silently swallowed. Fix: Log it or propagate it.
     paths:
       include:
       - "*.js"
@@ -204,11 +204,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\.catch\\(\\s*(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
-  - id: slopguard-tst-04-tautological-assert
+  - id: slopguard-test-04-tautological-assert
     languages: [generic]
     severity: ERROR
     message: >-
-      TST-04 Her koşulda geçen totolojik iddia — hiçbir şey doğrulamıyor. Düzelt: Gerçek davranışı iddia et ya da testi sil.
+      TEST-04 An assertion that passes under every condition — it verifies nothing. Fix: Assert the real behaviour, or delete the test.
     paths:
       include:
       - "*.js"
@@ -243,11 +243,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\bassert\\s+True\\b|\\bassert\\s*\\(\\s*(?:true|True|1)\\s*\\)|expect\\(\\s*true\\s*\\)\\s*\\.\\s*toBe\\(\\s*true\\s*\\)|assert\\.ok\\(\\s*true\\s*\\)"
-  - id: slopguard-tst-01-skipped-test
+  - id: slopguard-test-01-skipped-test
     languages: [generic]
     severity: ERROR
     message: >-
-      TST-01 Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. Düzelt: Testi düzelt ya da neden atlandığını gerekçesiyle yaz.
+      TEST-01 A skipped test — the shortest route from red to green. Fix: Fix the test, or write down why it is skipped.
     paths:
       include:
       - "*.js"
@@ -282,11 +282,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\b(?:it|test|describe|context)\\s*\\.\\s*skip\\s*\\(|\\bx(?:it|describe)\\s*\\(|@pytest\\.mark\\.skip|\\bt\\.Skip\\("
-  - id: slopguard-tst-03-fake-impl
+  - id: slopguard-test-03-fake-impl
     languages: [generic]
     severity: WARNING
     message: >-
-      TST-03 Sahte implementasyon — imza var, gövde yok. Düzelt: Gövdeyi yaz ya da fonksiyonu henüz ekleme.
+      TEST-03 Fake implementation — a signature with no body. Fix: Write the body, or do not add the function yet.
     paths:
       include:
       - "*.js"
@@ -321,11 +321,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?i)\\braise\\s+NotImplementedError\\b|throw\\s+new\\s+\\w*Error\\(\\s*['\"`]Not implemented"
-  - id: slopguard-guv-03-inline-secret
+  - id: slopguard-sec-03-inline-secret
     languages: [generic]
     severity: ERROR
     message: >-
-      GUV-03 Kaynak koda gömülü sır. Düzelt: Ortam değişkenine taşı; değer sızdıysa döndür.
+      SEC-03 Secret committed to source. Fix: Move it to an environment variable; rotate it if it leaked.
     paths:
       include:
       - "*.js"
@@ -360,11 +360,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?i)\\b(?:(?:api|access|secret|auth|private|encryption|refresh)[_-]?(?:key|token|secret)|api[_-]?key|secret|token|password|passwd)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-./+]{16,}['\"]"
-  - id: slopguard-guv-03-aws-key
+  - id: slopguard-sec-03-aws-key
     languages: [generic]
     severity: ERROR
     message: >-
-      GUV-03 AWS erişim anahtarı kimliği. Düzelt: Anahtarı hemen iptal et ve ortam değişkenine taşı.
+      SEC-03 AWS access key ID. Fix: Revoke the key now and move it to an environment variable.
     paths:
       include:
       - "*.js"
@@ -399,11 +399,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\bAKIA[0-9A-Z]{16}\\b"
-  - id: slopguard-guv-03-private-key
+  - id: slopguard-sec-03-private-key
     languages: [generic]
     severity: ERROR
     message: >-
-      GUV-03 Gömülü özel anahtar. Düzelt: Anahtarı dosyadan çıkar, gizli depoya taşı, döndür.
+      SEC-03 Private key embedded in a file. Fix: Remove it from the file, move it to a secret store, rotate it.
     paths:
       include:
       - "*.js"
@@ -438,11 +438,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----"
-  - id: slopguard-guv-05-sql-concat
+  - id: slopguard-sec-05-sql-concat
     languages: [generic]
     severity: ERROR
     message: >-
-      GUV-05 SQL sorgusunun dize birleştirmeyle kurulması — enjeksiyon yüzeyi. Düzelt: Parametreli sorgu kullan.
+      SEC-05 SQL built by string concatenation — an injection surface. Fix: Use a parameterised query.
     paths:
       include:
       - "*.js"
@@ -477,11 +477,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?i)\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^\\n;'\"]{0,120}['\"]\\s*(?:\\+|\\.|%)\\s*[A-Za-z_$]"
-  - id: slopguard-guv-05-sql-fstring
+  - id: slopguard-sec-05-sql-fstring
     languages: [generic]
     severity: ERROR
     message: >-
-      GUV-05 f-string ile kurulan SQL — enjeksiyon yüzeyi. Düzelt: Parametreli sorgu kullan.
+      SEC-05 SQL built with an f-string — an injection surface. Fix: Use a parameterised query.
     paths:
       include:
       - "*.js"
@@ -516,11 +516,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?i)f['\"][^'\"\\n]*\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^'\"\\n]*\\{"
-  - id: slopguard-guv-01-eval
+  - id: slopguard-sec-01-eval
     languages: [generic]
     severity: ERROR
     message: >-
-      GUV-01 Dinamik kod yürütme. Düzelt: Veriyi ayrıştır, yürütme. JSON için JSON.parse kullan.
+      SEC-01 Dynamic code execution. Fix: Parse the data, do not execute it. Use JSON.parse for JSON.
     paths:
       include:
       - "*.js"
@@ -555,11 +555,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?<![.\\w])eval\\s*\\(|(?<![.\\w])exec\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*[,)]"
-  - id: slopguard-dok-04-emoji-heading
+  - id: slopguard-doc-04-emoji-heading
     languages: [generic]
     severity: WARNING
     message: >-
-      DOK-04 Emoji ile başlayan başlık. Düzelt: Başlığı kelimeyle yaz.
+      DOC-04 Heading that opens with an emoji. Fix: Write the heading in words.
     paths:
       include:
       - "*.md"
@@ -570,11 +570,11 @@ rules:
       - "*.adoc"
     patterns:
       - pattern-regex: "^#{1,6}\\s+\\p{Extended_Pictographic}"
-  - id: slopguard-dok-01-buzzword
+  - id: slopguard-doc-01-buzzword
     languages: [generic]
     severity: WARNING
     message: >-
-      DOK-01 İçerik taşımayan pazarlama dili. Düzelt: Ne yaptığını somut yaz.
+      DOC-01 Marketing language carrying no information. Fix: Say concretely what it does.
     paths:
       include:
       - "*.md"
@@ -585,11 +585,11 @@ rules:
       - "*.adoc"
     patterns:
       - pattern-regex: "(?i)\\b(?:robust and flexible|seamlessly|cutting[- ]edge|state[- ]of[- ]the[- ]art|leverage the power|güçlü ve esnek|sorunsuzca entegre)\\b"
-  - id: slopguard-sur-08-effort-estimate
+  - id: slopguard-proc-08-effort-estimate
     languages: [generic]
     severity: ERROR
     message: >-
-      SUR-08 Ölçülemeyen süre tahmini. Düzelt: Kapsamı dosya, adım ve bilinmeyen sayısıyla ifade et.
+      PROC-08 A time estimate that cannot be measured. Fix: Express scope as files, steps and unknowns instead.
     paths:
       include:
       - "*.md"
@@ -600,11 +600,11 @@ rules:
       - "*.adoc"
     patterns:
       - pattern-regex: "(?i)\\b(?:tahmin\\w*|yaklaşık|ETA|estimated?|estimates?|roughly|about)\\b[^\\n]{0,40}\\b\\d+[-–]?\\d*\\s*(?:saat|gün|hafta|ay\\b|hours?|days?|weeks?|months?)|\\b\\d+[-–]?\\d*\\s*(?:saat|gün|hafta|hours?|days?|weeks?)\\b[^\\n]{0,25}\\b(?:sürer|sürecek|sürüyor|alır|alacak|alıyor|takes|will take)\\b"
-  - id: slopguard-oyn-01-framerate-bagimli-hareket
+  - id: slopguard-game-01-framerate-dependent-motion
     languages: [generic]
     severity: WARNING
     message: >-
-      OYN-01 Hareket kare hızına bağlı — Time.deltaTime ile ölçeklenmemiş. Düzelt: Hızı Time.deltaTime ile çarp; yoksa oyun 30 ve 144 fps’de farklı hızda çalışır.
+      GAME-01 Motion is frame-rate dependent — not scaled by Time.deltaTime. Fix: Multiply by Time.deltaTime; otherwise the game runs at different speeds at 30 and 144 fps.
     paths:
       include:
       - "*.js"
@@ -639,11 +639,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "\\btransform\\.Translate\\s*\\((?![^)]*\\bTime\\.)[^)]*\\)|\\btransform\\.position\\s*\\+=\\s*(?![^;\\n]*\\bTime\\.)[^;\\n]*[*][^;\\n]*;"
-  - id: slopguard-oyn-02-her-karede-sahne-aramasi
+  - id: slopguard-game-02-scene-lookup-per-frame
     languages: [generic]
     severity: WARNING
     message: >-
-      OYN-02 Kare döngüsünde sahne araması ya da bileşen çözümlemesi. Düzelt: Referansı Awake içinde bir kez çöz ve alanda sakla, ya da [SerializeField] ile bağla.
+      GAME-02 Scene lookup or component resolution inside the frame loop. Fix: Resolve the reference once in Awake and store it, or wire it with [SerializeField].
     paths:
       include:
       - "*.js"
@@ -678,11 +678,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\b(?:GameObject\\.Find\\w*\\s*\\(|Object\\.FindObjectOfType|FindObjectOfType\\s*<|FindFirstObjectByType\\s*<|Camera\\.main\\b|GetComponent\\s*<)"
-  - id: slopguard-oyn-03-fizik-update-icinde
+  - id: slopguard-game-03-physics-in-update
     languages: [generic]
     severity: WARNING
     message: >-
-      OYN-03 Fizik çağrısı Update içinde — fizik adımıyla senkron değil. Düzelt: Rigidbody işlemlerini FixedUpdate içine taşı.
+      GAME-03 Physics call inside Update — not synchronised with the physics step. Fix: Move Rigidbody work into FixedUpdate.
     paths:
       include:
       - "*.js"
@@ -717,11 +717,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?(?:\\b(?:AddForce|AddRelativeForce|AddTorque|MovePosition|MoveRotation)\\s*\\(|\\.velocity\\s*=[^=])"
-  - id: slopguard-oyn-04-sicak-yolda-tahsis
+  - id: slopguard-game-04-hot-path-allocation
     languages: [generic]
     severity: WARNING
     message: >-
-      OYN-04 Kare döngüsünde LINQ — her karede çöp üretir, takılma yaratır. Düzelt: Sonucu önceden hesapla ya da döngüyü elle yaz; sıcak yolda tahsis yapma.
+      GAME-04 LINQ inside the frame loop — garbage every frame, visible as hitching. Fix: Precompute the result or write the loop by hand; do not allocate on the hot path.
     paths:
       include:
       - "*.js"
@@ -756,11 +756,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\.(?:Where|Select|OrderBy|OrderByDescending|ToList|ToArray|FirstOrDefault)\\s*\\("
-  - id: slopguard-oyn-05-her-karede-gunluk
+  - id: slopguard-game-05-logging-per-frame
     languages: [generic]
     severity: WARNING
     message: >-
-      OYN-05 Her karede günlük yazımı — editörde kare süresini gözle görülür düşürür. Düzelt: Kaldır, ya da bir koşula veya #if UNITY_EDITOR bloğuna bağla.
+      GAME-05 Logging every frame — measurably lowers frame time in the editor. Fix: Remove it, or gate it behind a condition or #if UNITY_EDITOR.
     paths:
       include:
       - "*.js"
@@ -795,11 +795,11 @@ rules:
       - "*.gd"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\bDebug\\.Log\\w*\\s*\\("
-  - id: slopguard-oyn-06-istemcide-ekonomi
+  - id: slopguard-game-06-client-side-economy
     languages: [generic]
     severity: ERROR
     message: >-
-      OYN-06 Ekonomi ya da ilerleme değeri istemcide saklanıyor (GUV-04). Düzelt: PlayerPrefs düz metindir ve oyuncu tarafından düzenlenebilir. Değeri sunucuda tut ya da imzala.
+      GAME-06 Economy or progression value stored on the client (SEC-04). Fix: PlayerPrefs is plain text and the player can edit it. Keep the value server-side or sign it.
     paths:
       include:
       - "*.js"
@@ -833,12 +833,12 @@ rules:
       - "*.svelte"
       - "*.gd"
     patterns:
-      - pattern-regex: "(?i)\\bPlayerPrefs\\.Set(?:Int|Float|String)\\s*\\(\\s*[\"'][^\"']*(?:coin|gem|gold|money|currency|credit|score|level|xp|premium|purchase|unlock|para|altin|puan|skor)"
-  - id: slopguard-oyn-07-kirilgan-dugum-yolu
+      - pattern-regex: "(?i)\\bPlayerPrefs\\.Set(?:Int|Float|String)\\s*\\(\\s*[\"'][^\"']*(?:coin|gem|gold|money|currency|credit|score|level|xp|premium|purchase|unlock)"
+  - id: slopguard-game-07-fragile-node-path
     languages: [generic]
     severity: WARNING
     message: >-
-      OYN-07 Göreli sahne ağacı yolu — düğüm taşınınca sessizce kopar. Düzelt: @onready ile dışa aktarılmış NodePath kullan ya da sinyalle bağla.
+      GAME-07 Relative scene tree path — it breaks silently when a node moves. Fix: Use an exported NodePath with @onready, or connect a signal.
     paths:
       include:
       - "*.js"

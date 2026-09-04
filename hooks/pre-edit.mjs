@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * PreToolUse: Edit|Write|MultiEdit → test ve korumalı yol savunması.
+ * PreToolUse: Edit|Write|MultiEdit → test and protected-path defence.
  *
- * Bu hook'un durdurması gerçek: ölçüm PreToolUse deny'ın bypass permissions
- * modunda bile aracı yürütmediğini gösterdi (docs/dogrulama-kaydi.md).
- * Sert garantinin iki ayağından biri burası.
+ * This hook really stops things: measurement showed that a PreToolUse deny
+ * prevents the tool from running even in bypass permissions mode
+ * (docs/verification-log.md). It is one of the two legs of the hard guarantee.
  *
- * TST kilidi en güçlü mekanizma: ImpossibleBench bulgusu, test dosyası
- * modele görünmediğinde hile oranının sıfıra yaklaştığı yönünde. Testi
- * değiştiremeyen bir agent, testi geçmek için kodu düzeltmek zorunda kalır.
+ * The TEST lock is the strongest mechanism here. The ImpossibleBench finding is
+ * that cheating drops close to zero when the test file is not visible to the
+ * model. An agent that cannot change the test has to fix the code to pass it.
  */
 
 import { relative } from 'node:path';
@@ -24,21 +24,21 @@ runHook('pre-edit', ({ payload, config, repoRoot }) => {
   const shown = repoRoot ? relative(repoRoot, filePath) : filePath;
   if (isPathIgnored(config, filePath, repoRoot)) return;
 
-  // Korumalı yollar kipten bağımsız: bunlar üslup kuralı değil, sır ve
-  // bütünlük koruması. Keşif kipi prototip içindir, .env'i açmak için değil.
+  // Protected paths ignore the mode: these are not style rules, they are secret
+  // and integrity protection. Explore mode exists for prototyping, not for
+  // opening .env.
   const why = protectedPathReason(shown);
   if (why) {
-    deny(`LenaRise.SlopGuard: ${shown} korumalı (${why}).\n`
-       + `Bu dosyayı agent yazmamalı. Gerçekten gerekiyorsa kullanıcı elle düzenlesin, `
-       + `ya da yolu repo kökündeki .slopignore dosyasına ekleyin.`);
+    deny(`LenaRise.SlopGuard: ${shown} is protected (${why}).\n`
+       + `An agent should not write this file. If it genuinely must change, let the user edit it, `
+       + `or add the path to .slopignore at the repository root.`);
     return;
   }
 
   if (isTestPath(shown) && !config.allowTestWrites) {
-    deny(`LenaRise.SlopGuard: ${shown} bir test dosyası (TST-01).\n`
-       + `Testi değiştirmek yerine testi geçiren kodu düzelt. Test gerçekten `
-       + `değişmeliyse config.json içinde allowTestWrites: true yapın — `
-       + `gerekçesini de yazın.`);
+    deny(`LenaRise.SlopGuard: ${shown} is a test file (TEST-01).\n`
+       + `Fix the code that makes the test pass instead of changing the test. If the test really `
+       + `must change, set allowTestWrites: true in config.json — and write down why.`);
     return;
   }
 

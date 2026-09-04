@@ -1,24 +1,24 @@
 {
   "patterns": [
     {
-      "key": "ornek-todo-acil",
-      "id": "KOD-03",
+      "key": "example-urgent-todo",
+      "id": "CODE-03",
       "scope": "code",
       "severity": "warn",
-      "match": "TODO\\s*\\(acil\\)",
+      "match": "TODO\\s*\\(urgent\\)",
       "flags": "gi",
-      "detects": "Acil işaretli TODO — sahibi ve tarihi yok.",
-      "fix": "Ya şimdi yap ya da issue aç ve numarasını yaz."
+      "detects": "A TODO marked urgent with no owner and no date.",
+      "fix": "Either do it now, or open an issue and reference its number."
     },
     {
-      "key": "ornek-yasak-import",
-      "id": "KOD-07",
+      "key": "example-forbidden-import",
+      "id": "CODE-07",
       "scope": "code",
       "severity": "block",
       "match": "from ['\"]lodash['\"]",
       "flags": "g",
-      "detects": "Bu projede lodash kullanılmıyor.",
-      "fix": "Yerleşik dizi ve nesne yöntemlerini kullan."
+      "detects": "This project does not use lodash.",
+      "fix": "Use the built-in array and object methods."
     }
   ]
 }

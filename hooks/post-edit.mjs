@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /**
- * PostToolUse: Edit|Write|MultiEdit → 8 kategori taraması.
+ * PostToolUse: Edit|Write|MultiEdit → scan across all categories.
  *
- * Ölçülmüş gerçek (docs/dogrulama-kaydi.md): PostToolUse bloğu modele iletilir
- * ama modeli durdurmaz — dosya zaten yazılmıştır ve model bloğu görmezden
- * gelip "bitti" diyebilir. Bu yüzden buradaki blok bir *düzeltme talebidir*,
- * kilit değil. Sert garanti şöyle kurulur: bulunan ihlaller oturum defterine
- * yazılır, stop-gate defter boşalmadan turu bitirtmez.
+ * Measured fact (docs/verification-log.md): a PostToolUse block reaches the model
+ * but does not stop it — the file has already been written, and the model can
+ * acknowledge the block and finish anyway. So the block here is a *request to
+ * fix*, not a lock. The hard guarantee is built like this: findings are written
+ * to the session ledger as open violations, and stop-gate refuses to end the turn
+ * while the ledger is not empty.
  */
 
 import { readFileSync } from 'node:fs';
@@ -29,15 +30,15 @@ runHook('post-edit', ({ payload, config, state, repoRoot }) => {
   if (isPathIgnored(config, filePath, repoRoot)) return;
   if (classify(filePath) === 'other') return;
 
-  // Diskten okunur: MultiEdit ve ardışık düzenlemelerden sonra dosyanın
-  // gerçek son hâli tool_input'tan yeniden kurulamaz.
+  // Read from disk: after a MultiEdit or a series of edits, the file's real
+  // final state cannot be reconstructed from tool_input.
   let content;
   try {
     content = readFileSync(filePath, 'utf8');
   } catch (error) {
     const fallback = payload.tool_response?.content ?? payload.tool_input?.content;
     if (typeof fallback !== 'string') {
-      fail('post-edit', `dosya okunamadı ve yedek içerik yok (${filePath}) — ${error.message}`);
+      fail('post-edit', `file could not be read and no fallback content is available (${filePath}) — ${error.message}`);
       return;
     }
     content = fallback;
@@ -60,7 +61,7 @@ runHook('post-edit', ({ payload, config, state, repoRoot }) => {
   });
 
   if (blocking) {
-    block(`${text}\n\n  Bu dosyayı düzelt. Düzeltilmeden tur bitirilemez — stop kapısı açık ihlali bekliyor.`);
+    block(`${text}\n\n  Fix this file. The turn cannot end until it is fixed — the stop gate is waiting on the open violation.`);
   } else {
     notify(text);
   }

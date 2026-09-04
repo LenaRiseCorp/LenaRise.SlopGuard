@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 /**
- * Durum çubuğu — settings.json'dan çağrılır, plugin ölse bile çalışır.
+ * Status line — invoked from settings.json, and it keeps working even if the
+ * plugin is dead.
  *
- * Bu script kasıtlı olarak plugin'in dışında yaşıyor. Mantıksal tuzak şu:
- * hook'lar kayıtlı değilse hiçbir hook çalışmaz, "çalışıyor musun?" diye
- * soracak hook dahil. Yokluk, yok olan şeye sordurularak tespit edilemez.
+ * This script lives outside the plugin on purpose. The logical trap: if hooks
+ * are not registered, no hook runs — including the one that would ask "are you
+ * running?". An absence cannot be detected by asking the thing that is absent.
  *
- * "canlı" demek için İKİ ayrı kanıt gerekir ve ikisi farklı şeyi kanıtlar:
+ * Saying "live" requires TWO separate proofs, each establishing something
+ * different:
  *
- *   Kayıt          — kalp atışı damgası BU oturumun kimliğini taşıyor mu?
- *                    Damgayı user-prompt.mjs atar; taşıyorsa Claude Code
- *                    hook'u tanıyor ve tetikliyor demektir.
- *   Çalışabilirlik — post-edit.mjs sentetik yüke şu an doğru cevap veriyor mu?
- *                    Kayıtlı olup node yolu bozulmuş olabilir.
+ *   Registration — does the heartbeat stamp carry THIS session's id? The stamp
+ *                  is written by user-prompt.mjs; if it matches, Claude Code
+ *                  recognises the hook and is firing it.
+ *   Operability  — does pre-edit.mjs answer a synthetic payload correctly right
+ *                  now? A hook can be registered while the node path is broken.
  *
- * Tek kanıt yetmez ve belirsizlik "canlı" diye yuvarlanmaz: ilk mesajdan önce
- * kayıt kanıtlanamaz, o yüzden iddia edilmez — "hazır" denir.
+ * One proof is not enough, and uncertainty is never rounded up to "live":
+ * registration cannot be proved before the first message, so it is not claimed —
+ * the bar says "ready".
  */
 
 import { execFileSync } from 'node:child_process';
@@ -34,22 +37,24 @@ const PROBE_CACHE = join(paths.dir, 'probe.json');
 const PROBE_TTL_MS = 60_000;
 const BRAND = 'SlopGuard';
 
-/** Çubuk hiçbir şeyi sessizce yutmaz; ama çökmez de. Not stderr'e gider. */
+/** The bar swallows nothing silently — but it does not crash either. Notes go to stderr. */
 function warn(message) {
   process.stderr.write(`LenaRise.SlopGuard [statusline] ${message}\n`);
 }
 
 /**
- * pre-edit.mjs'e sentetik yük gönderir ve beklenen deny cevabını doğrular.
+ * Sends a synthetic payload to pre-edit.mjs and checks for the expected deny.
  *
- * Hedef bilerek pre-edit: gerçek durdurma yetkisi olan hook o, dolayısıyla
- * "çalışıyor mu?" sorusunun en anlamlı muhatabı. Yük olarak sürüm ekli bir
- * dosya adı seçildi çünkü yol deseni dosya *adında* aranır — bu dize kaynak
- * kodda zararsız durur ve kendi tarayıcımızı tetiklemez. Kirli kod dizesi
- * kullanmak, kendi kuralımıza muafiyet yazmayı gerektirirdi.
+ * pre-edit is the deliberate target: it is the hook with real stopping power, so
+ * it is the most meaningful thing to ask "are you working?". The payload is a
+ * version-suffixed filename because path patterns are matched against the file
+ * *name* — that string sits harmlessly in source and does not trip our own
+ * scanner. Using a dirty-code string would have required writing a waiver
+ * against our own rule.
  *
- * SLOPGUARD_PROBE=1 kalp atışını ve oturum yazımını kapatır — probe kendi
- * kayıt kanıtını üretemez, yoksa çubuk kendi kendine yalan söylerdi.
+ * SLOPGUARD_PROBE=1 disables the heartbeat stamp and the session write — the
+ * probe must not manufacture its own registration proof, or the bar would be
+ * lying to itself.
  */
 function runProbe(cwd) {
   const payload = {
@@ -70,11 +75,11 @@ function runProbe(cwd) {
     const parsed = JSON.parse(out);
     const decision = parsed.hookSpecificOutput ?? {};
     const ok = decision.permissionDecision === 'deny'
-      && /KOD-01/.test(decision.permissionDecisionReason ?? '');
-    return { ok, reason: ok ? null : 'beklenen deny cevabı gelmedi' };
+      && /CODE-01/.test(decision.permissionDecisionReason ?? '');
+    return { ok, reason: ok ? null : 'the expected deny did not come back' };
   } catch (error) {
-    // Başarısızlık sonucun kendisi: script cevap vermiyor. Gerekçe önbelleğe
-    // yazılır, /slop-doctor onu okuyup ne olduğunu söyleyebilsin diye.
+    // The failure is the result: the script is not answering. The reason is
+    // cached so /slop-doctor can say what happened.
     return { ok: false, reason: error.message };
   }
 }
@@ -85,14 +90,14 @@ function readProbeCache() {
     const cached = JSON.parse(readFileSync(PROBE_CACHE, 'utf8'));
     return Date.now() - cached.ts < PROBE_TTL_MS ? cached : null;
   } catch (error) {
-    warn(`probe önbelleği okunamadı, yeniden ölçülüyor — ${error.message}`);
+    warn(`probe cache could not be read, re-measuring — ${error.message}`);
     return null;
   }
 }
 
 /**
- * Probe sonucu, 60 saniyelik önbellekle. Önbellek performans için değil,
- * nezaket için: çubuk her yenilemede node süreci doğurmasın.
+ * Probe result, cached for 60 seconds. The cache is not for speed but for
+ * courtesy: the bar should not spawn a node process on every refresh.
  */
 function probeResult(cwd) {
   const cached = readProbeCache();
@@ -102,18 +107,18 @@ function probeResult(cwd) {
   try {
     writeFileSync(PROBE_CACHE, JSON.stringify(record));
   } catch (error) {
-    warn(`probe önbelleği yazılamadı — ${error.message}`);
+    warn(`probe cache could not be written — ${error.message}`);
   }
   return record;
 }
 
 /**
- * Bu oturumda kullanıcı hiç mesaj gönderdi mi?
+ * Has the user sent any message in this session?
  *
- * Kayıt kanıtının yokluğu tek başına "kayıtsız" demek değil: ilk mesajdan önce
- * hiçbir hook tetiklenmemiş olması normaldir. Transcript, statusLine'a gelen
- * ve plugin'den bağımsız olan tek kanıt. İlk kullanıcı mesajı dosyanın
- * başlarında olduğu için yalnızca ilk parça okunur.
+ * Missing registration proof does not by itself mean "unregistered": before the
+ * first message it is normal for no hook to have fired. The transcript is the
+ * only evidence that reaches the status line and is independent of the plugin.
+ * Only the first chunk is read, because the first user message appears early.
  */
 function promptSubmitted(transcriptPath) {
   if (!transcriptPath || !existsSync(transcriptPath)) return false;
@@ -127,14 +132,14 @@ function promptSubmitted(transcriptPath) {
     readSync(fd, buffer, 0, length, 0);
     return /"type"\s*:\s*"user"/.test(buffer.toString('utf8'));
   } catch (error) {
-    warn(`transcript okunamadı, kayıt durumu belirsiz sayılıyor — ${error.message}`);
+    warn(`transcript could not be read, registration treated as unknown — ${error.message}`);
     return false;
   } finally {
     if (fd !== undefined) {
       try {
         closeSync(fd);
       } catch (error) {
-        warn(`transcript kapatılamadı — ${error.message}`);
+        warn(`transcript could not be closed — ${error.message}`);
       }
     }
   }
@@ -164,35 +169,35 @@ function main(raw) {
   try {
     payload = JSON.parse(raw);
   } catch (error) {
-    warn(`stdin ayrıştırılamadı, boş yükle devam ediliyor — ${error.message}`);
+    warn(`stdin could not be parsed, continuing with an empty payload — ${error.message}`);
   }
 
   const cwd = payload.cwd ?? payload.workspace?.current_dir ?? process.cwd();
   const { config } = loadConfig({ repoRoot: findRepoRoot(cwd) });
 
   if (config.ui.statusLine === 'off') return '';
-  if (!config.enabled) return `${BRAND} kapalı`;
+  if (!config.enabled) return `${BRAND} off`;
 
-  const state = loadSession(payload.session_id ?? 'bilinmeyen');
+  const state = loadSession(payload.session_id ?? 'unknown');
   const beat = readHeartbeat();
 
   const probe = probeResult(cwd);
   if (!probe.ok) {
-    return render({ live: false, label: '⚠️ bozuk', detail: probe.reason ?? 'script cevap vermiyor' },
+    return render({ live: false, label: 'broken', detail: probe.reason ?? 'the script is not answering' },
       { config, state, beat, payload });
   }
 
   const registered = Boolean(beat?.sessionId) && beat.sessionId === payload.session_id;
   if (registered) {
-    return render({ live: true, label: 'canlı' }, { config, state, beat, payload });
+    return render({ live: true, label: 'live' }, { config, state, beat, payload });
   }
 
   if (promptSubmitted(payload.transcript_path)) {
-    const age = beat ? formatAge(ageSeconds(beat)) : 'hiç';
-    return render({ live: false, label: '⚠️ kayıtsız', detail: `son damga ${age}` }, { config, state, beat, payload });
+    const age = beat ? formatAge(ageSeconds(beat)) : 'never';
+    return render({ live: false, label: 'unregistered', detail: `last stamp ${age}` }, { config, state, beat, payload });
   }
 
-  return render({ live: false, label: 'hazır' }, { config, state, beat, payload });
+  return render({ live: false, label: 'ready' }, { config, state, beat, payload });
 }
 
 let raw = '';
@@ -203,10 +208,10 @@ process.stdin.on('end', () => {
   try {
     line = main(raw);
   } catch (error) {
-    // Çubuk hiçbir koşulda çökmez: çökerse Claude Code hata gösterir ve
-    // kullanıcı korumanın durumunu hiç göremez.
-    process.stderr.write(`LenaRise.SlopGuard [statusline] hata: ${error.stack ?? error}\n`);
-    line = `${BRAND} ⚠️ bozuk`;
+    // The bar never crashes: a crash makes Claude Code show an error and the
+    // user then sees nothing at all about the state of their protection.
+    process.stderr.write(`LenaRise.SlopGuard [statusline] error: ${error.stack ?? error}\n`);
+    line = `${BRAND} broken`;
   }
   if (line) process.stdout.write(line);
   exitWhenFlushed(0);

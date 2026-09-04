@@ -1,14 +1,15 @@
-# Kendi kurallarım
+# My own rules
 
-Bu dosya her oturum başında modele enjekte edilir. Kısa tut: uzun kural seti
-okunmaz, ve aşırı bağlam kendi taksonomimizde bir slop türü (AGT-02).
+This file is injected into the model's context at the start of every session.
+Keep it short: a long rule set does not get read, and excess context is itself a
+category in our taxonomy (AGENT-02).
 
-Plugin güncellemesi bu dosyaya asla dokunmaz.
+A plugin update never touches this file.
 
-Örnekler — kendine göre değiştir, işine yaramayanı sil:
+Examples — change them to suit you, delete what does not apply:
 
-- Tarih biçimi her yerde ISO 8601.
-- Yeni bağımlılık eklemeden önce sor.
-- Türkçe yorum yaz, değişken adları İngilizce.
-- Veritabanı şeması değişikliği migration dosyası olmadan yapılmaz.
-- Bu projede `console.log` yerine `logger` kullanılır.
+- Dates are ISO 8601 everywhere.
+- Ask before adding a new dependency.
+- Comments in English, variable names in English.
+- No database schema change without a migration file.
+- This project uses `logger`, not `console.log`.

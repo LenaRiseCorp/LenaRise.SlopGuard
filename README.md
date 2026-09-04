@@ -1,141 +1,141 @@
 # LenaRise.SlopGuard
 
-ÜRETİLEN DOSYA. Elle düzenleme; kaynağı `lib/patterns.mjs`, `lib/config.mjs` ve
-`scripts/gen-docs.mjs`. Yeniden üretmek için `npm run docs`.
+GENERATED FILE. Do not edit; the sources are `lib/patterns.mjs`, `lib/config.mjs`
+and `scripts/gen-docs.mjs`. To regenerate: `npm run docs`.
 
-Agentic geliştirmede üretilen çıktının kalitesini ve güvenliğini koruyan bir
-Claude Code plugin'i. Kural metni niyeti taşır, hook sınırı koyar: modelin
-atlayamayacağı yerde durur.
+A Claude Code plugin that protects the quality and safety of what gets produced
+during agentic development. Rule text carries the intent; hooks set the boundary,
+and stop where the model cannot step over.
 
-Sürüm 0.3.1 · 33 mekanik desen · 71 taksonomi girdisi · sıfır runtime bağımlılığı.
+Version 0.4.0 · 33 mechanical patterns · 71 taxonomy entries · zero runtime dependencies.
 
-## Ne yapar
+## What it does
 
-Üç katman, üç hedef kitle.
+Three layers, three audiences.
 
-1. **Makine katmanı** — Claude Code hook'ları. Model bunları atlayamaz;
-   harness çalıştırır.
-2. **İnsan katmanı** — sohbete gelen ölçüm tabanlı uyarılar. Bloklamaz, uyarır.
-3. **Repo katmanı** — git hook'u ve CI. Kodu hangi agent yazarsa yazsın çalışır.
+1. **Machine layer** — Claude Code hooks. The model cannot skip these; the
+   harness runs them.
+2. **Human layer** — measurement-based warnings delivered in chat. It warns, it
+   never blocks.
+3. **Repository layer** — a git hook and CI. These work whichever agent wrote the code.
 
-| Kategori | ID sayısı | Mekanik desen | Zorlama |
+| Category | IDs | Mechanical patterns | Enforcement |
 |---|---|---|---|
-| **KOD** Kod kalitesi | 9 | 6 | güçlü |
-| **MTK** Mantık ve doğruluk | 9 | 1 | kısmî |
-| **TST** Test ve doğrulama | 7 | 3 | en güçlü |
-| **GUV** Güvenlik | 8 | 6 | güçlü |
-| **AGT** Agent operasyonu | 9 | 6 | güçlü |
-| **SUR** Süreç ve ekip | 8 | 1 | orta |
-| **DOK** Kod dışı çıktı | 7 | 3 | orta |
-| **INS** İnsan tarafı | 6 | yok — koç katmanı | ölçüm + uyarı |
-| **OYN** Oyun geliştirme | 8 | 7 | alan bazlı |
+| **CODE** Code quality | 9 | 6 | strong |
+| **LOGIC** Logic and accuracy | 9 | 1 | partial |
+| **TEST** Testing | 7 | 3 | strongest |
+| **SEC** Security | 8 | 6 | strong |
+| **AGENT** Agent operations | 9 | 6 | strong |
+| **PROC** Process and team | 8 | 1 | moderate |
+| **DOC** Non-code output | 7 | 3 | moderate |
+| **HUMAN** Human factors | 6 | none — coach layer | measure and warn |
+| **GAME** Game development | 8 | 7 | domain-scoped |
 
-### Hook davranışı
+### Hook behaviour
 
-| Hook | Olay | Davranış |
+| Hook | Event | Behaviour |
 |---|---|---|
-| `session-start` | SessionStart | Kural seti ve yetenek indeksini modele enjekte eder |
-| `user-prompt` | UserPromptSubmit | Tur sayacı, koç uyarıları, kalp atışı damgası |
-| `pre-edit` | PreToolUse Edit/Write | Test dosyası ve korumalı yol → **deny** |
-| `post-edit` | PostToolUse Edit/Write | Desen bulursa **block** ve ihlali deftere yazar |
-| `pre-bash` | PreToolUse Bash | Yıkıcı komut → **deny**; doğrulanmamış paket → **deny**; korumalı yola yönlendirme → **deny** |
-| `post-bash` | PostToolUse Bash | Test ve commit damgası; kabuk üzerinden yazılan dosyaları tarar |
-| `stop-gate` | Stop | Açık ihlal, doğrulanmamış kod ya da aşırı diff → **block** |
-| `session-end` | SessionEnd | Ölçüm tabanlı oturum özeti |
+| `session-start` | SessionStart | Injects the rule set and the capability index |
+| `user-prompt` | UserPromptSubmit | Turn counter, coach warnings, heartbeat stamp |
+| `pre-edit` | PreToolUse Edit/Write | Test files and protected paths → **deny** |
+| `post-edit` | PostToolUse Edit/Write | On a finding, **block** and record the violation |
+| `pre-bash` | PreToolUse Bash | Destructive command → **deny**; unverified package → **deny**; redirect to a protected path → **deny** |
+| `post-bash` | PostToolUse Bash | Test and commit stamps; scans files written through the shell |
+| `stop-gate` | Stop | Open violations, unverified code or an oversized diff → **block** |
+| `session-end` | SessionEnd | Measurement-based session summary |
 
-Sert durdurma garantisi `pre-edit` ve `stop-gate`'tedir. `post-edit`'in bloğu
-modele iletilir ama modeli durdurmaz — bu ölçüldü, `docs/dogrulama-kaydi.md`.
-Bu yüzden `post-edit` bulduğu ihlali oturum defterine yazar ve kilit
-`stop-gate`'te kurulur.
+The hard guarantee lives in `pre-edit` and `stop-gate`. A `post-edit` block
+reaches the model but does not stop it — that was measured, see
+`docs/verification-log.md`. So `post-edit` records what it found in the session
+ledger and the lock is built in `stop-gate`.
 
-## Kurulum
+## Installation
 
 ```bash
-claude plugin marketplace add LenaRiseCorp/LenaRise.SlopGuard
+claude plugin marketplace add OWNER/LenaRise.SlopGuard
 claude plugin install lenarise-slopguard@lenarise-slopguard -y
 ```
 
-Ardından `/slop-setup` ve Claude Code'u yeniden başlat. Doğrulamak için
-`/slop-doctor`.
+Then run `/slop-setup` and restart Claude Code. To verify: `/slop-doctor`.
 
-`/slop-setup` şunları yapar ve **var olan hiçbir dosyayı ezmez**: yapılandırma
-dosyalarını yalnızca yoksa oluşturur, durum çubuğunu kaydeder ve sessiz ölüm
-koruması kuralını `~/.claude/CLAUDE.md` dosyasına ekler. Kural işaretçiler
-arasına yazılır; dosyanın geri kalanına dokunulmaz ve blok silinerek temiz
-kaldırılabilir. İstemiyorsan: `/slop-setup --skip-claude-md`.
+`/slop-setup` does the following and **never overwrites an existing file**: it
+creates the configuration files only when they are missing, registers the status
+line, and installs the silent-death protection rule into `~/.claude/CLAUDE.md`.
+The rule is written between markers; the rest of the file is untouched and
+deleting the block removes it cleanly. To skip it: `/slop-setup --skip-claude-md`.
 
-Bu kural neden otomatik: plugin öldüğünde çalışan tek katman odur — hook'lar
-kayıtlı değilse "çalışıyor musun?" diye soracak hook da yoktur. Ayrıca durum
-çubuğu her ortamda görünmez (desktop uygulamasının Code sekmesi statusLine
-render etmiyor), yani bazı kullanıcılar için sessiz ölümü yakalayan başka
-mekanizma kalmaz.
+Why that rule is automatic: it is the only layer that runs when the plugin is
+dead — if hooks are not registered, the hook that would ask "are you running?" is
+not there either. The status line is also not visible everywhere (the desktop
+app's Code tab does not render statusLine), so for some users no other mechanism
+would catch a silent death.
 
-| İş | Komut |
+| Task | Command |
 |---|---|
-| Güncelle | `claude plugin update lenarise-slopguard@lenarise-slopguard` |
-| Geçici kapat | `claude plugin disable lenarise-slopguard` — yapılandırma korunur |
-| Kaldır | `claude plugin uninstall lenarise-slopguard` |
+| Update | `claude plugin update lenarise-slopguard` |
+| Disable temporarily | `claude plugin disable lenarise-slopguard` — the configuration is preserved |
+| Remove | `claude plugin uninstall lenarise-slopguard` |
 
-Güncelleme `~/.claude/lenarise-slopguard/` içindeki hiçbir dosyaya dokunmaz.
+An update never touches anything in `~/.claude/lenarise-slopguard/`.
 
-## Oturumda ne olur
+## What happens during a session
 
 ```
-oturum açılır
-  └─ session-start: kural seti + yetenek indeksi   → durum: HAZIR
-sen yazarsın
-  └─ user-prompt: tur++ , kalp atışı damgası        → durum: CANLI
-      └─ eşik aşıldıysa sohbete uyarı
-Claude dosya yazmak ister
-  ├─ pre-edit  → test dosyası / .env / lockfile ise DENY
-  └─ post-edit → desen bulunursa BLOCK, ihlal deftere yazılır
-Claude komut çalıştırmak ister
-  ├─ pre-bash  → rm -rf / DROP TABLE / force push ise DENY
-  ├─ pre-bash  → paket kayıt defterinde yoksa DENY
-  └─ post-bash → test ya da commit ise damga
-Claude bitirmek ister
-  └─ stop-gate → açık ihlal veya doğrulanmamış kod varsa BLOCK
-oturum kapanır
-  └─ session-end: N tur · M dosya · K satır · J engellenen slop
+session opens
+  └─ session-start: rule set + capability index          → state: READY
+you type
+  └─ user-prompt: turn++ , heartbeat stamp               → state: LIVE
+      └─ threshold crossed → a warning in chat
+Claude wants to write a file
+  ├─ pre-edit  → test file / .env / lockfile: DENY
+  └─ post-edit → pattern found: BLOCK, violation recorded
+Claude wants to run a command
+  ├─ pre-bash  → rm -rf / DROP TABLE / force push: DENY
+  ├─ pre-bash  → package not in the registry: DENY
+  └─ post-bash → test or commit: stamp
+Claude wants to finish
+  └─ stop-gate → open violations or unverified code: BLOCK
+session closes
+  └─ session-end: N turns · M files · K lines · J slop blocked
 ```
 
-## Yapılandırma referansı
+## Configuration reference
 
-Bütün düzenleme `~/.claude/lenarise-slopguard/` içinde yapılır. Plugin
-dizinini düzenleme: güncelleme siler.
+All editing happens in `~/.claude/lenarise-slopguard/`. Do not edit the plugin
+directory: an update deletes it.
 
-| Dosya | İçerik |
+| File | Contents |
 |---|---|
-| `config.json` | kip, eşikler, kapatılan desenler, güvenilen paketler, görünürlük |
-| `patterns.local.json` | kendi desenlerin |
-| `rules.local.md` | serbest metin kuralların; her oturum başında enjekte edilir |
-| `<repo>/.slopignore` | proje bazlı yol muafiyeti |
+| `config.json` | mode, thresholds, disabled patterns, trusted packages, visibility |
+| `patterns.local.json` | your own patterns |
+| `rules.local.md` | free-text rules, injected at the start of every session |
+| `<repo>/.slopignore` | per-project path exemptions |
 
-Birleştirme sırası: plugin varsayılanları → `config.json` → `patterns.local.json`
-→ repo `.slopignore` → oturum kipi.
+Merge order: plugin defaults → `config.json` → `patterns.local.json` →
+repository `.slopignore` → session mode.
 
 ### config.json
 
-| Alan | Varsayılan | Ne yapar |
+| Field | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | `false` yapılırsa tüm koruma durur, çubuk "kapalı" gösterir |
-| `mode` | `"strict"` | `strict` engeller, `explore` yalnızca uyarır (geri dönüşsüz komutlar hariç) |
-| `disabled` | `[]` | Kategori (`GUV`), taksonomi ID (`GUV-03`) ya da desen anahtarı |
-| `trustedPackages` | `[]` | Kayıt defterine sorulmadan geçen paket adları |
-| `allowTestWrites` | `false` | `true` yapılırsa test dosyalarına yazma kilidi açılır (TST-01) |
-| `thresholds.maxDiffLines` | `400` | Stop kapısı: son commit'ten beri değişen satır eşiği (SUR-02) |
-| `thresholds.contextTurns` | `40` | Koç uyarısı: oturum tur eşiği (AGT-01) |
-| `thresholds.contextUsedPercent` | `75` | Bağlam doluluk oranı eşiği; durum çubuğu ölçer (AGT-01) |
-| `thresholds.comprehensionGap` | `500` | Koç uyarısı: yazılan eksi okunan satır farkı (INS-01) |
-| `thresholds.uncommittedLines` | `300` | Koç uyarısı: commit'siz biriken satır (AGT-06) |
-| `thresholds.consecutiveFixes` | `3` | Koç uyarısı: aynı dosyaya ardışık düzeltme (MTK-05) |
-| `thresholds.packageCheckTimeoutMs` | `2500` | Paket kayıt defteri sorgusu; aşılırsa engeller (GUV-02) |
-| `thresholds.maxStopBlocks` | `2` | Aynı gerekçeyle en fazla kaç kez bloklanır (AGT-08) |
+| `enabled` | `true` | Setting it to `false` stops all protection; the bar reads "off" |
+| `mode` | `"strict"` | `strict` blocks, `explore` only warns (except irreversible commands) |
+| `disabled` | `[]` | A category (`SEC`), a taxonomy id (`SEC-03`) or a pattern key |
+| `trustedPackages` | `[]` | Package names that pass without a registry lookup |
+| `allowTestWrites` | `false` | `true` unlocks writing to test files (TEST-01) |
+| `thresholds.maxDiffLines` | `400` | Stop gate: lines changed since the last commit (PROC-02) |
+| `thresholds.contextTurns` | `40` | Coach warning: session turn threshold (AGENT-01) |
+| `thresholds.contextUsedPercent` | `75` | Context fill ratio threshold; measured by the status line (AGENT-01) |
+| `thresholds.comprehensionGap` | `500` | Coach warning: lines written minus lines read (HUMAN-01) |
+| `thresholds.uncommittedLines` | `300` | Coach warning: lines accumulated without a commit (AGENT-06) |
+| `thresholds.consecutiveFixes` | `3` | Coach warning: consecutive patches to the same file (LOGIC-05) |
+| `thresholds.packageCheckTimeoutMs` | `2500` | Package registry lookup; exceeding it blocks (SEC-02) |
+| `thresholds.maxStopBlocks` | `2` | How often the same reason may block before the gate opens (AGENT-08) |
 | `ui.statusLine` | `"compact"` | `compact` · `minimal` · `off` |
-| `ui.cleanScans` | `"silent"` | `silent` · `summary` — temiz taramada bildirim |
-| `ui.heartbeat` | `true` | oturum başı tek satır onay |
-| `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — plugin yanıt vermediğinde davranış |
-| `ui.chatStatus` | `0` | `0` kapalı; `N` her N turda bir sohbete durum satırı. Durum çubuğunun görünmediği ortamlar için |
+| `ui.cleanScans` | `"silent"` | `silent` · `summary` — whether a clean scan is announced |
+| `ui.heartbeat` | `true` | one-line confirmation on the first turn |
+| `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — behaviour when the plugin does not respond |
+| `ui.chatStatus` | `0` | `0` off; `N` posts a status row in chat every N turns, for places the status line is not visible |
 
 ### patterns.local.json
 
@@ -143,225 +143,228 @@ Birleştirme sırası: plugin varsayılanları → `config.json` → `patterns.l
 {
   "patterns": [
     {
-      "key": "benzersiz-kisa-ad",
-      "id": "KOD-03",
+      "key": "unique-short-name",
+      "id": "CODE-03",
       "scope": "code",
       "severity": "warn",
-      "match": "TODO\\s*\\(acil\\)",
+      "match": "TODO\\s*\\(urgent\\)",
       "flags": "gi",
-      "detects": "Ne yakaladığı, tek cümle.",
-      "fix": "Ne yapılması gerektiği, tek cümle."
+      "detects": "What it catches, one sentence.",
+      "fix": "What should be done, one sentence."
     }
   ]
 }
 ```
 
-`scope` değerleri: `code` (kaynak dosya) · `prose` (metin dosyası) ·
-`path` (dosya yolu) · `command` (kabuk komutu). `match` bir JSON dizesidir,
-yani ters bölüler iki kez kaçışlanır. Yazdıktan sonra `/slop-doctor` ile
-desen sayısının arttığını doğrula.
+`scope` values: `code` (source file) · `prose` (text file) · `path` (file path) ·
+`command` (shell command). `match` is a JSON string, so backslashes are escaped
+twice. After writing one, confirm with `/slop-doctor` that the pattern count went up.
 
-### Desen kataloğu
+### Pattern catalogue
 
-| ID | Kanonik ad | Desen anahtarı | Kapsam | Sertlik | Ne yakalar |
-|---|---|---|---|---|---|
-| AGT-05 | Gereğinden fazla yetki | `agt-05-chmod-777` | kabuk komutu | engeller | Herkese yazma izni. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-delete-without-where` | kabuk komutu | engeller | WHERE siz DELETE — tablonun tamamını siler. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-git-force-push` | kabuk komutu | engeller | Zorlamalı push — başkasının işini siler. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-git-reset-hard` | kabuk komutu | engeller | Commit edilmemiş çalışma sert sıfırlanıyor. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-rm-recursive-force` | kabuk komutu | engeller | Özyinelemeli zorlamalı silme — geri dönüşü yok. |
-| AGT-05 | Gereğinden fazla yetki | `agt-05-sql-destructive` | kabuk komutu | engeller | Yıkıcı şema komutu. |
-| DOK-01 | Şişkin, buzzword dolu doküman | `dok-01-buzzword` | metin dosyası | uyarır | İçerik taşımayan pazarlama dili. |
-| DOK-03 | İçi boş commit mesajı ve PR açıklaması | `dok-03-empty-commit-msg` | kabuk komutu | uyarır | İçi boş commit mesajı — neyin neden değiştiğini söylemiyor. |
-| DOK-04 | Emoji ve başlık enflasyonu | `dok-04-emoji-heading` | metin dosyası | uyarır | Emoji ile başlayan başlık. |
-| GUV-01 | Güvensiz varsayılanı seçmek | `guv-01-eval` | kaynak dosya | engeller | Dinamik kod yürütme. |
-| GUV-03 | Gömülü sırlar ve uydurma kimlik bilgileri | `guv-03-aws-key` | kaynak dosya | engeller | AWS erişim anahtarı kimliği. |
-| GUV-03 | Gömülü sırlar ve uydurma kimlik bilgileri | `guv-03-inline-secret` | kaynak dosya | engeller | Kaynak koda gömülü sır. |
-| GUV-03 | Gömülü sırlar ve uydurma kimlik bilgileri | `guv-03-private-key` | kaynak dosya | engeller | Gömülü özel anahtar. |
-| GUV-05 | Girdi doğrulama eksikliği | `guv-05-sql-concat` | kaynak dosya | engeller | SQL sorgusunun dize birleştirmeyle kurulması — enjeksiyon yüzeyi. |
-| GUV-05 | Girdi doğrulama eksikliği | `guv-05-sql-fstring` | kaynak dosya | engeller | f-string ile kurulan SQL — enjeksiyon yüzeyi. |
-| KOD-01 | Kopyala-yapıştır çoğalması | `kod-01-versioned-filename` | dosya yolu | engeller | Sürüm ekli dosya adı — eskisinin yanına yenisi yazılıyor. |
-| KOD-04 | Guard-and-Go: silmek yerine sarmalamak | `kod-04-guard-and-go` | kaynak dosya | uyarır | Ölü dala alınmış kod — silmek yerine sarmalanmış. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-catch-noop` | kaynak dosya | engeller | Boş .catch() — reddedilen promise sessizce yutuluyor. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-comment-only-catch` | kaynak dosya | engeller | Yalnızca yorum içeren catch gövdesi — hata yine yutuluyor. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-empty-catch` | kaynak dosya | engeller | Boş catch gövdesi — hata yakalanıp yutuluyor. |
-| KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-except-pass` | kaynak dosya | engeller | except: pass — istisna sessizce yutuluyor. |
-| MTK-02 | Var olmayan paket önerisi | `mtk-02-package-install` | kabuk komutu | engeller | Paket kurulumu — adı doğrulanmadan kurulursa slopsquatting yüzeyi (GUV-02). |
-| OYN-01 | Kare hızına bağlı hareket | `oyn-01-framerate-bagimli-hareket` | kaynak dosya | uyarır | Hareket kare hızına bağlı — Time.deltaTime ile ölçeklenmemiş. |
-| OYN-02 | Her karede sahne araması | `oyn-02-her-karede-sahne-aramasi` | kaynak dosya | uyarır | Kare döngüsünde sahne araması ya da bileşen çözümlemesi. |
-| OYN-03 | Fiziğin kare döngüsünde yürütülmesi | `oyn-03-fizik-update-icinde` | kaynak dosya | uyarır | Fizik çağrısı Update içinde — fizik adımıyla senkron değil. |
-| OYN-04 | Sıcak yolda bellek tahsisi | `oyn-04-sicak-yolda-tahsis` | kaynak dosya | uyarır | Kare döngüsünde LINQ — her karede çöp üretir, takılma yaratır. |
-| OYN-05 | Her karede günlük yazımı | `oyn-05-her-karede-gunluk` | kaynak dosya | uyarır | Her karede günlük yazımı — editörde kare süresini gözle görülür düşürür. |
-| OYN-06 | İstemcide tutulan ekonomi ve ilerleme | `oyn-06-istemcide-ekonomi` | kaynak dosya | engeller | Ekonomi ya da ilerleme değeri istemcide saklanıyor (GUV-04). |
-| OYN-07 | Kırılgan sahne ağacı yolu | `oyn-07-kirilgan-dugum-yolu` | kaynak dosya | uyarır | Göreli sahne ağacı yolu — düğüm taşınınca sessizce kopar. |
-| SUR-08 | Temelsiz efor ve süre tahmini | `sur-08-effort-estimate` | metin dosyası | engeller | Ölçülemeyen süre tahmini. |
-| TST-01 | Testi silmek veya zayıflatmak | `tst-01-skipped-test` | kaynak dosya | engeller | Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. |
-| TST-03 | Sahte implementasyon | `tst-03-fake-impl` | kaynak dosya | uyarır | Sahte implementasyon — imza var, gövde yok. |
-| TST-04 | Totolojik test | `tst-04-tautological-assert` | kaynak dosya | engeller | Her koşulda geçen totolojik iddia — hiçbir şey doğrulamıyor. |
+| ID | Pattern key | Scope | Severity | What it catches |
+|---|---|---|---|---|
+| AGENT-05 | `agent-05-chmod-777` | shell command | blocks | World-writable permissions. |
+| AGENT-05 | `agent-05-delete-without-where` | shell command | blocks | DELETE without WHERE — it empties the table. |
+| AGENT-05 | `agent-05-git-force-push` | shell command | blocks | Force push — it erases someone else’s work. |
+| AGENT-05 | `agent-05-git-reset-hard` | shell command | blocks | Uncommitted work is being hard-reset away. |
+| AGENT-05 | `agent-05-rm-recursive-force` | shell command | blocks | Recursive forced delete — there is no undo. |
+| AGENT-05 | `agent-05-sql-destructive` | shell command | blocks | Destructive schema command. |
+| CODE-01 | `code-01-versioned-filename` | file path | blocks | Version-suffixed filename — a new copy placed beside the old one. |
+| CODE-04 | `code-04-guard-and-go` | source file | warns | Code parked on a dead branch — wrapped instead of deleted. |
+| CODE-05 | `code-05-catch-noop` | source file | blocks | Empty .catch() — the rejected promise is silently swallowed. |
+| CODE-05 | `code-05-comment-only-catch` | source file | blocks | Catch body containing only comments — the error is still swallowed. |
+| CODE-05 | `code-05-empty-catch` | source file | blocks | Empty catch body — the error is caught and swallowed. |
+| CODE-05 | `code-05-except-pass` | source file | blocks | except: pass — the exception is silently swallowed. |
+| DOC-01 | `doc-01-buzzword` | text file | warns | Marketing language carrying no information. |
+| DOC-03 | `doc-03-empty-commit-msg` | shell command | warns | Empty commit message — it does not say what changed or why. |
+| DOC-04 | `doc-04-emoji-heading` | text file | warns | Heading that opens with an emoji. |
+| GAME-01 | `game-01-framerate-dependent-motion` | source file | warns | Motion is frame-rate dependent — not scaled by Time.deltaTime. |
+| GAME-02 | `game-02-scene-lookup-per-frame` | source file | warns | Scene lookup or component resolution inside the frame loop. |
+| GAME-03 | `game-03-physics-in-update` | source file | warns | Physics call inside Update — not synchronised with the physics step. |
+| GAME-04 | `game-04-hot-path-allocation` | source file | warns | LINQ inside the frame loop — garbage every frame, visible as hitching. |
+| GAME-05 | `game-05-logging-per-frame` | source file | warns | Logging every frame — measurably lowers frame time in the editor. |
+| GAME-06 | `game-06-client-side-economy` | source file | blocks | Economy or progression value stored on the client (SEC-04). |
+| GAME-07 | `game-07-fragile-node-path` | source file | warns | Relative scene tree path — it breaks silently when a node moves. |
+| LOGIC-02 | `logic-02-package-install` | shell command | blocks | Package install — installing an unverified name is a slopsquatting surface (SEC-02). |
+| PROC-08 | `proc-08-effort-estimate` | text file | blocks | A time estimate that cannot be measured. |
+| SEC-01 | `sec-01-eval` | source file | blocks | Dynamic code execution. |
+| SEC-03 | `sec-03-aws-key` | source file | blocks | AWS access key ID. |
+| SEC-03 | `sec-03-inline-secret` | source file | blocks | Secret committed to source. |
+| SEC-03 | `sec-03-private-key` | source file | blocks | Private key embedded in a file. |
+| SEC-05 | `sec-05-sql-concat` | source file | blocks | SQL built by string concatenation — an injection surface. |
+| SEC-05 | `sec-05-sql-fstring` | source file | blocks | SQL built with an f-string — an injection surface. |
+| TEST-01 | `test-01-skipped-test` | source file | blocks | A skipped test — the shortest route from red to green. |
+| TEST-03 | `test-03-fake-impl` | source file | warns | Fake implementation — a signature with no body. |
+| TEST-04 | `test-04-tautological-assert` | source file | blocks | An assertion that passes under every condition — it verifies nothing. |
 
-Devre dışı bırakma üç düzeyde çalışır: kategori (`GUV`), taksonomi ID'si
-(`GUV-03`) ya da tekil desen anahtarı (`guv-03-aws-key`).
+Disabling works at three levels: a category (`SEC`), a taxonomy id (`SEC-03`) or
+a single pattern key (`sec-03-aws-key`).
 
-`SUR-08`, `OYN-01`, `OYN-02`, `OYN-03`, `OYN-04`, `OYN-05`, `OYN-06`, `OYN-07`, `OYN-08` kaynak taksonomide yoktu; bu proje ekledi.
+`PROC-08`, `GAME-01`, `GAME-02`, `GAME-03`, `GAME-04`, `GAME-05`, `GAME-06`, `GAME-07`, `GAME-08` are not in the source taxonomy; this project added them.
 
-### Oyun geliştirme (OYN)
+### Game development (GAME)
 
-OYN desenleri motor API adlarına dayanır (`transform.Translate`, `PlayerPrefs`,
-`get_node`), bu yüzden oyun olmayan projelerde kendiliğinden sessiz kalır.
-Yine de tek satırla kapatılabilir: `disabled: ["OYN"]`.
+GAME patterns key off engine API names (`transform.Translate`, `PlayerPrefs`,
+`get_node`), so they stay silent in non-game projects on their own. They can
+still be switched off in one line: `disabled: ["GAME"]`.
 
-Sertlikleri bilerek `uyarır`: sıcak yol tespiti sezgiseldir ve yeni bir alanda
-blokla başlamak aracın ilk izlenimini yanlış pozitifle kurmak olurdu. Tek
-istisna **OYN-06** — istemcide tutulan para ve ilerleme bir güvenlik meselesi,
-oyuncu `PlayerPrefs` içeriğini düzenleyebilir.
+Their severity is `warns` by design: hot-path detection is a heuristic, and
+opening a new domain with blocks would introduce the tool through a false
+positive. **GAME-06** is the exception — economy and progression held on the
+client is a security matter, and the player can edit `PlayerPrefs`.
 
-**Motor üretimi dosyalar korumalıdır** ve bu koruma kipten bağımsızdır:
-`.meta`, `.uasset`, `.umap`, `.unity`, `.prefab`, `.tscn`, `Library/`,
-`.godot/`, `Intermediate/`, `Saved/`. Elle düzenlenen bir `.meta` sahnedeki
-tüm referansları koparır ve bozulma commit'ten çok sonra fark edilir. Bu
-dizinler tarama yürüyüşünde de atlanır — Unity'nin `Library` dizini yüz
-binlerce dosya içerebilir.
+**Engine-generated files are protected**, regardless of mode: `.meta`,
+`.uasset`, `.umap`, `.unity`, `.prefab`, `.tscn`, `Library/`, `.godot/`,
+`Intermediate/`, `Saved/`. A hand-edited `.meta` breaks every reference in the
+scene and the damage surfaces long after the commit. Those directories are also
+skipped during the scan walk — Unity's `Library` can hold hundreds of thousands
+of files.
 
-**Oyun kural metni yalnızca oyun projelerinde yüklenir.** `session-start` kökte
-motor imzası arar (Unity için `Assets/` + `ProjectSettings/`, Godot için
-`project.godot`, Unreal için `*.uproject`) ve bulamazsa hiç enjekte etmez;
-kullanılmayacak kuralı her oturuma yüklemek aşırı bağlam olurdu (AGT-02).
-Desenler bu koşula bağlı değil, yalnızca metin.
+**Game rule text loads only in game projects.** `session-start` looks for an
+engine signature at the root (`Assets/` + `ProjectSettings/` for Unity,
+`project.godot` for Godot, `*.uproject` for Unreal) and injects nothing when it
+finds none; loading rules that will never apply into every session would be too
+much context (AGENT-02). The patterns are not gated on this, only the text.
 
-### Satır içi muafiyet
+### Inline waiver
 
 ```js
-// slop-guard-ignore KOD-05: üçüncü parti SDK burada throw ediyor
+// slop-guard-ignore CODE-05: third-party SDK throws here
 ```
 
-Üç koşul birden aranır: yönerge bulgunun satırında ya da tam üstünde olacak,
-hangi deseni susturduğunu adlandıracak, gerekçe yazacak. Biri eksikse
-susturmaz ve neden reddedildiği bulguya iliştirilir. Kullanılan muafiyetler
-sayılır ve oturum özetinde raporlanır.
+Three conditions must hold together: the directive sits on the finding's line or
+the one directly above it, it names which pattern it silences, and it gives a
+reason. If any is missing it silences nothing — and why it was rejected is
+attached to the finding. Waivers that are used get counted and reported in the
+session summary.
 
-### Komutlar
+### Commands
 
-| Komut | Ne yapar |
+| Command | What it does |
 |---|---|
-| `/slop-setup` | Yapılandırmayı oluşturur, durum çubuğunu kaydeder. Var olanı ezmez |
-| `/slop-status` | Oturum sayaçları **ve** canlı tarama; hook kaydına güvenmez |
-| `/slop-check [yol]` | Talep üzerine tarama; git deposu gerektirmez |
-| `/slop-doctor` | Kurulum teşhisi; her satır ✅ ya da ❌ |
-| `/slop-config` | Ayarları değiştirir |
-| `/slop-mode strict\|explore` | Oturum kipi; kalıcı yapılandırmaya dokunmaz |
-| `/slop-repo-init` | Repoya agent-agnostic koruma kurar |
+| `/slop-setup` | Creates the configuration, registers the status line. Never overwrites |
+| `/slop-status` | Session counters **and** a live scan; it does not trust the hook record |
+| `/slop-check [path]` | Scan on demand; no git repository required |
+| `/slop-doctor` | Installation diagnosis; every line is a tick or a cross |
+| `/slop-config` | Changes settings |
+| `/slop-mode strict\|explore` | Session mode; the persistent configuration is untouched |
+| `/slop-repo-init` | Installs agent-agnostic protection into a repository |
 
-#### Nerede çalıştırılır
+#### Where it runs
 
-`/slop-check` ve `/slop-status` bir git deposu içinde olmak zorunda değil.
-Tarama kaynağı bulunduğun yere göre seçilir:
+`/slop-check` and `/slop-status` do not have to be inside a git repository. The
+scan source is chosen from where you are:
 
-| Bulunduğun yer | Taranan |
+| Where you are | What is scanned |
 |---|---|
-| Git deposu | Değişmiş dosyalar; hiç değişiklik yoksa izlenen dosyaların tamamı |
-| Sıradan klasör | Dosya sistemi yürünür — altındaki tüm depolar ve gevşek dosyalar dahil |
+| A git repository | Changed files; every tracked file when nothing has changed |
+| A plain folder | The filesystem is walked — every repository beneath it and any loose files |
 
-Klasör kipinde `node_modules`, `dist`, `build`, `.venv`, `__pycache__` ve
-benzeri gürültü dizinlerine hiç girilmez. İç içe her `.slopignore` yalnızca
-kendi alt ağacında geçerlidir; kardeş depolar birbirinin muafiyetinden
-etkilenmez.
+In folder mode, noise directories are never entered: `node_modules`, `dist`,
+`build`, `.venv`, `__pycache__`, and the game engine build directories. Every
+nested `.slopignore` applies only to its own subtree; sibling repositories do not
+inherit each other's exemptions.
 
-Böylece birden çok proje barındıran bir üst dizinde tek çağrıyla tarama
-yapılabilir; her depoya tek tek girmek gerekmez.
+That makes it possible to scan a parent directory holding several projects in one
+call, rather than entering each repository separately.
 
-### Durum çubuğu
+### Status line
 
-`canlı` demek için iki ayrı kanıt gerekir: kalp atışı damgasının bu oturumun
-kimliğini taşıması (kayıt) ve `pre-edit`'in sentetik yüke doğru cevap vermesi
-(çalışabilirlik). Belirsizlik `canlı` diye yuvarlanmaz.
+Saying `live` requires two separate proofs: the heartbeat stamp carries this
+session's id (registration), and `pre-edit` answers a synthetic payload correctly
+(operability). Uncertainty is never rounded up to `live`.
 
-| Gösterim | Anlamı |
+| Display | Meaning |
 |---|---|
-| `SlopGuard hazır` | Kurulu ve cevap veriyor, ama bu oturumda henüz tetiklenmedi |
-| `SlopGuard canlı · …` | İki kanıt da var |
-| `SlopGuard ⚠️ kayıtsız` | Mesaj atıldı ama hook tetiklenmedi |
-| `SlopGuard ⚠️ bozuk` | Script probe'a cevap vermiyor |
-| `SlopGuard kapalı` | `enabled: false` |
+| `SlopGuard ready` | Installed and answering, but not yet triggered in this session |
+| `SlopGuard live · …` | Both proofs are present |
+| `SlopGuard unregistered` | A message was sent but no hook fired |
+| `SlopGuard broken` | The script does not answer the probe |
+| `SlopGuard off` | `enabled: false` |
 
-## AI için: kullanıcıya nasıl yardım edersin
+The desktop app's Code tab does not render statusLine (measured). For those
+places, `ui.chatStatus: N` posts the same row into chat every N turns; it is off
+by default.
 
-Bu bölüm herhangi bir oturumdaki AI'ın okuyup işlem yapabilmesi için.
+## For an AI: how you help the user
 
-### Niyet → eylem
+This section exists so that an AI in any session can read it and act.
 
-| Kullanıcı ne der | Ne anlama gelir | Ne yap |
+### Intent to action
+
+| What the user says | What it means | What you do |
 |---|---|---|
-| "bu uyarı sürekli çıkıyor" | desen gürültülü | `config.json` → `disabled` listesine ID ekle |
-| "çok fazla blokluyor" | sert kip ağır | Önce hangi ID'ler tetikleniyor göster, sonra hedefli kapat |
-| "prototip yapıyorum" | geçici gevşetme | `/slop-mode explore` — kalıcı config'e dokunma |
-| "test dosyalarına yazabilmeli" | TST kilidi engel | `allowTestWrites: true`; gerekçesini sor |
-| "şu paketi hep engelliyor" | paket kapısı | Paketi doğrula, sonra `trustedPackages`'a ekle |
-| "diff sınırı küçük" | eşik dar | `thresholds.maxDiffLines` |
-| "şunu da yakalasın" | yeni desen | `patterns.local.json`; önce dene |
-| "kendi kuralımı ekle" | kişisel kural | `rules.local.md`, kısa tut |
-| "bu repoda hiç çalışmasın" | proje muafiyeti | Repo kökünde `.slopignore` |
-| "ne durumdayım" | görünürlük | `/slop-status` |
+| "this warning keeps coming up" | the pattern is noisy | add the id to `disabled` in `config.json` |
+| "it blocks too much" | strict mode feels heavy | first show which ids are firing, then disable them specifically |
+| "I am prototyping" | a temporary relaxation | `/slop-mode explore` — leave the persistent config alone |
+| "it should let me write test files" | the TEST lock is in the way | `allowTestWrites: true`; ask for the reason |
+| "it keeps blocking this package" | the package gate | verify the package, then add it to `trustedPackages` |
+| "the diff limit is too small" | the threshold is tight | `thresholds.maxDiffLines` |
+| "it should catch this too" | a new pattern | `patterns.local.json`; test it first |
+| "add my own rule" | a personal rule | `rules.local.md`, keep it short |
+| "turn it off for this repo" | a project exemption | `.slopignore` at the repository root |
+| "where do I stand" | visibility | `/slop-status` |
 
-### Güvenli ve güvensiz düzenlemeler
+### Safe and unsafe edits
 
-| Güvenli | Güvensiz |
+| Safe | Unsafe |
 |---|---|
-| `~/.claude/lenarise-slopguard/` altındaki dosyalar | Plugin cache'i — güncelleme siler |
-| Tek desen ya da tek ID kapatmak | Kategori kapatmak, özellikle GUV |
-| `/slop-mode explore` (oturumluk) | `config.json` → `mode: "explore"` (kalıcı) |
-| Eşiği ölçüye dayanarak değiştirmek | Eşiği "rahatsız ediyor" diye kaldırmak |
-| Gerekçeli satır içi muafiyet | `.slopignore`'a geniş glob yazmak |
+| Files under `~/.claude/lenarise-slopguard/` | The plugin cache — an update deletes it |
+| Disabling one pattern or one id | Disabling a category, especially SEC |
+| `/slop-mode explore` (this session) | `config.json` → `mode: "explore"` (permanent) |
+| Changing a threshold based on a measurement | Removing a threshold because it is annoying |
+| A reasoned inline waiver | A broad glob in `.slopignore` |
 
-Bir deseni kapatırken **neyi kaybettiğini söyle**. GUV kapatmayı kendiliğinden
-önerme; kullanıcı açıkça isterse yap ve riski yaz.
+When disabling a pattern, **say what is lost**. Never propose disabling SEC on
+your own initiative; if the user explicitly asks, do it and write down the risk.
 
-### Düzenleme sonrası doğrulama
+### Verification after an edit
 
 ```bash
-jq -e . ~/.claude/lenarise-slopguard/config.json      # JSON geçerli mi
+jq -e . ~/.claude/lenarise-slopguard/config.json      # is the JSON valid
 ```
 
-Sonra `/slop-doctor` çalıştır ve desen sayısının beklediğin gibi olduğunu
-doğrula. `config.json`, `patterns.local.json` ve `.slopignore` anında geçerli
-olur; `hooks.json` ve manifest değişiklikleri yeniden başlatma ister.
+Then run `/slop-doctor` and confirm the pattern count is what you expected.
+`config.json`, `patterns.local.json` and `.slopignore` take effect immediately;
+changes to `hooks.json` or the manifest require a restart.
 
-## Sorun giderme
+## Troubleshooting
 
-| Belirti | Muhtemel sebep | Ne yap |
+| Symptom | Likely cause | What to do |
 |---|---|---|
-| Çubuk `⚠️ kayıtsız` | Hook kaydolmamış | Claude Code'u yeniden başlat, sonra `/slop-doctor` |
-| Çubuk `⚠️ bozuk` | `node` yolu ya da dosya izni | `/slop-doctor` ❌ satırlarını izle |
-| Çubuk hiç yok | `statusLine` kayıtlı değil | `/slop-setup` |
-| Hiçbir şey engellenmiyor | Plugin devre dışı ya da `enabled: false` | `claude plugin list`, sonra `/slop-doctor` |
-| Testi olmayan repoda kilitleniyor | Kod yazıldı, test yok, kapı bekliyor | `allowTestWrites: true` ya da `/slop-mode explore` |
-| Paket kurulumu hep engelleniyor | Ağ yok; kapı fail-closed | Paketi doğrula, `trustedPackages`'a ekle |
-| `plugin update` "not found" diyor | Komut marketplace nitelikli ad ister | `claude plugin update lenarise-slopguard@lenarise-slopguard` |
-| Kurulumdan sonra hiçbir şey olmuyor | Hook'lar oturum başında yüklenir | Claude Code'u yeniden başlat |
+| The bar reads `unregistered` | Hooks did not register | Restart Claude Code, then `/slop-doctor` |
+| The bar reads `broken` | The `node` path or a file permission | Follow the ❌ lines from `/slop-doctor` |
+| No bar at all | `statusLine` is not registered | `/slop-setup` |
+| Nothing is being blocked | The plugin is disabled or `enabled: false` | `claude plugin list`, then `/slop-doctor` |
+| It locks up in a repository with no tests | Code was written, no test exists, the gate is waiting | `allowTestWrites: true` or `/slop-mode explore` |
+| Package installs are always blocked | No network; the gate fails closed | Verify the package, add it to `trustedPackages` |
 
-## Bilinen sınırlar
+## Known limits
 
-Gizlenmiyor:
+Not hidden:
 
-- Regex taraması yanlış pozitif üretir. Kaçış yolu gerekçeli satır içi muafiyet.
-- Guard-and-Go (KOD-04) regex'le tam yakalanamaz; sezgisel.
-- Repo geneli duplikasyon (KOD-01) tek dosyaya bakan tarayıcıda görünmez; CI katmanında jscpd.
-- İş mantığı hataları (MTK) mekanik olarak yakalanamaz; yalnızca kural metniyle taşınır.
-- `post-edit` bloğu modeli durdurmaz; garanti `stop-gate`'te.
-- Bash üzerinden yazma **kısmen** kapsanır. Hedefi komutun kendisinde açıkça
-  görünen biçimler ayrıştırılır — `>`, `>>`, `tee`, `sed -i`, `cp`, `mv`,
-  `touch` — ve bu dosyalar hem korumalı yol kilidinden geçer hem içerikleri
-  taranır. Hedefi komuttan okunamayan yazmalar (`make`, `npm run build`, keyfi
-  script'ler) görünmez. `/slop-check`, `/slop-status`, pre-commit hook'u ve CI
-  canlı tarama yaptığı için o boşluğu kapatır.
-- Paket doğrulaması ağ ister ve zaman aşımında engelleyerek kapanır.
+- Regex scanning produces false positives. The escape hatch is a reasoned inline waiver.
+- Guard-and-go (CODE-04) cannot be caught reliably by regex; it is heuristic.
+- Repository-wide duplication (CODE-01) is invisible to a per-file scanner; jscpd covers it in CI.
+- Business logic errors (LOGIC) cannot be caught mechanically; they are carried by rule text alone.
+- A `post-edit` block does not stop the model; the guarantee is in `stop-gate`.
+- Writing through Bash is **partly** covered. Shapes whose target is visible in the
+  command are parsed — `>`, `>>`, `tee`, `sed -i`, `cp`, `mv`, `touch` — and those
+  files go through both the protected-path lock and a content scan. Writes whose
+  target cannot be read from the command (`make`, `npm run build`, custom scripts)
+  are invisible. `/slop-check`, `/slop-status`, the pre-commit hook and CI close
+  that gap with a live scan.
+- Package verification needs the network and fails closed on timeout.
 
-## Kaldırma
+## Removal
 
 ```bash
 claude plugin uninstall lenarise-slopguard
 claude plugin marketplace remove lenarise-slopguard
 ```
 
-`~/.claude/settings.json` içindeki `statusLine` girdisini ve
-`~/.claude/lenarise-slopguard/` dizinini elle sil. `/slop-setup` yedek
-bıraktıysa `settings.json.slopguard-yedek` dosyası oradadır.
+Delete the `statusLine` entry in `~/.claude/settings.json`, the
+`~/.claude/lenarise-slopguard/` directory, and the marked block in
+`~/.claude/CLAUDE.md`. If `/slop-setup` left backups they are at
+`settings.json.slopguard-backup` and `CLAUDE.md.slopguard-backup`.

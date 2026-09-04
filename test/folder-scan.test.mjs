@@ -8,11 +8,11 @@ import { ROOT } from './pipe.mjs';
 import { walkFiles, listFiles, repoRoot } from '../scripts/scan-cli.mjs';
 
 /**
- * Komutlar bir git deposu içinde çalıştırılmak zorunda değil.
+ * Commands do not have to run inside a git repository.
  *
- * Birden çok proje barındıran bir üst klasörde tarama yapmak meşru bir
- * kullanım; orada çalışmamak yapay bir kısıt olurdu. Git yoksa dosya
- * sistemi yürünür ve iç içe her `.slopignore` kendi alt ağacında geçerlidir.
+ * Scanning a parent folder that holds several projects is a legitimate use;
+ * refusing to work there would be an artificial limit. With no git, the
+ * filesystem is walked and every nested `.slopignore` applies to its own subtree.
  */
 
 const base = mkdtempSync(join(tmpdir(), 'slopguard-folder-'));
@@ -46,26 +46,26 @@ function runCheck(cwd, args = []) {
   }
 }
 
-test('git olmayan klasörde tarama çalışır ve alt depoları kapsar', () => {
+test('scanning works in a non-git folder and covers nested repositories', () => {
   const r = runCheck(base);
   assert.equal(r.code, 1, 'bulgu varsa sıfır olmayan çıkış');
-  assert.match(r.stdout, /git dışı klasör/);
+  assert.match(r.stdout, /folder, no git/);
   assert.match(r.stdout, /proje-a\/src\/a\.js/);
   assert.match(r.stdout, /proje-b\/src\/b\.js/);
   assert.match(r.stdout, /gevsek\/c\.js/);
 });
 
-test('git eksikliği hata olarak raporlanmaz', () => {
-  assert.doesNotMatch(runCheck(base).stderr, /git repo bulunamadı/,
+test('the absence of git is not reported as an error', () => {
+  assert.doesNotMatch(runCheck(base).stderr, /no git repository found/,
     'klasörde çalışmak meşru; olmayan bir sorunu varmış gibi göstermemeli');
 });
 
-test('gürültü dizinleri yürüyüşe girmez', () => {
+test('noise directories are never walked', () => {
   assert.doesNotMatch(runCheck(base).stdout, /node_modules/);
   assert.equal(walkFiles(base).some((rel) => rel.includes('node_modules')), false);
 });
 
-test('iç içe .slopignore kendi alt ağacında geçerli', () => {
+test('a nested .slopignore applies to its own subtree', () => {
   writeFileSync(join(base, 'proje-b/.slopignore'), 'src\n');
   const r = runCheck(base);
   assert.doesNotMatch(r.stdout, /proje-b\/src/, 'alt deponun muafiyeti uygulanmalı');
@@ -73,25 +73,25 @@ test('iç içe .slopignore kendi alt ağacında geçerli', () => {
   rmSync(join(base, 'proje-b/.slopignore'), { force: true });
 });
 
-test('yol argümanı klasörde de çalışır', () => {
+test('a path argument works in a folder too', () => {
   const r = runCheck(base, ['gevsek']);
   assert.match(r.stdout, /gevsek\/c\.js/);
   assert.doesNotMatch(r.stdout, /proje-a/);
 });
 
-test('depo içinde davranış değişmez', () => {
+test('behaviour inside a repository is unchanged', () => {
   const repo = join(base, 'proje-a');
   const r = runCheck(repo);
-  assert.match(r.stdout, /değişmiş dosyalar|tüm izlenen dosyalar/);
-  assert.doesNotMatch(r.stdout, /git dışı klasör/);
+  assert.match(r.stdout, /changed files|all tracked files/);
+  assert.doesNotMatch(r.stdout, /folder, no git/);
 });
 
-test('listFiles kaynağa göre etiket verir', () => {
-  assert.equal(listFiles(base, { isRepo: false }).label, 'git dışı klasör');
+test('listFiles labels the source', () => {
+  assert.equal(listFiles(base, { isRepo: false }).label, 'folder, no git');
   assert.ok(listFiles(base, { isRepo: false }).files.length >= 3);
 });
 
-test('repoRoot quiet kipinde stderr kirletmez', () => {
+test('repoRoot does not pollute stderr in quiet mode', () => {
   const out = execFileSync(process.execPath, ['-e', `
     import('${join(ROOT, 'scripts/scan-cli.mjs')}').then((m) => {
       process.stdout.write(String(m.repoRoot({ quiet: true })));
@@ -99,11 +99,11 @@ test('repoRoot quiet kipinde stderr kirletmez', () => {
   assert.equal(out, 'null');
 });
 
-test('temiz klasörde temiz denir', () => {
-  const clean = mkdtempSync(join(tmpdir(), 'slopguard-temiz-'));
+test('a clean folder is reported as clean', () => {
+  const clean = mkdtempSync(join(tmpdir(), 'slopguard-clean-'));
   writeFileSync(join(clean, 'ok.js'), 'export const a = 1;\n');
   const r = runCheck(clean);
   assert.equal(r.code, 0);
-  assert.match(r.stdout, /temiz/);
+  assert.match(r.stdout, /clean/);
   rmSync(clean, { recursive: true, force: true });
 });

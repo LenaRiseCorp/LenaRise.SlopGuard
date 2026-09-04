@@ -1,35 +1,36 @@
-<!-- LenaRise.SlopGuard: canlılık kuralı — başlangıç -->
-## LenaRise.SlopGuard canlılık kontrolü
+<!-- LenaRise.SlopGuard: liveness rule — start -->
+## LenaRise.SlopGuard liveness check
 
-Bu bölüm bilerek plugin'in dışında, `~/.claude/CLAUDE.md` içinde duruyor.
+This section deliberately lives outside the plugin, in `~/.claude/CLAUDE.md`.
 
-Mantık şu: hook'lar kayıtlı değilse hiçbir hook çalışmaz — "çalışıyor musun?"
-diye soracak hook dahil. Yokluk, yok olan şeye sordurularak tespit edilemez.
-Bu kural, güçlü katmanın yokluğunu tespit edebilen tek katman.
+The reasoning: if hooks are not registered then no hook runs — including the one
+that would ask "are you running?". An absence cannot be detected by asking the
+thing that is absent. This rule is the only layer that can detect the absence of
+the strong layer.
 
-Oturumun başında bir kez, iki dosyaya bak:
+Once at the start of a session, look at two files:
 
 ```bash
 cat ~/.claude/lenarise-slopguard/heartbeat.json 2>/dev/null
 cat ~/.claude/lenarise-slopguard/config.json 2>/dev/null
 ```
 
-**Damga tazeyse (bir günden yeni) hiçbir şey söyleme.** Çalışan koruma sessizdir.
+**If the stamp is fresh (less than a day old) say nothing.** Working protection is silent.
 
-Damga yoksa ya da bir günden eskiyse, `config.json` içindeki
-`ui.livenessCheck` değerine göre davran:
+If the stamp is missing or older than a day, act according to `ui.livenessCheck`
+in `config.json`:
 
-| `ui.livenessCheck` | Ne yaparsın |
+| `ui.livenessCheck` | What you do |
 |---|---|
-| `ask` (varsayılan) | Kullanıcıya söyle ve **cevabını bekle**: `/slop-doctor` ile teşhis mi, korumasız devam mı? |
-| `warn` | Bir kez uyar, cevap bekleme, işe devam et |
-| `off` | Hiçbir şey söyleme |
+| `ask` (default) | Tell the user and **wait for an answer**: diagnose with `/slop-doctor`, or continue unprotected? |
+| `warn` | Warn once, do not wait, carry on |
+| `off` | Say nothing |
 
-`config.json` okunamıyorsa `ask` varsay.
+If `config.json` cannot be read, assume `ask`.
 
-Kullanıcı korumasız devam derse **aynı oturumda bir daha sorma**. Tekrar eden
-uyarı görmezden gelinir, ve görmezden gelinen uyarı da bir slop biçimidir.
+If the user chooses to continue unprotected, **do not ask again in the same
+session**. A repeated warning gets ignored, and an ignored warning is a form of slop.
 
-Bu kontrolü sessizce atlama. Koruma olmaması kadar tehlikeli olan şey,
-koruma olduğunu sanmaktır.
-<!-- LenaRise.SlopGuard: canlılık kuralı — bitiş -->
+Do not skip this check silently. As dangerous as having no protection is
+believing you have some.
+<!-- LenaRise.SlopGuard: liveness rule — end -->

@@ -1,21 +1,20 @@
 ---
-description: SlopGuard yapılandırmasını oluştur ve durum çubuğunu kaydet
+description: Create the SlopGuard configuration and register the status line
 allowed-tools: Bash(node:*)
 ---
 
-Çalıştır:
+Run:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/setup.mjs"`
 
-Bu komut var olan hiçbir dosyayı ezmez; her güncellemeden sonra güvenle
-tekrar çalıştırılabilir.
+This command never overwrites an existing file; it is safe to re-run after every update.
 
-Çıktıda `!` ile başlayan satır varsa kullanıcıya ne yapması gerektiğini söyle.
-Kullanıcının kendi `statusLine` girdisi varsa üzerine yazma — hangi satırla
-değiştirebileceğini göster, kararı ona bırak.
+If any line in the output starts with `!`, tell the user what they need to do.
+If the user already has their own `statusLine` entry, do not overwrite it — show
+the line they could replace it with and leave the decision to them.
 
-Son adımda `~/.claude/CLAUDE.md` için canlılık kuralı önerilir. Bu kural
-plugin hiç çalışmadığında bile durumun fark edilmesini sağlar. Kullanıcı
-isterse şablonu oku ve dosyaya ekle — ama önce sor, CLAUDE.md onun dosyası.
+Setup also installs the liveness rule into `~/.claude/CLAUDE.md`, between
+markers, leaving the rest of the file untouched. That rule is the only layer that
+runs when the plugin is dead. `--skip-claude-md` opts out.
 
-Bitince yeniden başlatma gerektiğini hatırlat ve `/slop-doctor` öner.
+When it finishes, remind the user that a restart is required and suggest `/slop-doctor`.

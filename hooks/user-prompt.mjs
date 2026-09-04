@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * UserPromptSubmit → tur sayacı ve koç uyarıları.
+ * UserPromptSubmit → turn counter and coach warnings.
  *
- * İki iş yapar. Birincisi görünür: eşikler aşıldıysa kullanıcıya uyarı gider.
- * İkincisi görünmez ama daha önemli: bu hook her kullanıcı mesajında tetiklendiği
- * için kalp atışını bu oturumun kimliğiyle damgalar — durum çubuğunun "kayıt
- * kanıtı" bu damgadır. Ölçüldü: statusLine ile hook aynı session_id'yi görüyor,
- * yani damgadaki kimlik çubuğunkiyle karşılaştırılabilir.
+ * Two jobs. The visible one: warn the user when a threshold is crossed. The
+ * invisible but more important one: because this hook fires on every user
+ * message, it stamps the heartbeat with this session's id — that stamp is the
+ * status line's registration proof. Measured: the status line and the hooks see
+ * the same session_id, so the id in the stamp can be compared against the bar's.
  *
- * Uyarılar systemMessage ile gider: kullanıcıya bilgi, modele talimat değil.
+ * Warnings go out via systemMessage: information for the user, not instructions
+ * for the model.
  */
 
 import { runHook } from '../lib/hook.mjs';
@@ -21,18 +22,18 @@ runHook('user-prompt', ({ config, state }) => {
   const turn = recordTurn(state);
   const messages = [];
 
-  // Oturum başı tek satır onay (ui.heartbeat). İlk turda çıkar, çünkü kayıt
-  // kanıtı ancak ilk mesajda oluşur — oturum açılışında "etkin" demek
-  // kanıtlanmamışı iddia etmek olurdu.
+  // The one-line start-of-session confirmation (ui.heartbeat). It appears on the
+  // first turn, not at session open: registration is only proved by the first
+  // message, and claiming "active" at open would assert something unproven.
   if (config.ui.heartbeat && turn === 1) {
-    const mode = config.mode === 'explore' ? 'keşif' : 'sert';
-    messages.push(`etkin — ${mode} kip · ${PATTERN_COUNT} desen`);
+    const mode = config.mode === 'explore' ? 'explore' : 'strict';
+    messages.push(`active — ${mode} mode · ${PATTERN_COUNT} patterns`);
   }
 
-  // Periyodik durum satırı (ui.chatStatus). Desktop uygulamasının Code
-  // sekmesi statusLine render etmiyor (ölçüldü), yani orada ölçümleri pasif
-  // görmenin tek yolu bu. Varsayılan kapalı: sormadan gelen tekrarlı satır
-  // gürültüdür ve görmezden gelinen uyarı da bir slop biçimi (AGT-09).
+  // The periodic chat status row (ui.chatStatus). The desktop app's Code tab does
+  // not render statusLine (measured), so this is the only way to see the numbers
+  // passively there. Off by default: an unrequested repeating row is noise, and
+  // an ignored warning is a form of slop itself (AGENT-09).
   const every = config.ui.chatStatus;
   if (Number.isInteger(every) && every > 0 && turn % every === 0) {
     messages.push(statusMetrics(state, config).join(' · '));
@@ -43,4 +44,5 @@ runHook('user-prompt', ({ config, state }) => {
   if (messages.length > 0) {
     notify(formatWarnings(messages.map((message) => ({ message }))));
   }
+  void BRAND;
 });

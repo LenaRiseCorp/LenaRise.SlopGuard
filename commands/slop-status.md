@@ -1,11 +1,11 @@
 ---
-description: Bu oturumun SlopGuard ölçümlerini göster
+description: Show this session's SlopGuard measurements
 allowed-tools: Bash(node:*)
 ---
 
-Çalıştır ve çıktıyı olduğu gibi kullanıcıya göster:
+Run this and show the output to the user as it is:
 
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/status.mjs"`
 
-Sayıları yorumlarken abartma. "Her şey yolunda" demeden önce açık ihlal ve
-doğrulama satırlarına bak; bunlar doluysa yolunda değildir.
+Do not overstate the numbers. Before saying "everything is fine", read the open
+violations and verification lines; if those are populated, it is not fine.

@@ -1,7 +1,7 @@
 name: slop-gate
 
-# Repo katmanı: kodu hangi agent yazarsa yazsın burada durur.
-# Claude Code hook'ları yalnızca Claude Code'u kapsıyordu; bu iş akışı herkesi.
+# The repository layer: whichever agent wrote the code, it stops here.
+# Claude Code hooks covered only Claude Code; this workflow covers everyone.
 
 on:
   pull_request:
@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 jobs:
-  desen-taramasi:
-    name: Desen taraması
+  pattern-scan:
+    name: Pattern scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,14 +24,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: LenaRise.SlopGuard tarayıcısını al
+      - name: Fetch the LenaRise.SlopGuard scanner
         run: git clone --depth 1 https://github.com/OWNER/LenaRise.SlopGuard.git .slopguard-tool
 
-      - name: Değişen dosyaları tara
+      - name: Scan changed files
         run: node .slopguard-tool/scripts/scan-diff.mjs --base "${{ github.event.pull_request.base.sha || github.event.before }}"
 
-  gizli-anahtar:
-    name: Sızmış sır taraması
+  secret-scan:
+    name: Leaked secret scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,10 +41,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  kopya-kod:
-    name: Duplikasyon (KOD-01)
+  duplication:
+    name: Duplication (CODE-01)
     runs-on: ubuntu-latest
-    # Repo geneli duplikasyon diff'te görünmez; bu yüzden CI katmanında.
+    # Repository-wide duplication is invisible in a diff, which is why it lives in CI.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

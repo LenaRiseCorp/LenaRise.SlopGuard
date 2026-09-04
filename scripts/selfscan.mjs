@@ -1,24 +1,23 @@
 #!/usr/bin/env node
 /**
- * Kendi kendini tarama.
+ * Self-scan.
  *
- * Bağlayıcı taahhüt: plugin kendi kaynak kodunu kendi tarayıcısından geçirir.
- * Kendi kodunda takılıyorsa ya desen yanlıştır ya kod — ikisinden biri
- * düzeltilir, muafiyet yazılmaz.
+ * A binding commitment: the plugin runs its own source through its own scanner.
+ * If it trips on our code then either the pattern is wrong or the code is — one
+ * of the two gets fixed, and no waiver is written.
  *
- * Tarama yüzeyi runtime ile aynı tutulur: test yolları hariç. Bu bir muafiyet
- * değil, sadakat meselesi — pre-edit'in TST kilidi test dosyalarına yazmayı
- * zaten reddediyor, yani post-edit bir test dosyasını hiçbir zaman görmüyor.
- * Runtime'ın taramadığı bir yüzeyi taramak, olmayan bir davranışı sınamak olurdu.
- * Yine de test dizinindeki bulgu sayısı bilgi olarak basılır; hiçbir şey gizlenmez.
+ * The scanned surface matches the runtime: test paths are excluded. This is not
+ * an exemption but a matter of fidelity — pre-edit's TEST lock already refuses
+ * writes to test files, so post-edit never sees one. Scanning a surface the
+ * runtime never scans would be testing behaviour that does not happen. The count
+ * of patterns inside test fixtures is still printed; nothing is hidden.
  *
- * Çıkış kodu: bulgu varsa 1, temizse 0. CI bunu kapı olarak kullanır.
+ * Exit code: 1 when there are findings, 0 when clean. CI uses it as a gate.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 import { scanContent, actionable, isTestPath, scanFiles } from '../lib/scan.mjs';
 import { formatFinding } from '../lib/report.mjs';
 
@@ -42,12 +41,12 @@ const read = (rel) => {
   try {
     return readFileSync(join(ROOT, rel), 'utf8');
   } catch (error) {
-    process.stderr.write(`okunamadı: ${rel} — ${error.message}\n`);
+    process.stderr.write(`could not read: ${rel} — ${error.message}\n`);
     return null;
   }
 };
 
-// Test yolları runtime'da hiç taranmıyor; buradaki sayım yalnızca bilgi için.
+// Test paths are never scanned at runtime; the count here is informational only.
 for (const rel of all.filter(isTestPath)) {
   const body = read(rel);
   if (body === null) continue;
@@ -60,17 +59,17 @@ const { results, scanned, suppressed: suppressedCount, total } = scanFiles({
 });
 
 const fixtureNote = fixtureFindings > 0
-  ? `\n  (test fixture'larında ${fixtureFindings} kasıtlı desen var; runtime bu yolları taramaz)`
+  ? `\n  (${fixtureFindings} deliberate pattern(s) live in test fixtures; the runtime never scans those paths)`
   : '';
 
 if (total === 0) {
-  process.stdout.write(`Kendi kendini tarama: ${scanned} dosya · temiz`);
-  if (suppressedCount > 0) process.stdout.write(` · ${suppressedCount} gerekçeli muafiyet`);
+  process.stdout.write(`Self-scan: ${scanned} file(s) · clean`);
+  if (suppressedCount > 0) process.stdout.write(` · ${suppressedCount} reasoned waiver(s)`);
   process.stdout.write(`${fixtureNote}\n`);
   process.exit(0);
 }
 
-process.stdout.write(`Kendi kendini tarama: ${scanned} dosya tarandı, ${total} bulgu\n\n`);
+process.stdout.write(`Self-scan: ${scanned} file(s) scanned, ${total} finding(s)\n\n`);
 for (const [rel, findings] of results) {
   process.stdout.write(`${rel}\n`);
   for (const f of findings) process.stdout.write(`${formatFinding(f)}\n`);

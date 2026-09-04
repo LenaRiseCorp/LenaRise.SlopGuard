@@ -1,43 +1,42 @@
 ---
 name: slop-repo-init
-description: Bir repoya agent-agnostic slop koruması kurmak için kullan — kullanıcı "bu repoyu koru", "ekip için kur", "CI'ya ekle", "AGENTS.md oluştur", "pre-commit hook kur" dediğinde ya da korumanın Claude Code dışındaki agent'ları da kapsamasını istediğinde.
+description: Use this to install agent-agnostic slop protection into a repository — when the user says "protect this repo", "set it up for the team", "add it to CI", "create AGENTS.md", "install a pre-commit hook", or wants the protection to cover agents other than Claude Code.
 ---
 
-# Repo katmanı kurulumu
+# Repository layer setup
 
-## Neden ayrı bir katman
+## Why this is a separate layer
 
-Claude Code hook'ları yalnızca Claude Code'u kapsar. Aynı repoda Cursor,
-Codex, Copilot ya da insan çalışıyorsa onları hook'lar görmez. Git hook'u
-ve CI herkesi görür.
+Claude Code hooks only cover Claude Code. If Cursor, Codex, Copilot or a human is
+also working in the same repository, hooks do not see them. A git hook and CI do.
 
-## Çalıştır
+## Run
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/repo-init.mjs"
 ```
 
-Var olan dosyalar ezilmez. Ezilmediği bildirilen bir dosya varsa kullanıcıya
-söyle ve birleştirmeyi teklif et.
+Existing files are not overwritten. If a file is reported as left alone, tell the
+user and offer to merge.
 
-## Kurulan dosyalar
+## What gets installed
 
-| Dosya | Kapsam | Not |
+| File | Covers | Note |
 |---|---|---|
-| `AGENTS.md` | tüm agent'lar | Kural setinden üretilir; elle düzenlenirse kaynakla ayrışır |
-| `.slopignore` | bu repo | Taranmayacak yollar |
-| `.git/hooks/pre-commit` | yalnızca bu makine | Klonlanmaz; ekip için yeterli değil |
-| `.github/workflows/slop-gate.yml` | ekibin tamamı | **Asıl kapı budur** |
+| `AGENTS.md` | every agent | Generated from the rule set; hand edits drift from the source |
+| `.slopignore` | this repository | Paths that are not scanned |
+| `.git/hooks/pre-commit` | this machine only | Not cloned; not enough for a team |
+| `.github/workflows/slop-gate.yml` | the whole team | **This is the real gate** |
 
-## Kurulumdan sonra
+## After installation
 
-1. CI şablonundaki `OWNER` yer tutucusunu gerçek GitHub hesabıyla değiştir.
-   Tahmin etme, kullanıcıya sor.
-2. Git hook'unun klonlanmadığını söyle. Ekipteki herkesin çalıştırması için
-   `core.hooksPath` ile repo içi bir dizin kullanılabilir; bunu teklif et.
-3. `.slopignore` varsayılanını gözden geçir — `vendor` ve `dist` gibi
-   girdiler projeye uymayabilir.
-4. İlk taramayı çalıştır ve mevcut repoda kaç bulgu olduğunu göster:
+1. Replace the `OWNER` placeholder in the CI template with the real GitHub
+   account. Do not guess it — ask.
+2. Point out that the git hook is not cloned. `core.hooksPath` with an in-repo
+   directory can make it work for everyone; offer that.
+3. Review the `.slopignore` defaults — entries such as `vendor` and `dist` may not
+   suit the project. For a game project, uncomment the engine build directories.
+4. Run the first scan and show how many findings the repository currently has:
    `node "${CLAUDE_PLUGIN_ROOT}/scripts/check.mjs"`.
-   Var olan bir repoda bu sayı yüksek çıkabilir; hepsini bir seferde
-   düzeltmeyi dayatma, kullanıcıyla öncelik belirle.
+   In an existing repository that number can be high; do not insist on fixing
+   everything at once — agree on priorities with the user.

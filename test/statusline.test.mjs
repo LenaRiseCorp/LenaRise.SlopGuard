@@ -1,15 +1,15 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { writeFileSync, rmSync, mkdtempSync, cpSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { makeWorkspace, pipe, ROOT } from './pipe.mjs';
 
 const ws = makeWorkspace();
 after(() => ws.cleanup());
 
-const SID = 'canli-oturum';
+const SID = 'live-session';
 const beatFile = join(ws.cfgDir, 'heartbeat.json');
 const probeCache = join(ws.cfgDir, 'probe.json');
 const transcript = join(ws.base, 'transcript.jsonl');
@@ -23,62 +23,62 @@ const bar = (payload = {}, cfgDir = ws.cfgDir) => pipe('bin/statusline.mjs', {
 }, { cfgDir }).stdout;
 
 const heartbeat = (sessionId) => writeFileSync(beatFile, JSON.stringify({
-  ts: Date.now(), version: '0.1.0', patterns: 26, mode: 'strict', sessionId, event: 'UserPromptSubmit',
+  ts: Date.now(), version: '0.1.0', patterns: 33, mode: 'strict', sessionId, event: 'UserPromptSubmit',
 }));
 const session = (patch) => writeFileSync(join(ws.cfgDir, `session-${SID}.json`),
   JSON.stringify({ version: 1, sessionId: SID, ...patch }));
 const freshProbe = () => rmSync(probeCache, { force: true });
 
-// ── Doğrulama 12: çubuk yalan söylemez ──────────────────────────────────
+// ── The bar does not lie ────────────────────────────────────────────────
 
-test('mesaj atılmadan önce "hazır" der, "canlı" DEMEZ', () => {
+test('before any message it says "ready" and NOT "live"', () => {
   freshProbe();
   rmSync(beatFile, { force: true });
   rmSync(transcript, { force: true });
   const out = bar();
-  assert.match(out, /SlopGuard hazır/);
-  assert.doesNotMatch(out, /canlı/, 'kayıt kanıtlanmadan canlı denemez');
+  assert.match(out, /SlopGuard ready/);
+  assert.doesNotMatch(out, /live/, 'it cannot claim live before registration is proved');
 });
 
-test('başka oturumun damgası "canlı" için yetmez', () => {
+test('another session\'s stamp is not enough for "live"', () => {
   freshProbe();
-  heartbeat('bambaska-oturum');
-  assert.match(bar(), /hazır/);
+  heartbeat('some-other-session');
+  assert.match(bar(), /ready/);
 });
 
-test('bu oturumun damgası varsa "canlı" — iki kanıt da tamam', () => {
+test('with this session\'s stamp it reads "live" — both proofs present', () => {
   freshProbe();
   heartbeat(SID);
   session({ turns: 12, blocked: 3, testRunAt: Date.now() - 240000, violations: {}, suppressions: 0 });
   const out = bar();
-  assert.match(out, /SlopGuard canlı/);
-  assert.match(out, /sert/);
-  assert.match(out, /3 engellendi/);
-  assert.match(out, /tur 12\/40/);
-  assert.match(out, /\+420\/-80/, 'satır sayıları statusLine yükünden gelir');
-  assert.match(out, /test 4 dk önce/);
+  assert.match(out, /SlopGuard live/);
+  assert.match(out, /strict/);
+  assert.match(out, /3 blocked/);
+  assert.match(out, /turn 12\/40/);
+  assert.match(out, /\+420\/-80/, 'line counts come from the statusLine payload');
+  assert.match(out, /tests 4m ago/);
 });
 
-test('mesaj atılmış ama damga yoksa "kayıtsız" — hook kaydolmamış', () => {
+test('a message was sent but no stamp exists — "unregistered"', () => {
   freshProbe();
-  heartbeat('eski-oturum');
+  heartbeat('older-session');
   writeFileSync(transcript, '{"type":"user","message":{"role":"user"}}\n');
   const out = bar();
-  assert.match(out, /⚠️ kayıtsız/);
-  assert.doesNotMatch(out, /canlı/);
+  assert.match(out, /unregistered/);
+  assert.doesNotMatch(out, /live/);
   rmSync(transcript, { force: true });
 });
 
-test('script bozulursa çubuk "canlı" kalmaz, "bozuk"a düşer', () => {
-  // Planın senaryosu: oturum ortasında hook script'i ortadan kalkar.
-  // Eksik hooks/ dizini olan bir kopya kurulur; probe cevap alamaz.
-  const broken = mkdtempSync(join(tmpdir(), 'slopguard-bozuk-'));
+test('when the script breaks the bar drops to "broken" rather than staying "live"', () => {
+  // The scenario: the hook script disappears mid-session. A copy without the
+  // hooks directory is set up, so the probe gets no answer.
+  const broken = mkdtempSync(join(tmpdir(), 'slopguard-broken-'));
   cpSync(join(ROOT, 'lib'), join(broken, 'lib'), { recursive: true });
   cpSync(join(ROOT, 'bin'), join(broken, 'bin'), { recursive: true });
   cpSync(join(ROOT, 'package.json'), join(broken, 'package.json'));
-  assert.equal(existsSync(join(broken, 'hooks')), false, 'hooks bilerek kopyalanmadı');
+  assert.equal(existsSync(join(broken, 'hooks')), false, 'hooks was deliberately not copied');
 
-  const brokenCfg = mkdtempSync(join(tmpdir(), 'slopguard-bozukcfg-'));
+  const brokenCfg = mkdtempSync(join(tmpdir(), 'slopguard-brokencfg-'));
   writeFileSync(join(brokenCfg, 'heartbeat.json'), JSON.stringify({ ts: Date.now(), sessionId: SID }));
 
   const out = execFileSync(process.execPath, [join(broken, 'bin', 'statusline.mjs')], {
@@ -87,62 +87,62 @@ test('script bozulursa çubuk "canlı" kalmaz, "bozuk"a düşer', () => {
     env: { ...process.env, SLOPGUARD_CONFIG_DIR: brokenCfg },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
-  assert.match(out, /⚠️ bozuk/, `beklenen bozuk, gelen: ${out}`);
-  assert.doesNotMatch(out, /canlı/, 'kayıt kanıtı varken bile çalışabilirlik yoksa canlı denemez');
+  assert.match(out, /broken/, `expected broken, got: ${out}`);
+  assert.doesNotMatch(out, /live/, 'registration alone is not enough without operability');
 
   rmSync(broken, { recursive: true, force: true });
   rmSync(brokenCfg, { recursive: true, force: true });
 });
 
-// ── Doğrulama 11: görünürlük kipleri ────────────────────────────────────
+// ── Visibility modes ────────────────────────────────────────────────────
 
-test('minimal kip yalnızca durum ve sayaç gösterir', () => {
+test('minimal mode shows only the state and the counter', () => {
   freshProbe();
   heartbeat(SID);
   session({ turns: 12, blocked: 3 });
   ws.config({ ui: { statusLine: 'minimal' } });
-  assert.equal(bar(), 'SlopGuard canlı · 3');
+  assert.equal(bar(), 'SlopGuard live · 3');
   ws.config({});
 });
 
-test('off kipinde çubuk hiçbir şey yazmaz', () => {
+test('off mode prints nothing at all', () => {
   ws.config({ ui: { statusLine: 'off' } });
   assert.equal(bar(), '');
   ws.config({});
 });
 
-test('kullanıcı bilerek kapattıysa "kapalı" der', () => {
+test('when the user disabled it deliberately the bar says "off"', () => {
   ws.config({ enabled: false });
-  assert.equal(bar(), 'SlopGuard kapalı');
+  assert.equal(bar(), 'SlopGuard off');
   ws.config({});
 });
 
-test('keşif kipi çubukta görünür', () => {
+test('explore mode is visible on the bar', () => {
   freshProbe();
   heartbeat(SID);
   session({ turns: 3, blocked: 0 });
   ws.config({ mode: 'explore' });
-  assert.match(bar(), /canlı · keşif/);
+  assert.match(bar(), /live · explore/);
   ws.config({});
 });
 
-test('açık ihlal ve muafiyet sayısı çubuğa yansır', () => {
+test('open violations and waiver counts reach the bar', () => {
   freshProbe();
   heartbeat(SID);
-  session({ turns: 5, blocked: 2, suppressions: 1, violations: { 'a.js': [{ id: 'KOD-05', line: 1 }] } });
+  session({ turns: 5, blocked: 2, suppressions: 1, violations: { 'a.js': [{ id: 'CODE-05', line: 1 }] } });
   const out = bar();
-  assert.match(out, /1 açık ihlal/);
-  assert.match(out, /1 muafiyet/);
+  assert.match(out, /1 open/);
+  assert.match(out, /1 waived/);
 });
 
-test('test hiç çalışmadıysa çubuk bunu söyler', () => {
+test('when no test has run the bar says so', () => {
   freshProbe();
   heartbeat(SID);
   session({ turns: 2, blocked: 0, testRunAt: null });
-  assert.match(bar(), /test yok/);
+  assert.match(bar(), /no tests/);
 });
 
-test('bozuk stdin çubuğu çökertmez', () => {
+test('malformed stdin does not crash the bar', () => {
   const r = pipe('bin/statusline.mjs', undefined, { cfgDir: ws.cfgDir });
   assert.equal(r.code, 0);
   assert.match(r.stdout, /SlopGuard/);

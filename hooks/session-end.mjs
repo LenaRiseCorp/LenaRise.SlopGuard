@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * SessionEnd → oturum özeti.
+ * SessionEnd → session summary.
  *
- * METR bulgusu: deneyimli geliştiriciler kendi AI destekli hızlarını 39 puan
- * yanlış tahmin etti. Oturum sonunda öz-beyan yerine ölçüm koymak bu yüzden
- * kozmetik değil — "çok iş çıkardık" hissiyle "N satır, M engellenen slop,
- * K muafiyet" arasındaki fark, verimlilik illüzyonunun (INS-02) tam yeri.
+ * The METR finding: experienced developers misjudged their own AI-assisted speed
+ * by 39 points. Putting a measurement where the self-report would go is
+ * therefore not cosmetic — the gap between "we got a lot done" and "N lines, M
+ * slop blocked, K waivers" is exactly where the productivity illusion lives
+ * (HUMAN-02).
  *
- * Ayrıca eski oturum dosyalarını temizler: her oturum bir dosya bırakıyor ve
- * kimse silmiyorsa bu da bir tür ölü kod birikimi olurdu (KOD-03).
+ * It also prunes old session files: every session leaves one behind, and if
+ * nobody removes them that is its own kind of dead accumulation (CODE-03).
  */
 
 import { readdirSync, statSync, unlinkSync } from 'node:fs';
@@ -27,7 +28,7 @@ function pruneOldSessions(currentId) {
   try {
     entries = readdirSync(paths.dir);
   } catch (error) {
-    fail('session-end', `oturum dizini okunamadı — ${error.message}`);
+    fail('session-end', `session directory could not be read — ${error.message}`);
     return 0;
   }
   for (const name of entries) {
@@ -37,7 +38,7 @@ function pruneOldSessions(currentId) {
     try {
       if (statSync(file).mtimeMs < cutoff) { unlinkSync(file); removed++; }
     } catch (error) {
-      fail('session-end', `eski oturum silinemedi (${name}) — ${error.message}`);
+      fail('session-end', `old session could not be removed (${name}) — ${error.message}`);
     }
   }
   return removed;
@@ -46,8 +47,8 @@ function pruneOldSessions(currentId) {
 runHook('session-end', ({ state, sessionId }) => {
   pruneOldSessions(String(sessionId).replace(/[^\w-]/g, '_'));
 
-  // Hiç iş yapılmamış oturumda özet gürültüdür.
+  // In a session where nothing happened, a summary is noise.
   if (state.turns === 0 && state.linesWritten === 0) return;
 
-  notify(`${BRAND} — oturum özeti\n\n  ${sessionSummary(state)}`);
+  notify(`${BRAND} — session summary\n\n  ${sessionSummary(state)}`);
 });

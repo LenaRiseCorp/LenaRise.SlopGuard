@@ -1,9 +1,10 @@
 /**
- * Hook boru testi yardımcıları.
+ * Hook pipe-test helpers.
  *
- * Hook'lar gerçek stdin yüküyle, ayrı süreçte, izole bir yapılandırma diziniyle
- * çalıştırılır. Modülü içeri aktarıp fonksiyon çağırmak protokolü sınamazdı:
- * asıl sözleşme stdin JSON'u ve stdout JSON'u.
+ * Hooks are run with real stdin payloads, in a separate process, against an
+ * isolated configuration directory. Importing the module and calling a function
+ * would not exercise the protocol: the actual contract is the stdin JSON and the
+ * stdout JSON.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -14,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** İzole yapılandırma dizini + git repo iskeleti. */
+/** An isolated configuration directory plus a git repository skeleton. */
 export function makeWorkspace() {
   const base = mkdtempSync(join(tmpdir(), 'slopguard-pipe-'));
   const cfgDir = join(base, 'cfg');
@@ -35,14 +36,21 @@ export function makeWorkspace() {
 }
 
 /**
- * Hook'u çalıştırır ve çıktısını ayrıştırır.
+ * Runs a hook and parses its output.
+ *
+ * spawnSync is used rather than execFileSync because it returns stderr on a
+ * successful exit too. With execFileSync, stderr was only visible on the error
+ * path, so "errors are not swallowed" could not be asserted on a normal run.
+ *
  * @returns {{code:number, stdout:string, stderr:string, json:object|null}}
  */
 export function pipe(hookRelPath, payload, { cfgDir } = {}) {
   const script = join(ROOT, hookRelPath);
-  // spawnSync, execFileSync'in aksine başarılı çıkışta da stderr veriyor.
-  // execFileSync ile stderr yalnızca hata dalında görülüyordu, yani
-  // "hata sessizce yutulmaz" iddiaları başarılı çalıştırmada sınanamıyordu.
+  // spawnSync, unlike execFileSync, returns stderr on a successful exit too.
+  // With execFileSync stderr was only visible on the error path, so the
+  // "errors are not swallowed" assertions could not run on a normal execution.
+  // (note)
+  // (note)
   const result = spawnSync(process.execPath, [script], {
     input: JSON.stringify(payload),
     encoding: 'utf8',
@@ -56,7 +64,7 @@ export function pipe(hookRelPath, payload, { cfgDir } = {}) {
   return { code: result.status ?? 0, stdout, stderr: result.stderr ?? '', json };
 }
 
-/** PostToolUse yükü — alan adları ölçülmüş şemaya uyar. */
+/** A PostToolUse payload; the field names follow the measured schema. */
 export function postToolUsePayload({ sessionId = 'test', cwd, filePath, toolName = 'Write', patch = [], content }) {
   return {
     session_id: sessionId,

@@ -9,17 +9,23 @@ import { PATTERNS, CATEGORIES } from '../lib/patterns.mjs';
 
 const keys = (filePath, content) => actionable(scanContent({ filePath, content })).map((f) => f.key);
 
-/** Unity metodunu bir sınıf gövdesine sarar — desenler gerçek biçimi görsün. */
+/**
+ * Commands do not have to run inside a git repository.
+ *
+ * GAME patterns key off engine API names, so they stay silent elsewhere on their
+ * own. The category exists so they can be switched off in one line, and so the
+ * engine-generated files they protect are discoverable.
+ */
 const unity = (body) => `using UnityEngine;\npublic class Oyuncu : MonoBehaviour {\n${body}\n}\n`;
 
-// ── Kategori bütünlüğü ──────────────────────────────────────────────────
+// A protected path is a separate gate; scanPath only looks for pattern matches.
 
-test('OYN kategorisi kayıtlı ve desenleri var', () => {
-  assert.ok(CATEGORIES.OYN, 'kategori tanımlı olmalı');
-  assert.ok(PATTERNS.filter((p) => p.id.startsWith('OYN')).length >= 7);
+test('the GAME category is registered and has patterns', () => {
+  assert.ok(CATEGORIES.GAME, 'kategori tanımlı olmalı');
+  assert.ok(PATTERNS.filter((p) => p.id.startsWith('GAME')).length >= 7);
 });
 
-test('OYN desenleri motor API adlarına dayanır — genel kodda sessiz', () => {
+test('GAME patterns key off engine API names — silent in general code', () => {
   const genel = [
     'export function topla(a, b) { return a + b; }',
     'const sonuc = liste.Where(x => x.aktif).ToList();',
@@ -28,138 +34,138 @@ test('OYN desenleri motor API adlarına dayanır — genel kodda sessiz', () => 
   assert.deepEqual(keys('genel.js', genel), [], 'oyun olmayan projede tetiklenmemeli');
 });
 
-// ── OYN-01 kare hızına bağlı hareket ────────────────────────────────────
+// A protected path is a separate gate; scanPath only looks for pattern matches.
 
-test('OYN-01 deltaTime olmadan hareket yakalanır', () => {
+test('GAME-01 catches motion without deltaTime', () => {
   assert.ok(keys('P.cs', unity('  void Update() { transform.Translate(Vector3.forward * hiz); }'))
-    .includes('oyn-01-framerate-bagimli-hareket'));
+    .includes('game-01-framerate-dependent-motion'));
   assert.ok(keys('P.cs', unity('  void Update() { transform.position += yon * hiz; }'))
-    .includes('oyn-01-framerate-bagimli-hareket'));
+    .includes('game-01-framerate-dependent-motion'));
 });
 
-test('OYN-01 deltaTime varsa sessiz', () => {
+test('GAME-01 deltaTime varsa sessiz', () => {
   for (const body of [
     '  void Update() { transform.Translate(Vector3.forward * hiz * Time.deltaTime); }',
     '  void Update() { transform.position += yon * hiz * Time.deltaTime; }',
     '  void Update() { transform.position = hedef; }',
   ]) {
-    assert.deepEqual(keys('P.cs', unity(body)).filter((k) => k.startsWith('oyn-01')), [], body);
+    assert.deepEqual(keys('P.cs', unity(body)).filter((k) => k.startsWith('game-01')), [], body);
   }
 });
 
-// ── OYN-02 sahne araması ────────────────────────────────────────────────
+// A protected path is a separate gate; scanPath only looks for pattern matches.
 
-test('OYN-02 Update içindeki arama yakalanır', () => {
+test('GAME-02 catches a lookup inside Update', () => {
   for (const call of ['GameObject.Find("Oyuncu")', 'FindObjectOfType<Rigidbody>()',
                       'Camera.main.transform', 'GetComponent<Animator>()']) {
-    assert.ok(keys('P.cs', unity(`  void Update() { var x = ${call}; }`)).includes('oyn-02-her-karede-sahne-aramasi'), call);
+    assert.ok(keys('P.cs', unity(`  void Update() { var x = ${call}; }`)).includes('game-02-scene-lookup-per-frame'), call);
   }
 });
 
-test('OYN-02 Awake ve Start içindeki arama serbest', () => {
+test('GAME-02 allows lookups inside Awake and Start', () => {
   for (const method of ['Awake', 'Start', 'OnEnable']) {
     const found = keys('P.cs', unity(`  void ${method}() { govde = GetComponent<Rigidbody>(); }`));
-    assert.deepEqual(found.filter((k) => k.startsWith('oyn-02')), [], method);
+    assert.deepEqual(found.filter((k) => k.startsWith('game-02')), [], method);
   }
 });
 
-// ── OYN-03 fizik ────────────────────────────────────────────────────────
+// ── GAME-03 fizik ────────────────────────────────────────────────────────
 
-test('OYN-03 Update içindeki fizik yakalanır', () => {
+test('GAME-03 catches physics inside Update', () => {
   assert.ok(keys('P.cs', unity('  void Update() { govde.AddForce(Vector3.up); }'))
-    .includes('oyn-03-fizik-update-icinde'));
+    .includes('game-03-physics-in-update'));
   assert.ok(keys('P.cs', unity('  void Update() { govde.velocity = yeni; }'))
-    .includes('oyn-03-fizik-update-icinde'));
+    .includes('game-03-physics-in-update'));
 });
 
-test('OYN-03 FixedUpdate içindeki fizik doğru yerdedir', () => {
+test('GAME-03 accepts physics inside FixedUpdate', () => {
   const found = keys('P.cs', unity('  void FixedUpdate() { govde.AddForce(Vector3.up); }'));
-  assert.deepEqual(found.filter((k) => k.startsWith('oyn-03')), []);
+  assert.deepEqual(found.filter((k) => k.startsWith('game-03')), []);
 });
 
-// ── OYN-04 ve OYN-05 sıcak yol ──────────────────────────────────────────
+// A protected path is a separate gate; scanPath only looks for pattern matches.
 
-test('OYN-04 Update içindeki LINQ yakalanır', () => {
+test('GAME-04 catches LINQ inside Update', () => {
   assert.ok(keys('P.cs', unity('  void Update() { var y = dusmanlar.Where(d => d.canli).ToList(); }'))
-    .includes('oyn-04-sicak-yolda-tahsis'));
+    .includes('game-04-hot-path-allocation'));
 });
 
-test('OYN-05 Update içindeki günlük yakalanır', () => {
+test('GAME-05 catches logging inside Update', () => {
   assert.ok(keys('P.cs', unity('  void Update() { Debug.Log("tik"); }'))
-    .includes('oyn-05-her-karede-gunluk'));
+    .includes('game-05-logging-per-frame'));
 });
 
-test('OYN-04 ve OYN-05 Update dışında sessiz', () => {
+test('GAME-04 and GAME-05 stay silent outside Update', () => {
   const body = '  void Baslat() { Debug.Log("hazir"); var y = liste.Where(x => x.a).ToList(); }';
   const found = keys('P.cs', unity(body));
-  assert.deepEqual(found.filter((k) => k.startsWith('oyn-04') || k.startsWith('oyn-05')), []);
+  assert.deepEqual(found.filter((k) => k.startsWith('game-04') || k.startsWith('game-05')), []);
 });
 
-// ── OYN-06 istemcide ekonomi (tek block desen) ──────────────────────────
+// ── GAME-06 istemcide ekonomi (tek block desen) ──────────────────────────
 
-test('OYN-06 istemcide para ve ilerleme engellenir', () => {
+test('GAME-06 blocks currency and progression on the client', () => {
   for (const call of ['PlayerPrefs.SetInt("coins", 500)', 'PlayerPrefs.SetInt("player_gold", g)',
-                      'PlayerPrefs.SetString("premium_unlock", "1")', 'PlayerPrefs.SetInt("skor", s)']) {
+                      'PlayerPrefs.SetString("premium_unlock", "1")', 'PlayerPrefs.SetInt("player_score", s)']) {
     const found = actionable(scanContent({ filePath: 'K.cs', content: unity(`  void Kaydet() { ${call}; }`) }));
-    assert.ok(found.some((f) => f.key === 'oyn-06-istemcide-ekonomi'), call);
-    assert.equal(found.find((f) => f.key === 'oyn-06-istemcide-ekonomi').severity, 'block',
+    assert.ok(found.some((f) => f.key === 'game-06-client-side-economy'), call);
+    assert.equal(found.find((f) => f.key === 'game-06-client-side-economy').severity, 'block',
       'ekonomi bir güvenlik meselesi — tek block OYN deseni');
   }
 });
 
-test('OYN-06 zararsız tercihleri engellemez', () => {
+test('GAME-06 does not block harmless preferences', () => {
   for (const call of ['PlayerPrefs.SetFloat("ses_seviyesi", v)', 'PlayerPrefs.SetInt("dil", 2)',
                       'PlayerPrefs.SetString("son_sahne", ad)']) {
-    assert.deepEqual(keys('K.cs', unity(`  void Kaydet() { ${call}; }`)).filter((k) => k.startsWith('oyn-06')), [], call);
+    assert.deepEqual(keys('K.cs', unity(`  void Kaydet() { ${call}; }`)).filter((k) => k.startsWith('game-06')), [], call);
   }
 });
 
-// ── OYN-07 Godot ────────────────────────────────────────────────────────
+// ── GAME-07 Godot ────────────────────────────────────────────────────────
 
-test('OYN-07 göreli düğüm yolu yakalanır', () => {
+test('GAME-07 catches a relative node path', () => {
   assert.ok(keys('oyuncu.gd', 'func _ready():\n\tvar p = get_node("../../Oyuncu")\n')
-    .includes('oyn-07-kirilgan-dugum-yolu'));
+    .includes('game-07-fragile-node-path'));
 });
 
-test('OYN-07 mutlak ve göreli olmayan yol sessiz', () => {
+test('GAME-07 stays silent on absolute and non-relative paths', () => {
   for (const line of ['var p = get_node("Silah")', 'var p = get_node("/root/Oyun")', '@onready var p = $Silah']) {
-    assert.deepEqual(keys('o.gd', `func _ready():\n\t${line}\n`).filter((k) => k.startsWith('oyn-07')), [], line);
+    assert.deepEqual(keys('o.gd', `func _ready():\n\t${line}\n`).filter((k) => k.startsWith('game-07')), [], line);
   }
 });
 
-test('.gd dosyaları taranıyor', async () => {
+test('.gd files are scanned', async () => {
   const { classify } = await import('../lib/scan.mjs');
   assert.equal(classify('oyuncu.gd'), 'code');
 });
 
-// ── OYN-08 motor üretimi dosyalar ───────────────────────────────────────
+// A protected path is a separate gate; scanPath only looks for pattern matches.
 
-test('OYN-08 motor üretimi dosyalar korumalı', () => {
+test('GAME-08 protects engine-generated files', () => {
   const korumali = [
     ['Assets/Oyuncu.cs.meta', /GUID/],
-    ['Library/ScriptAssemblies/x.dll', /Unity üretim/],
-    ['Content/Maps/Ana.umap', /motor varlık/],
-    ['Assets/Sahneler/Ana.unity', /motor varlık/],
-    ['sahneler/ana.tscn', /motor varlık/],
-    ['.godot/uid_cache.bin', /Godot üretim/],
-    ['Intermediate/Build/x.o', /Unreal üretim/],
+    ['Library/ScriptAssemblies/x.dll', /Unity generated/],
+    ['Content/Maps/Ana.umap', /engine asset/],
+    ['Assets/Sahneler/Ana.unity', /engine asset/],
+    ['sahneler/ana.tscn', /engine asset/],
+    ['.godot/uid_cache.bin', /Godot generated/],
+    ['Intermediate/Build/x.o', /Unreal generated/],
   ];
   for (const [path, expected] of korumali) {
     const why = protectedPathReason(path);
-    assert.ok(why, `korumalı olmalı: ${path}`);
-    assert.match(why, /OYN-08/, path);
+    assert.ok(why, `protected olmalı: ${path}`);
+    assert.match(why, /GAME-08/, path);
     assert.match(why, expected, path);
   }
 });
 
-test('sıradan oyun kaynak dosyaları korumalı değil', () => {
+test('ordinary game source files are not protected', () => {
   for (const path of ['Assets/Scripts/Oyuncu.cs', 'src/oyun.gd', 'Source/Oyun/Player.cpp']) {
     assert.equal(protectedPathReason(path), null, path);
   }
 });
 
-test('korumalı motor yolları pre-edit yol taramasına takılmaz', () => {
-  // Korumalı yol ayrı bir kapı; scanPath yalnızca desen eşleşmesi arar.
+test('protected engine paths do not trip the pre-edit path scan', () => {
+  // A protected path is a separate gate; scanPath only looks for pattern matches.
   assert.deepEqual(scanPath({ filePath: 'Assets/Oyuncu.cs.meta' }).map((f) => f.key), []);
 });
 
@@ -174,7 +180,7 @@ function makeRoot(build) {
   return root;
 }
 
-test('Unity, Godot ve Unreal imzaları tanınır', () => {
+test('Unity, Godot and Unreal signatures are recognised', () => {
   const u = makeRoot((r) => { mkdirSync(join(r, 'Assets')); mkdirSync(join(r, 'ProjectSettings')); });
   assert.deepEqual(detectEngines(u), ['Unity']);
 
@@ -185,25 +191,25 @@ test('Unity, Godot ve Unreal imzaları tanınır', () => {
   assert.deepEqual(detectEngines(ue), ['Unreal']);
 });
 
-test('oyun olmayan proje imza vermez', () => {
+test('a non-game project yields no signature', () => {
   const web = makeRoot((r) => { mkdirSync(join(r, 'src')); writeFileSync(join(r, 'package.json'), '{}'); });
   assert.deepEqual(detectEngines(web), []);
   assert.equal(isGameProject(web), false);
 });
 
-test('yalnızca Assets dizini Unity saymaz — ProjectSettings de gerekir', () => {
+test('Assets alone is not Unity — ProjectSettings is required too', () => {
   const yanlis = makeRoot((r) => mkdirSync(join(r, 'Assets')));
   assert.deepEqual(detectEngines(yanlis), [], 'tek imza yeterli olmamalı, yanlış pozitif üretirdi');
 });
 
-test('kök verilmezse ya da okunamazsa tespit boş döner', () => {
+test('detection returns empty with no root or an unreadable one', () => {
   assert.deepEqual(detectEngines(null), []);
   assert.deepEqual(detectEngines('/kesinlikle/olmayan/yol'), []);
 });
 
-// ── Kural enjeksiyonu yalnızca oyun projesinde ──────────────────────────
+// A protected path is a separate gate; scanPath only looks for pattern matches.
 
-test('oyun kuralları yalnızca motor imzası varsa enjekte edilir', async () => {
+test('game rules are injected only when an engine signature exists', async () => {
   const { makeWorkspace, pipe } = await import('./pipe.mjs');
   const ws = makeWorkspace();
   const ctx = () => pipe('hooks/session-start.mjs', {
@@ -211,13 +217,13 @@ test('oyun kuralları yalnızca motor imzası varsa enjekte edilir', async () =>
   }, { cfgDir: ws.cfgDir }).json?.hookSpecificOutput?.additionalContext ?? '';
 
   const web = ctx();
-  assert.doesNotMatch(web, /## Oyun geliştirme/, 'oyun olmayan projeye yüklenmemeli (AGT-02)');
+  assert.doesNotMatch(web, /## Game development/, 'oyun olmayan projeye yüklenmemeli (AGENT-02)');
 
   mkdirSync(join(ws.repo, 'Assets'), { recursive: true });
   mkdirSync(join(ws.repo, 'ProjectSettings'), { recursive: true });
   const oyun = ctx();
-  assert.match(oyun, /## Oyun geliştirme/);
-  assert.match(oyun, /Tespit edilen motor: Unity\./);
+  assert.match(oyun, /## Game development/);
+  assert.match(oyun, /Engine detected: Unity\./);
   assert.ok(oyun.length > web.length, 'oyun projesinde bağlam genişlemeli');
   ws.cleanup();
 });
