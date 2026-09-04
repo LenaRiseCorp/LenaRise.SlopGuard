@@ -132,3 +132,14 @@ test('canlılık kuralı plugin dışında yaşıyor ve ayarı okuyor', () => {
   for (const value of ['ask', 'warn', 'off']) assert.ok(snippet.includes(`\`${value}\``), value);
   assert.match(snippet, /aynı oturumda bir daha sorma/);
 });
+
+test('plugin.json standart hooks yolunu bildirmez — çift yükleme plugini komple düşürür', () => {
+  // Kurulum provasında bulundu: Claude Code hooks/hooks.json dosyasını
+  // otomatik yüklüyor. Manifestte ayrıca bildirmek "Duplicate hooks file"
+  // hatası veriyor ve plugin hiç yüklenmiyor. validate --strict bunu
+  // yakalamıyor çünkü şemayı kontrol ediyor, yüklemeyi simüle etmiyor.
+  const manifest = JSON.parse(read('.claude-plugin/plugin.json'));
+  assert.equal(manifest.hooks, undefined,
+    'hooks alanı yalnızca EK hook dosyaları için; standart yolu bildirmek yükleme hatası verir');
+  assert.ok(read('hooks/hooks.json').length > 0, 'standart dosya yine de var olmalı');
+});
