@@ -192,3 +192,43 @@ test('doctor eksik kurulumu sorun olarak bildirir', () => {
   assert.match(r.stdout, /Sonuç: \d+ sorun bulundu/);
   rmSync(c, { recursive: true, force: true });
 });
+
+test('setup sürümlü cache yolu değil, sabit başlatıcı kaydeder', () => {
+  // Kurulum provasında ölçüldü: cache yolu sürüm numarası içeriyor ve her
+  // güncelleme statusLine'ı sessizce kırıyordu. Koruma var sanılırken bozuk
+  // olması, bu aracın engellemek için var olduğu durumun kendisi.
+  const c = mkdtempSync(join(tmpdir(), 'slopguard-launcher-'));
+  const h = mkdtempSync(join(tmpdir(), 'slopguard-launcherhome-'));
+  run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
+
+  const settings = JSON.parse(readFileSync(join(h, '.claude/settings.json'), 'utf8'));
+  const cmd = settings.statusLine.command;
+  assert.match(cmd, /statusline-launcher\.mjs/);
+  assert.doesNotMatch(cmd, /plugins\/cache/, 'sürümlü cache yolu yazılmamalı');
+  assert.doesNotMatch(cmd, /\d+\.\d+\.\d+/, 'yolda sürüm numarası olmamalı');
+  assert.ok(existsSync(join(c, 'statusline-launcher.mjs')));
+  rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
+});
+
+test('başlatıcı kurulu sürüm yokken sessiz kalmaz', () => {
+  const h = mkdtempSync(join(tmpdir(), 'slopguard-yok-'));
+  const out = execFileSync(process.execPath, [join(ROOT, 'templates/statusline-launcher.mjs')], {
+    input: '{}', encoding: 'utf8', env: { ...process.env, HOME: h }, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  assert.match(out, /kurulu değil/, 'kaldırılmış plugin çubuktan görünmeli');
+  rmSync(h, { recursive: true, force: true });
+});
+
+test('başlatıcı en yüksek sürüme devreder', () => {
+  const h = mkdtempSync(join(tmpdir(), 'slopguard-cok-'));
+  const base = join(h, '.claude/plugins/cache/lenarise-slopguard/lenarise-slopguard');
+  for (const v of ['0.1.2', '0.1.10', '0.1.9']) {
+    mkdirSync(join(base, v, 'bin'), { recursive: true });
+    writeFileSync(join(base, v, 'bin/statusline.mjs'), `process.stdout.write('SÜRÜM ${v}');\n`);
+  }
+  const out = execFileSync(process.execPath, [join(ROOT, 'templates/statusline-launcher.mjs')], {
+    input: '{}', encoding: 'utf8', env: { ...process.env, HOME: h }, stdio: ['pipe', 'pipe', 'pipe'],
+  });
+  assert.match(out, /SÜRÜM 0\.1\.10/, 'sayısal sıralama: 0.1.10 > 0.1.9');
+  rmSync(h, { recursive: true, force: true });
+});

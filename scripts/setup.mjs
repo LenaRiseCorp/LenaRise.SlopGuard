@@ -19,7 +19,8 @@ import { BRAND } from '../lib/report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SETTINGS = join(homedir(), '.claude', 'settings.json');
-const STATUSLINE_CMD = `node "${join(ROOT, 'bin', 'statusline.mjs')}"`;
+const LAUNCHER = join(paths.dir, 'statusline-launcher.mjs');
+const STATUSLINE_CMD = `node "${LAUNCHER}"`;
 
 const out = [];
 const done = (t) => out.push(`  + ${t}`);
@@ -88,7 +89,21 @@ if (existsSync(rulesTemplate)) {
   warn('rules.local.md şablonu bulunamadı');
 }
 
-// 2. statusLine kaydı.
+// 2. Sürümden bağımsız başlatıcı.
+// settings.json'a sürümlü cache yolu yazmak, her güncellemede çubuğu
+// sessizce kırardı — kurulum provasında ölçüldü.
+const launcherTemplate = join(ROOT, 'templates', 'statusline-launcher.mjs');
+try {
+  mkdirSync(dirname(LAUNCHER), { recursive: true });
+  const fresh = readFileSync(launcherTemplate, 'utf8');
+  const current = existsSync(LAUNCHER) ? readFileSync(LAUNCHER, 'utf8') : null;
+  if (current === fresh) kept('statusline-launcher.mjs güncel');
+  else { writeFileSync(LAUNCHER, fresh); done(`statusline-launcher.mjs ${current ? 'tazelendi' : 'oluşturuldu'}`); }
+} catch (error) {
+  warn(`başlatıcı yazılamadı — ${error.message}`);
+}
+
+// 3. statusLine kaydı.
 out.push('');
 const settings = readJsonFile(SETTINGS);
 if (!settings.ok) {
@@ -100,7 +115,7 @@ if (!settings.ok) {
   // Küçük/büyük harfe duyarsız: gerçek yol "LenaRise.SlopGuard" biçiminde
   // olabiliyor ve duyarlı karşılaştırma kendi girdimizi yabancı sanıyordu.
   const mark = existing.toLowerCase();
-  if (mark.includes('statusline.mjs') && mark.includes('slopguard')) {
+  if (mark.includes('statusline') && mark.includes('slopguard')) {
     kept('statusLine zaten bizim script\'imize ayarlı');
   } else if (existing) {
     warn(`statusLine başka bir komuta ayarlı, dokunulmadı:`);
@@ -123,7 +138,7 @@ if (!settings.ok) {
   }
 }
 
-// 3. Canlılık kuralı — kullanıcı dosyası, otomatik eklenmiyor.
+// 4. Canlılık kuralı — kullanıcı dosyası, otomatik eklenmiyor.
 out.push('');
 const snippet = join(ROOT, 'templates', 'claude-md-snippet.md');
 const claudeMd = join(homedir(), '.claude', 'CLAUDE.md');
