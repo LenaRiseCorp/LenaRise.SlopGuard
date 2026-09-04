@@ -115,14 +115,20 @@ if (!settings.ok) {
   // Küçük/büyük harfe duyarsız: gerçek yol "LenaRise.SlopGuard" biçiminde
   // olabiliyor ve duyarlı karşılaştırma kendi girdimizi yabancı sanıyordu.
   const mark = existing.toLowerCase();
-  if (mark.includes('statusline') && mark.includes('slopguard')) {
-    kept('statusLine zaten bizim script\'imize ayarlı');
-  } else if (existing) {
-    warn(`statusLine başka bir komuta ayarlı, dokunulmadı:`);
+  const isOurs = mark.includes('statusline') && mark.includes('slopguard');
+
+  if (isOurs && existing === STATUSLINE_CMD) {
+    kept('statusLine güncel');
+  } else if (existing && !isOurs) {
+    // Başkasının girdisi: dokunulmaz. Üstüne yazmak kullanıcının
+    // yapılandırmasını sessizce ele geçirmek olurdu.
+    warn('statusLine başka bir komuta ayarlı, dokunulmadı:');
     warn(`  ${existing}`);
     warn('Bizimkini istiyorsan bu satırla değiştir:');
     warn(`  ${STATUSLINE_CMD}`);
   } else {
+    // Ya boş ya da bizim eski girdimiz. Eski girdi taşınmalı: erken sürümler
+    // sürümlü cache yolu yazıyordu ve o yol her güncellemede geçersiz oluyor.
     try {
       if (existsSync(SETTINGS)) {
         copyFileSync(SETTINGS, `${SETTINGS}.slopguard-yedek`);
@@ -131,7 +137,7 @@ if (!settings.ok) {
       mkdirSync(dirname(SETTINGS), { recursive: true });
       current.statusLine = { type: 'command', command: STATUSLINE_CMD };
       writeFileSync(SETTINGS, JSON.stringify(current, null, 2) + '\n');
-      done('statusLine kaydedildi');
+      done(isOurs ? 'statusLine sürümsüz başlatıcıya taşındı' : 'statusLine kaydedildi');
     } catch (error) {
       warn(`settings.json yazılamadı — ${error.message}`);
     }

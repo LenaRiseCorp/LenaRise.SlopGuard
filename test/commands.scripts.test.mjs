@@ -103,7 +103,7 @@ test('setup dosyaları oluşturur ve ikinci çalıştırmada ezmez', () => {
 
   const second = run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
   assert.match(second.stdout, /config\.json zaten var, dokunulmadı/);
-  assert.match(second.stdout, /statusLine zaten bizim/, 'kendi girdisini yabancı sanmamalı');
+  assert.match(second.stdout, /statusLine güncel/, 'kendi girdisini yabancı sanmamalı');
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
 
@@ -231,4 +231,22 @@ test('başlatıcı en yüksek sürüme devreder', () => {
   });
   assert.match(out, /SÜRÜM 0\.1\.10/, 'sayısal sıralama: 0.1.10 > 0.1.9');
   rmSync(h, { recursive: true, force: true });
+});
+
+test('eski sürümlü statusLine girdisi başlatıcıya taşınır', () => {
+  // Erken sürümler settings.json'a sürümlü cache yolu yazıyordu. O girdi
+  // "bizim" olduğu için dokunulmadan bırakılırsa çubuk her güncellemede
+  // kırık kalırdı — kurulum provasında görüldü.
+  const c = mkdtempSync(join(tmpdir(), 'slopguard-tasima-'));
+  const h = mkdtempSync(join(tmpdir(), 'slopguard-tasimahome-'));
+  mkdirSync(join(h, '.claude'), { recursive: true });
+  const eski = 'node "/x/.claude/plugins/cache/lenarise-slopguard/lenarise-slopguard/0.1.1/bin/statusline.mjs"';
+  writeFileSync(join(h, '.claude/settings.json'), JSON.stringify({ statusLine: { type: 'command', command: eski } }));
+
+  const r = run('scripts/setup.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h });
+  assert.match(r.stdout, /sürümsüz başlatıcıya taşındı/);
+  const cmd = JSON.parse(readFileSync(join(h, '.claude/settings.json'), 'utf8')).statusLine.command;
+  assert.match(cmd, /statusline-launcher\.mjs/);
+  assert.doesNotMatch(cmd, /plugins\/cache/);
+  rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
