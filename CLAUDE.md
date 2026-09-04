@@ -27,7 +27,7 @@ yönlü işler — takılması gerekirken takılmıyorsa desen genişletilir.
 ## Değişiklikten önce
 
 ```bash
-npm test          # 26 desen, boru testleri dahil
+npm test          # 33 desen, boru testleri dahil
 npm run selfscan  # kendi kaynağımız kendi tarayıcımızdan
 npm run docs      # üretilen dokümanı tazele
 ```

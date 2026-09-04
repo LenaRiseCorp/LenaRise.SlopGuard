@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { makeWorkspace, pipe } from './pipe.mjs';
-import { PATTERN_COUNT } from '../lib/patterns.mjs';
+import { PATTERN_COUNT, CATEGORIES } from '../lib/patterns.mjs';
 
 const ws = makeWorkspace();
 after(() => ws.cleanup());
@@ -33,7 +33,7 @@ test('şema doğru: SessionStart additionalContext', () => {
 test('yetenek indeksi desen sayısını defterden alır, elle yazmaz', () => {
   const c = context(start());
   assert.match(c, new RegExp(`${PATTERN_COUNT} desen`));
-  assert.match(c, /8 kategori/);
+  assert.match(c, new RegExp(`${Object.keys(CATEGORIES).length} kategori`));
   assert.match(c, /sert kip/);
 });
 

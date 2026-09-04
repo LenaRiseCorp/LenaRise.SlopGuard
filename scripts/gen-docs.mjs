@@ -302,6 +302,30 @@ Devre dışı bırakma üç düzeyde çalışır: kategori (\`GUV\`), taksonomi 
 
 ${NEW_IDS.length > 0 ? `\`${NEW_IDS.join('`, `')}\` kaynak taksonomide yoktu; bu proje ekledi.` : ''}
 
+### Oyun geliştirme (OYN)
+
+OYN desenleri motor API adlarına dayanır (\`transform.Translate\`, \`PlayerPrefs\`,
+\`get_node\`), bu yüzden oyun olmayan projelerde kendiliğinden sessiz kalır.
+Yine de tek satırla kapatılabilir: \`disabled: ["OYN"]\`.
+
+Sertlikleri bilerek \`uyarır\`: sıcak yol tespiti sezgiseldir ve yeni bir alanda
+blokla başlamak aracın ilk izlenimini yanlış pozitifle kurmak olurdu. Tek
+istisna **OYN-06** — istemcide tutulan para ve ilerleme bir güvenlik meselesi,
+oyuncu \`PlayerPrefs\` içeriğini düzenleyebilir.
+
+**Motor üretimi dosyalar korumalıdır** ve bu koruma kipten bağımsızdır:
+\`.meta\`, \`.uasset\`, \`.umap\`, \`.unity\`, \`.prefab\`, \`.tscn\`, \`Library/\`,
+\`.godot/\`, \`Intermediate/\`, \`Saved/\`. Elle düzenlenen bir \`.meta\` sahnedeki
+tüm referansları koparır ve bozulma commit'ten çok sonra fark edilir. Bu
+dizinler tarama yürüyüşünde de atlanır — Unity'nin \`Library\` dizini yüz
+binlerce dosya içerebilir.
+
+**Oyun kural metni yalnızca oyun projelerinde yüklenir.** \`session-start\` kökte
+motor imzası arar (Unity için \`Assets/\` + \`ProjectSettings/\`, Godot için
+\`project.godot\`, Unreal için \`*.uproject\`) ve bulamazsa hiç enjekte etmez;
+kullanılmayacak kuralı her oturuma yüklemek aşırı bağlam olurdu (AGT-02).
+Desenler bu koşula bağlı değil, yalnızca metin.
+
 ### Satır içi muafiyet
 
 \`\`\`js

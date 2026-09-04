@@ -62,7 +62,10 @@ writeIfAbsent('.slopignore',
   '# LenaRise.SlopGuard — yol muafiyeti\n'
   + '# Her satır bir glob. Dizin adı altındaki her şeyi kapsar.\n'
   + '# Bir yolu buraya eklemek onu TAMAMEN taramanın dışına çıkarır.\n\n'
-  + 'node_modules\ndist\nbuild\nvendor\n', 'proje bazlı muafiyet listesi');
+  + 'node_modules\ndist\nbuild\nvendor\n\n'
+  + '# Oyun motoru üretim dizinleri — varsa açın\n'
+  + '# Library\n# Temp\n# Builds\n# .godot\n# Binaries\n# Intermediate\n# Saved\n',
+  'proje bazlı muafiyet listesi');
 
 const workflow = join(ROOT, 'templates', 'github-workflow-slop-gate.yml');
 if (existsSync(workflow)) {

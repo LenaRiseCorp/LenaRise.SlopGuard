@@ -7,7 +7,7 @@ Agentic geliştirmede üretilen çıktının kalitesini ve güvenliğini koruyan
 Claude Code plugin'i. Kural metni niyeti taşır, hook sınırı koyar: modelin
 atlayamayacağı yerde durur.
 
-Sürüm 0.2.1 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime bağımlılığı.
+Sürüm 0.3.0 · 33 mekanik desen · 71 taksonomi girdisi · sıfır runtime bağımlılığı.
 
 ## Ne yapar
 
@@ -28,6 +28,7 @@ Sürüm 0.2.1 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime ba�
 | **SUR** Süreç ve ekip | 8 | 1 | orta |
 | **DOK** Kod dışı çıktı | 7 | 3 | orta |
 | **INS** İnsan tarafı | 6 | yok — koç katmanı | ölçüm + uyarı |
+| **OYN** Oyun geliştirme | 8 | 7 | alan bazlı |
 
 ### Hook davranışı
 
@@ -186,6 +187,13 @@ desen sayısının arttığını doğrula.
 | KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-empty-catch` | kaynak dosya | engeller | Boş catch gövdesi — hata yakalanıp yutuluyor. |
 | KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-except-pass` | kaynak dosya | engeller | except: pass — istisna sessizce yutuluyor. |
 | MTK-02 | Var olmayan paket önerisi | `mtk-02-package-install` | kabuk komutu | engeller | Paket kurulumu — adı doğrulanmadan kurulursa slopsquatting yüzeyi (GUV-02). |
+| OYN-01 | Kare hızına bağlı hareket | `oyn-01-framerate-bagimli-hareket` | kaynak dosya | uyarır | Hareket kare hızına bağlı — Time.deltaTime ile ölçeklenmemiş. |
+| OYN-02 | Her karede sahne araması | `oyn-02-her-karede-sahne-aramasi` | kaynak dosya | uyarır | Kare döngüsünde sahne araması ya da bileşen çözümlemesi. |
+| OYN-03 | Fiziğin kare döngüsünde yürütülmesi | `oyn-03-fizik-update-icinde` | kaynak dosya | uyarır | Fizik çağrısı Update içinde — fizik adımıyla senkron değil. |
+| OYN-04 | Sıcak yolda bellek tahsisi | `oyn-04-sicak-yolda-tahsis` | kaynak dosya | uyarır | Kare döngüsünde LINQ — her karede çöp üretir, takılma yaratır. |
+| OYN-05 | Her karede günlük yazımı | `oyn-05-her-karede-gunluk` | kaynak dosya | uyarır | Her karede günlük yazımı — editörde kare süresini gözle görülür düşürür. |
+| OYN-06 | İstemcide tutulan ekonomi ve ilerleme | `oyn-06-istemcide-ekonomi` | kaynak dosya | engeller | Ekonomi ya da ilerleme değeri istemcide saklanıyor (GUV-04). |
+| OYN-07 | Kırılgan sahne ağacı yolu | `oyn-07-kirilgan-dugum-yolu` | kaynak dosya | uyarır | Göreli sahne ağacı yolu — düğüm taşınınca sessizce kopar. |
 | SUR-08 | Temelsiz efor ve süre tahmini | `sur-08-effort-estimate` | metin dosyası | engeller | Ölçülemeyen süre tahmini. |
 | TST-01 | Testi silmek veya zayıflatmak | `tst-01-skipped-test` | kaynak dosya | engeller | Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. |
 | TST-03 | Sahte implementasyon | `tst-03-fake-impl` | kaynak dosya | uyarır | Sahte implementasyon — imza var, gövde yok. |
@@ -194,7 +202,31 @@ desen sayısının arttığını doğrula.
 Devre dışı bırakma üç düzeyde çalışır: kategori (`GUV`), taksonomi ID'si
 (`GUV-03`) ya da tekil desen anahtarı (`guv-03-aws-key`).
 
-`SUR-08` kaynak taksonomide yoktu; bu proje ekledi.
+`SUR-08`, `OYN-01`, `OYN-02`, `OYN-03`, `OYN-04`, `OYN-05`, `OYN-06`, `OYN-07`, `OYN-08` kaynak taksonomide yoktu; bu proje ekledi.
+
+### Oyun geliştirme (OYN)
+
+OYN desenleri motor API adlarına dayanır (`transform.Translate`, `PlayerPrefs`,
+`get_node`), bu yüzden oyun olmayan projelerde kendiliğinden sessiz kalır.
+Yine de tek satırla kapatılabilir: `disabled: ["OYN"]`.
+
+Sertlikleri bilerek `uyarır`: sıcak yol tespiti sezgiseldir ve yeni bir alanda
+blokla başlamak aracın ilk izlenimini yanlış pozitifle kurmak olurdu. Tek
+istisna **OYN-06** — istemcide tutulan para ve ilerleme bir güvenlik meselesi,
+oyuncu `PlayerPrefs` içeriğini düzenleyebilir.
+
+**Motor üretimi dosyalar korumalıdır** ve bu koruma kipten bağımsızdır:
+`.meta`, `.uasset`, `.umap`, `.unity`, `.prefab`, `.tscn`, `Library/`,
+`.godot/`, `Intermediate/`, `Saved/`. Elle düzenlenen bir `.meta` sahnedeki
+tüm referansları koparır ve bozulma commit'ten çok sonra fark edilir. Bu
+dizinler tarama yürüyüşünde de atlanır — Unity'nin `Library` dizini yüz
+binlerce dosya içerebilir.
+
+**Oyun kural metni yalnızca oyun projelerinde yüklenir.** `session-start` kökte
+motor imzası arar (Unity için `Assets/` + `ProjectSettings/`, Godot için
+`project.godot`, Unreal için `*.uproject`) ve bulamazsa hiç enjekte etmez;
+kullanılmayacak kuralı her oturuma yüklemek aşırı bağlam olurdu (AGT-02).
+Desenler bu koşula bağlı değil, yalnızca metin.
 
 ### Satır içi muafiyet
 

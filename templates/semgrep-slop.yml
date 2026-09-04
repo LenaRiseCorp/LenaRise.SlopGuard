@@ -45,6 +45,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\bif\\s*\\(\\s*(?:false|0)\\s*\\)|\\bif\\s+False\\s*:"
   - id: slopguard-kod-05-empty-catch
@@ -83,6 +84,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*\\}"
   - id: slopguard-kod-05-comment-only-catch
@@ -121,6 +123,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*(?:\\/\\/[^\\n]*\\s*|\\/\\*(?:[^*]|\\*(?!\\/)){0,400}\\*\\/\\s*)+\\}"
   - id: slopguard-kod-05-except-pass
@@ -159,6 +162,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "^[ \\t]*except\\b[^\\n:]*:[ \\t]*(?:\\n[ \\t]+)?pass[ \\t]*$"
   - id: slopguard-kod-05-catch-noop
@@ -197,6 +201,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\.catch\\(\\s*(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
   - id: slopguard-tst-04-tautological-assert
@@ -235,6 +240,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\bassert\\s+True\\b|\\bassert\\s*\\(\\s*(?:true|True|1)\\s*\\)|expect\\(\\s*true\\s*\\)\\s*\\.\\s*toBe\\(\\s*true\\s*\\)|assert\\.ok\\(\\s*true\\s*\\)"
   - id: slopguard-tst-01-skipped-test
@@ -273,6 +279,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\b(?:it|test|describe|context)\\s*\\.\\s*skip\\s*\\(|\\bx(?:it|describe)\\s*\\(|@pytest\\.mark\\.skip|\\bt\\.Skip\\("
   - id: slopguard-tst-03-fake-impl
@@ -311,6 +318,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "(?i)\\braise\\s+NotImplementedError\\b|throw\\s+new\\s+\\w*Error\\(\\s*['\"`]Not implemented"
   - id: slopguard-guv-03-inline-secret
@@ -349,6 +357,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "(?i)\\b(?:(?:api|access|secret|auth|private|encryption|refresh)[_-]?(?:key|token|secret)|api[_-]?key|secret|token|password|passwd)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-./+]{16,}['\"]"
   - id: slopguard-guv-03-aws-key
@@ -387,6 +396,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "\\bAKIA[0-9A-Z]{16}\\b"
   - id: slopguard-guv-03-private-key
@@ -425,6 +435,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----"
   - id: slopguard-guv-05-sql-concat
@@ -463,6 +474,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "(?i)\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^\\n;'\"]{0,120}['\"]\\s*(?:\\+|\\.|%)\\s*[A-Za-z_$]"
   - id: slopguard-guv-05-sql-fstring
@@ -501,6 +513,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "(?i)f['\"][^'\"\\n]*\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^'\"\\n]*\\{"
   - id: slopguard-guv-01-eval
@@ -539,6 +552,7 @@ rules:
       - "*.sql"
       - "*.vue"
       - "*.svelte"
+      - "*.gd"
     patterns:
       - pattern-regex: "(?<![.\\w])eval\\s*\\(|(?<![.\\w])exec\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*[,)]"
   - id: slopguard-dok-04-emoji-heading
@@ -586,3 +600,276 @@ rules:
       - "*.adoc"
     patterns:
       - pattern-regex: "(?i)\\b(?:tahmin\\w*|yaklaşık|ETA|estimated?|estimates?|roughly|about)\\b[^\\n]{0,40}\\b\\d+[-–]?\\d*\\s*(?:saat|gün|hafta|ay\\b|hours?|days?|weeks?|months?)|\\b\\d+[-–]?\\d*\\s*(?:saat|gün|hafta|hours?|days?|weeks?)\\b[^\\n]{0,25}\\b(?:sürer|sürecek|sürüyor|alır|alacak|alıyor|takes|will take)\\b"
+  - id: slopguard-oyn-01-framerate-bagimli-hareket
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      OYN-01 Hareket kare hızına bağlı — Time.deltaTime ile ölçeklenmemiş. Düzelt: Hızı Time.deltaTime ile çarp; yoksa oyun 30 ve 144 fps’de farklı hızda çalışır.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "\\btransform\\.Translate\\s*\\((?![^)]*\\bTime\\.)[^)]*\\)|\\btransform\\.position\\s*\\+=\\s*(?![^;\\n]*\\bTime\\.)[^;\\n]*[*][^;\\n]*;"
+  - id: slopguard-oyn-02-her-karede-sahne-aramasi
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      OYN-02 Kare döngüsünde sahne araması ya da bileşen çözümlemesi. Düzelt: Referansı Awake içinde bir kez çöz ve alanda sakla, ya da [SerializeField] ile bağla.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\b(?:GameObject\\.Find\\w*\\s*\\(|Object\\.FindObjectOfType|FindObjectOfType\\s*<|FindFirstObjectByType\\s*<|Camera\\.main\\b|GetComponent\\s*<)"
+  - id: slopguard-oyn-03-fizik-update-icinde
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      OYN-03 Fizik çağrısı Update içinde — fizik adımıyla senkron değil. Düzelt: Rigidbody işlemlerini FixedUpdate içine taşı.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?(?:\\b(?:AddForce|AddRelativeForce|AddTorque|MovePosition|MoveRotation)\\s*\\(|\\.velocity\\s*=[^=])"
+  - id: slopguard-oyn-04-sicak-yolda-tahsis
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      OYN-04 Kare döngüsünde LINQ — her karede çöp üretir, takılma yaratır. Düzelt: Sonucu önceden hesapla ya da döngüyü elle yaz; sıcak yolda tahsis yapma.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\.(?:Where|Select|OrderBy|OrderByDescending|ToList|ToArray|FirstOrDefault)\\s*\\("
+  - id: slopguard-oyn-05-her-karede-gunluk
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      OYN-05 Her karede günlük yazımı — editörde kare süresini gözle görülür düşürür. Düzelt: Kaldır, ya da bir koşula veya #if UNITY_EDITOR bloğuna bağla.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\bDebug\\.Log\\w*\\s*\\("
+  - id: slopguard-oyn-06-istemcide-ekonomi
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      OYN-06 Ekonomi ya da ilerleme değeri istemcide saklanıyor (GUV-04). Düzelt: PlayerPrefs düz metindir ve oyuncu tarafından düzenlenebilir. Değeri sunucuda tut ya da imzala.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "(?i)\\bPlayerPrefs\\.Set(?:Int|Float|String)\\s*\\(\\s*[\"'][^\"']*(?:coin|gem|gold|money|currency|credit|score|level|xp|premium|purchase|unlock|para|altin|puan|skor)"
+  - id: slopguard-oyn-07-kirilgan-dugum-yolu
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      OYN-07 Göreli sahne ağacı yolu — düğüm taşınınca sessizce kopar. Düzelt: @onready ile dışa aktarılmış NodePath kullan ya da sinyalle bağla.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+    patterns:
+      - pattern-regex: "\\b(?:get_node|GetNode(?:<[^>]*>)?)\\s*\\(\\s*[\"'][^\"']*\\.\\.\\/"

@@ -37,6 +37,11 @@ export function repoRoot({ quiet = false } = {}) {
 const SKIP_DIRS = new Set([
   '.git', 'node_modules', 'dist', 'build', 'out', 'target', 'vendor',
   '.next', '.nuxt', '.venv', 'venv', '__pycache__', '.cache', 'coverage',
+  // Oyun motorlarının üretim dizinleri. Bunlar yalnızca gürültü değil, boyut
+  // sorunu: Unity'nin Library dizini yüz binlerce dosya içerebilir ve
+  // yürüyüşü dakikalarca uzatır.
+  'Library', 'Temp', 'Logs', 'UserSettings', 'Builds', '.godot', '.import',
+  'Binaries', 'Intermediate', 'Saved', 'DerivedDataCache', 'obj', 'bin',
 ]);
 
 /**

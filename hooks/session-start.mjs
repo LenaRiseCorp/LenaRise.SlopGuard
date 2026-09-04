@@ -19,8 +19,11 @@ import { runHook } from '../lib/hook.mjs';
 import { paths } from '../lib/config.mjs';
 import { PATTERN_COUNT, CATEGORIES } from '../lib/patterns.mjs';
 import { inject, capabilityIndex, fail } from '../lib/report.mjs';
+import { detectEngines } from '../lib/project.mjs';
 
-const BASE_RULES = join(dirname(fileURLToPath(import.meta.url)), '..', 'rules', 'base-rules.md');
+const RULES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'rules');
+const BASE_RULES = join(RULES_DIR, 'base-rules.md');
+const GAME_RULES = join(RULES_DIR, 'game-rules.md');
 const LOCAL_RULES_MAX = 8000;
 
 function readIfPresent(file, label) {
@@ -33,7 +36,7 @@ function readIfPresent(file, label) {
   }
 }
 
-runHook('session-start', ({ config }) => {
+runHook('session-start', ({ config, repoRoot }) => {
   if (!config.enabled) return;
 
   const sections = [];
@@ -41,6 +44,15 @@ runHook('session-start', ({ config }) => {
   const base = readIfPresent(BASE_RULES, 'kural seti');
   if (base) sections.push(base.trim());
   else fail('session-start', 'kural seti bulunamadı; yalnızca yetenek indeksi enjekte edilecek');
+
+  // Oyun kuralları yalnızca motor imzası bulunursa. Kullanılmayacak kuralı her
+  // oturuma yüklemek aşırı bağlamdır (AGT-02) ve uzun kural seti okunmaz olur.
+  const engines = detectEngines(repoRoot);
+  if (engines.length > 0) {
+    const game = readIfPresent(GAME_RULES, 'oyun kuralları');
+    if (game) sections.push(`${game.trim()}\n\nTespit edilen motor: ${engines.join(', ')}.`);
+    else fail('session-start', 'oyun kuralları bulunamadı; OYN desenleri yine de etkin');
+  }
 
   let local = readIfPresent(paths.localRules, 'rules.local.md');
   if (local && local.trim().length > 0) {

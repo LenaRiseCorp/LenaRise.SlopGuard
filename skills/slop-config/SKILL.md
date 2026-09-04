@@ -144,6 +144,13 @@ Sorun listesi boş değilse desen yüklenmemiştir. Sessizce bırakma.
 | KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-empty-catch` | kaynak dosya | engeller | Boş catch gövdesi — hata yakalanıp yutuluyor. |
 | KOD-05 | Hata bastırma ve sessiz başarısızlık | `kod-05-except-pass` | kaynak dosya | engeller | except: pass — istisna sessizce yutuluyor. |
 | MTK-02 | Var olmayan paket önerisi | `mtk-02-package-install` | kabuk komutu | engeller | Paket kurulumu — adı doğrulanmadan kurulursa slopsquatting yüzeyi (GUV-02). |
+| OYN-01 | Kare hızına bağlı hareket | `oyn-01-framerate-bagimli-hareket` | kaynak dosya | uyarır | Hareket kare hızına bağlı — Time.deltaTime ile ölçeklenmemiş. |
+| OYN-02 | Her karede sahne araması | `oyn-02-her-karede-sahne-aramasi` | kaynak dosya | uyarır | Kare döngüsünde sahne araması ya da bileşen çözümlemesi. |
+| OYN-03 | Fiziğin kare döngüsünde yürütülmesi | `oyn-03-fizik-update-icinde` | kaynak dosya | uyarır | Fizik çağrısı Update içinde — fizik adımıyla senkron değil. |
+| OYN-04 | Sıcak yolda bellek tahsisi | `oyn-04-sicak-yolda-tahsis` | kaynak dosya | uyarır | Kare döngüsünde LINQ — her karede çöp üretir, takılma yaratır. |
+| OYN-05 | Her karede günlük yazımı | `oyn-05-her-karede-gunluk` | kaynak dosya | uyarır | Her karede günlük yazımı — editörde kare süresini gözle görülür düşürür. |
+| OYN-06 | İstemcide tutulan ekonomi ve ilerleme | `oyn-06-istemcide-ekonomi` | kaynak dosya | engeller | Ekonomi ya da ilerleme değeri istemcide saklanıyor (GUV-04). |
+| OYN-07 | Kırılgan sahne ağacı yolu | `oyn-07-kirilgan-dugum-yolu` | kaynak dosya | uyarır | Göreli sahne ağacı yolu — düğüm taşınınca sessizce kopar. |
 | SUR-08 | Temelsiz efor ve süre tahmini | `sur-08-effort-estimate` | metin dosyası | engeller | Ölçülemeyen süre tahmini. |
 | TST-01 | Testi silmek veya zayıflatmak | `tst-01-skipped-test` | kaynak dosya | engeller | Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. |
 | TST-03 | Sahte implementasyon | `tst-03-fake-impl` | kaynak dosya | uyarır | Sahte implementasyon — imza var, gövde yok. |

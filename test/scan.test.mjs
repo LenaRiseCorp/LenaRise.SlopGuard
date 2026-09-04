@@ -7,7 +7,7 @@ const ids = (fs) => fs.map((f) => f.key);
 
 test('taksonomi bütünlüğü: her desen ID kanonik listede', () => {
   for (const p of PATTERNS) assert.ok(titleOf(p.id), `${p.key} → ${p.id}`);
-  assert.equal(TAXONOMY.length, 63, '62 kanonik + SUR-08');
+  assert.equal(TAXONOMY.length, 71, '62 kanonik + SUR-08 + 8 OYN');
 });
 
 test('desen şeması: her desende detects, fix, geçerli severity', () => {
