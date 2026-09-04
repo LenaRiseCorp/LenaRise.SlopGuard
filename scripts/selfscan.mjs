@@ -19,7 +19,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
-import { scanContent, scanPath, actionable, suppressed, isTestPath } from '../lib/scan.mjs';
+import { scanContent, actionable, isTestPath, scanFiles } from '../lib/scan.mjs';
 import { formatFinding } from '../lib/report.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -35,40 +35,29 @@ function walk(dir, out = []) {
   return out;
 }
 
-const files = walk(ROOT);
-const results = [];
-let scanned = 0;
-let suppressedCount = 0;
+const all = walk(ROOT).map((f) => relative(ROOT, f));
 let fixtureFindings = 0;
 
-for (const file of files) {
-  const rel = relative(ROOT, file);
-  if (isTestPath(rel)) {
-    try {
-      const body = readFileSync(file, 'utf8');
-      fixtureFindings += actionable(scanContent({ filePath: rel.replace(/\.test\./, '.'), content: body })).length;
-    } catch (error) {
-      process.stderr.write(`fixture sayımı başarısız: ${rel} — ${error.message}\n`);
-    }
-    continue;
-  }
-  const pathFindings = scanPath({ filePath: rel });
-  let content;
+const read = (rel) => {
   try {
-    content = readFileSync(file, 'utf8');
+    return readFileSync(join(ROOT, rel), 'utf8');
   } catch (error) {
     process.stderr.write(`okunamadı: ${rel} — ${error.message}\n`);
-    continue;
+    return null;
   }
-  const contentFindings = scanContent({ filePath: rel, content });
-  if (contentFindings.length > 0 || pathFindings.length > 0) scanned++;
-  else scanned++;
-  suppressedCount += suppressed(contentFindings).length;
-  const live = [...actionable(pathFindings), ...actionable(contentFindings)];
-  if (live.length > 0) results.push([rel, live]);
+};
+
+// Test yolları runtime'da hiç taranmıyor; buradaki sayım yalnızca bilgi için.
+for (const rel of all.filter(isTestPath)) {
+  const body = read(rel);
+  if (body === null) continue;
+  fixtureFindings += actionable(scanContent({ filePath: rel.replace(/\.test\./, '.'), content: body })).length;
 }
 
-const total = results.reduce((n, [, f]) => n + f.length, 0);
+const { results, scanned, suppressed: suppressedCount, total } = scanFiles({
+  files: all.filter((rel) => !isTestPath(rel)),
+  read,
+});
 
 const fixtureNote = fixtureFindings > 0
   ? `\n  (test fixture'larında ${fixtureFindings} kasıtlı desen var; runtime bu yolları taramaz)`

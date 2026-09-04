@@ -1,0 +1,53 @@
+name: slop-gate
+
+# Repo katmanı: kodu hangi agent yazarsa yazsın burada durur.
+# Claude Code hook'ları yalnızca Claude Code'u kapsıyordu; bu iş akışı herkesi.
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  desen-taramasi:
+    name: Desen taraması
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: LenaRise.SlopGuard tarayıcısını al
+        run: git clone --depth 1 https://github.com/OWNER/LenaRise.SlopGuard.git .slopguard-tool
+
+      - name: Değişen dosyaları tara
+        run: node .slopguard-tool/scripts/scan-diff.mjs --base "${{ github.event.pull_request.base.sha || github.event.before }}"
+
+  gizli-anahtar:
+    name: Sızmış sır taraması
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  kopya-kod:
+    name: Duplikasyon (KOD-01)
+    runs-on: ubuntu-latest
+    # Repo geneli duplikasyon diff'te görünmez; bu yüzden CI katmanında.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npx --yes jscpd . --min-lines 8 --threshold 3 --reporters consoleFull

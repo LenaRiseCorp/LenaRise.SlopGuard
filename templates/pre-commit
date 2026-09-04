@@ -1,0 +1,38 @@
+#!/bin/sh
+# LenaRise.SlopGuard — git düzeyinde tarama.
+#
+# Claude Code hook'ları yalnızca Claude Code'u kapsar. Bu hook, kodu hangi
+# agent yazarsa yazsın çalışır: Cursor, Codex, Copilot, ya da insan.
+#
+# Tarayıcıyı üç yerde arar. Hiçbiri yoksa commit'i ENGELLEMEZ ama sessiz de
+# kalmaz: ekipteki herkesin plugin'i kurmuş olması beklenemez, ve birinin
+# commit'ini elindeki araç eksik diye reddetmek düşmanca olurdu. Asıl kapı
+# CI katmanında; bu hook erken uyarı.
+
+set -e
+
+find_scanner() {
+  if [ -n "$SLOPGUARD_HOME" ] && [ -f "$SLOPGUARD_HOME/scripts/scan-staged.mjs" ]; then
+    echo "$SLOPGUARD_HOME/scripts/scan-staged.mjs"; return 0
+  fi
+  for dir in "$HOME"/.claude/plugins/cache/*/lenarise-slopguard \
+             "$HOME"/.claude/plugins/*/lenarise-slopguard \
+             "$HOME"/.claude/skills/lenarise-slopguard; do
+    if [ -f "$dir/scripts/scan-staged.mjs" ]; then echo "$dir/scripts/scan-staged.mjs"; return 0; fi
+  done
+  return 1
+}
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "LenaRise.SlopGuard: node bulunamadı, bu commit taranmadı." >&2
+  exit 0
+fi
+
+SCANNER=$(find_scanner) || {
+  echo "LenaRise.SlopGuard: tarayıcı bulunamadı, bu commit taranmadı." >&2
+  echo "  Kurmak için: claude plugin install lenarise-slopguard@lenarise-slopguard" >&2
+  echo "  Ya da SLOPGUARD_HOME değişkenini plugin dizinine ayarla." >&2
+  exit 0
+}
+
+exec node "$SCANNER"
