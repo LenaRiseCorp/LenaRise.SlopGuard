@@ -83,3 +83,55 @@ Tek bir canlı oturumda SessionStart hook'u, UserPromptSubmit hook'u ve statusLi
 
 statusLine **sürekli değil, olay tetiklemeli** yenilenir: ~30 saniyelik oturumda 2 çağrı.
 `bozuk` durumu anında değil, bir sonraki olayda görünür. Çubuk bunu iddia etmemeli.
+
+---
+
+## Ek ölçümler — hook şemaları
+
+Adım 2 ve 3 sırasında ölçülenler. Hepsi `claude -p` ile, gerçek hook kaydıyla.
+
+### PostToolUse `tool_response` şeması araca göre değişir
+
+`Write` / `Edit` için:
+
+```json
+{ "type": "create", "filePath": "…", "content": "…",
+  "structuredPatch": [], "originalFile": null, "userModified": false }
+```
+
+`structuredPatch` gerçek diff'i taşır: her hunk `lines` dizisinde `+`/`-` önekli
+satırlar. Satır sayacı buradan beslenir; şema beklenmedik gelirse sayaç sıfır
+kalır ve uydurma sayı üretilmez.
+
+`Bash` için:
+
+```json
+{ "stdout": "…", "stderr": "", "interrupted": false,
+  "isImage": false, "noOutputExpected": false }
+```
+
+**Çıkış kodu yok.** Komutun geçip geçmediği yanıttan okunamaz.
+
+### PostToolUse başarısız Bash komutunda tetiklenmiyor
+
+Üç ölçüm bunu gösterdi:
+
+| Komut | Matcher | Sonuç |
+|---|---|---|
+| `echo tamam` (çıkış 0) | `"Bash"` | Tetiklendi |
+| `echo merhaba` (çıkış 0) | `""` | Tetiklendi |
+| `false` (çıkış 1) | `"Bash"` | **Tetiklenmedi** |
+| `ls /olmayan-dizin` (çıkış ≠ 0) | `"Bash"` | **Tetiklenmedi** |
+
+Matcher `"Bash"` sorunsuz çalışıyor; ilk ıskalamalar komutun başarısız
+olmasındandı.
+
+**Tasarıma etkisi.** Çıkış kodu alanı olmamasına rağmen "test çalıştı ve geçti"
+dürüstçe bilinebiliyor: PostToolUse'un tetiklenmesinin kendisi komutun
+başarıyla bittiğinin kanıtı. `post-bash.mjs` bu yüzden var — test damgasını
+komut *öncesinde* atmak, çalışmamış hatta başarısız olmuş bir testi "çalıştı"
+saymak olurdu ve tam olarak engellemeye çalıştığımız şey budur (TST-05).
+
+**Asimetri korunmalı:** tetiklenme ⇒ başarı. Tetiklenmeme ⇏ başarısızlık —
+komut başarısız olmuş, hook kayıtsız kalmış ya da araç reddedilmiş olabilir.
+Stop kapısı bu belirsizliği "doğrulanmadı" yönünde okur, "geçti" yönünde değil.
