@@ -135,3 +135,28 @@ saymak olurdu ve tam olarak engellemeye çalıştığımız şey budur (TST-05).
 **Asimetri korunmalı:** tetiklenme ⇒ başarı. Tetiklenmeme ⇏ başarısızlık —
 komut başarısız olmuş, hook kayıtsız kalmış ya da araç reddedilmiş olabilir.
 Stop kapısı bu belirsizliği "doğrulanmadı" yönünde okur, "geçti" yönünde değil.
+
+## D4 — Canlı tetikleme (uçtan uca)
+
+`hooks/hooks.json` içindeki `${CLAUDE_PLUGIN_ROOT}` gerçek yola çevrilip
+`--settings` ile yüklendi — plugin yükleyicisinin yaptığının aynısı, ama
+kullanıcının kurulumuna dokunmadan. Boş bir git repo'sunda tek prompt:
+önce bir test dosyası, sonra boş `catch` içeren bir kaynak dosyası yazması istendi.
+
+| Beklenen | Gözlenen |
+|---|---|
+| Test dosyası reddedilsin | Dosya hiç oluşmadı; `pre-edit` deny |
+| Boş catch yakalansın | `post-edit` blokladı, oturumda `blocked: 1` |
+| Model düzeltsin | Dosyanın son hâli `catch (e) { throw e; }`; ihlal defteri boşaldı |
+| Stop kapısı doğrulama istesin | Üç kez blokladı, tavanda geçirdi (AGT-08 koruması) |
+| Çıkış yolları kullanıcıya iletilsin | Model `/slop-mode explore` ve `allowTestWrites` seçeneklerini sundu |
+| Çubuk doğru okusun | `SlopGuard canlı · sert · 1 engellendi · tur 1/40 · +3/-0 · test yok` |
+
+### Gözlenen gerçek kısıt
+
+Testi olmayan bir repoda sert kip, agent'ı sıkışık bir yere sokuyor: test
+dosyası yazamaz (TST kilidi), test çalıştıramaz (altyapı yok), dolayısıyla
+Stop kapısı TST-05 borcuyla bloklar. Kilitlenme yaşanmıyor çünkü AGT-08 tavanı
+üçüncü denemede kapıyı açıyor ve model iki belgeli çıkış yolunu kullanıcıya
+iletiyor. Yine de bu, tasarımın bilinen bir sürtünme noktası: yeni ve testsiz
+bir repoda ilk iş `allowTestWrites` ya da keşif kipi kararını vermektir.
