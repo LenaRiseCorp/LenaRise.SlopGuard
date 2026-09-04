@@ -14,7 +14,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, PROSE_EXTENSIONS, CODE_EXTENSIONS } from '../lib/patterns.mjs';
+import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, PROSE_EXTENSIONS, CODE_EXTENSIONS, titleOf } from '../lib/patterns.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -42,9 +42,13 @@ const SCOPE_LABEL = { code: 'kaynak dosya', prose: 'metin dosyası', path: 'dosy
 // ── Ortak tablolar ───────────────────────────────────────────────────────
 
 function patternCatalogue() {
-  const rows = ['| ID | Desen anahtarı | Kapsam | Sertlik | Ne yakalar |', '|---|---|---|---|---|'];
+  // Kanonik başlık sütunu bilerek var: gözlemde bir AI, DOK-01'i kapatırken
+  // kullanıcıya "başlığa emoji koyma" dedi — o DOK-04. Kapatılan şeyin ne
+  // olduğunu yanlış söylemek, "neyi kaybettiğini söyle" kuralını pratikte
+  // çökertiyor. ID → kanonik ad eşlemesi tek yerde ve açık olmalı.
+  const rows = ['| ID | Kanonik ad | Desen anahtarı | Kapsam | Sertlik | Ne yakalar |', '|---|---|---|---|---|---|'];
   for (const p of [...PATTERNS].sort((a, b) => a.id.localeCompare(b.id) || a.key.localeCompare(b.key))) {
-    rows.push(`| ${p.id} | \`${p.key}\` | ${SCOPE_LABEL[p.scope]} | ${p.severity === 'block' ? 'engeller' : 'uyarır'} | ${p.detects} |`);
+    rows.push(`| ${p.id} | ${titleOf(p.id)} | \`${p.key}\` | ${SCOPE_LABEL[p.scope]} | ${p.severity === 'block' ? 'engeller' : 'uyarır'} | ${p.detects} |`);
   }
   return rows.join('\n');
 }
@@ -206,7 +210,7 @@ Ardından \`/slop-setup\` ve Claude Code'u yeniden başlat. Doğrulamak için
 
 | İş | Komut |
 |---|---|
-| Güncelle | \`claude plugin update lenarise-slopguard\` |
+| Güncelle | \`claude plugin update lenarise-slopguard@lenarise-slopguard\` |
 | Geçici kapat | \`claude plugin disable lenarise-slopguard\` — yapılandırma korunur |
 | Kaldır | \`claude plugin uninstall lenarise-slopguard\` |
 
@@ -374,6 +378,8 @@ olur; \`hooks.json\` ve manifest değişiklikleri yeniden başlatma ister.
 | Hiçbir şey engellenmiyor | Plugin devre dışı ya da \`enabled: false\` | \`claude plugin list\`, sonra \`/slop-doctor\` |
 | Testi olmayan repoda kilitleniyor | Kod yazıldı, test yok, kapı bekliyor | \`allowTestWrites: true\` ya da \`/slop-mode explore\` |
 | Paket kurulumu hep engelleniyor | Ağ yok; kapı fail-closed | Paketi doğrula, \`trustedPackages\`'a ekle |
+| \`plugin update\` "not found" diyor | Komut marketplace nitelikli ad ister | \`claude plugin update lenarise-slopguard@lenarise-slopguard\` |
+| Kurulumdan sonra hiçbir şey olmuyor | Hook'lar oturum başında yüklenir | Claude Code'u yeniden başlat |
 
 ## Bilinen sınırlar
 

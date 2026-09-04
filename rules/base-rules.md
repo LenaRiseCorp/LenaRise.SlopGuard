@@ -55,6 +55,9 @@ unutursan hook durdurur, hook'un yakalayamadığını kural hatırlatır.
 
 ## Kod dışı çıktı (DOK)
 
+Bu bölümdeki maddelerin ID karşılıkları sırasıyla DOK-04, DOK-01, DOK-03, DOK-07.
+
+
 - Başlığa emoji koyma.
 - Pazarlama dili yazma. Ne yaptığını somut yaz.
 - Commit mesajını doldur. "fix stuff" neyin neden değiştiğini söylemez.

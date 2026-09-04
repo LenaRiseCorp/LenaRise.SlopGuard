@@ -26,6 +26,10 @@ test('README desen kataloğunu defterden alır, elle yazmaz', () => {
   for (const p of PATTERNS) {
     assert.ok(readme.includes(`\`${p.key}\``), `katalogda eksik: ${p.key}`);
   }
+  // Kanonik ad sütunu: gözlemde bir AI DOK-01'i kapatırken kullanıcıya
+  // DOK-04'ün açıklamasını verdi. ID → kanonik ad eşlemesi katalogda açık olmalı.
+  assert.match(readme, /\| DOK-01 \| Şişkin, buzzword dolu doküman \|/);
+  assert.match(readme, /\| DOK-04 \| Emoji ve başlık enflasyonu \|/);
   assert.match(readme, new RegExp(`${PATTERN_COUNT} mekanik desen`));
   assert.match(readme, new RegExp(`${TAXONOMY.length} taksonomi girdisi`));
 });
@@ -103,7 +107,7 @@ test('örnek patterns.local.json gerçekten derleniyor', async () => {
 test('skill şema bölümleri üretilmiş içerikle dolu', () => {
   const skill = read('skills/slop-config/SKILL.md');
   assert.match(skill, /<!-- ÜRETİLEN: config-şeması -->\n\| Alan \| Varsayılan/);
-  assert.match(skill, /<!-- ÜRETİLEN: desen-kataloğu -->\n\| ID \| Desen anahtarı/);
+  assert.match(skill, /<!-- ÜRETİLEN: desen-kataloğu -->\n\| ID \| Kanonik ad \| Desen anahtarı/);
   assert.ok(skill.includes('`kod-05-empty-catch`'), 'katalog skill e de enjekte edilmeli');
 });
 
