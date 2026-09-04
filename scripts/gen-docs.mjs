@@ -319,11 +319,29 @@ sayılır ve oturum özetinde raporlanır.
 |---|---|
 | \`/slop-setup\` | Yapılandırmayı oluşturur, durum çubuğunu kaydeder. Var olanı ezmez |
 | \`/slop-status\` | Oturum sayaçları **ve** canlı tarama; hook kaydına güvenmez |
-| \`/slop-check [yol]\` | Talep üzerine tarama |
+| \`/slop-check [yol]\` | Talep üzerine tarama; git deposu gerektirmez |
 | \`/slop-doctor\` | Kurulum teşhisi; her satır ✅ ya da ❌ |
 | \`/slop-config\` | Ayarları değiştirir |
 | \`/slop-mode strict\\|explore\` | Oturum kipi; kalıcı yapılandırmaya dokunmaz |
 | \`/slop-repo-init\` | Repoya agent-agnostic koruma kurar |
+
+#### Nerede çalıştırılır
+
+\`/slop-check\` ve \`/slop-status\` bir git deposu içinde olmak zorunda değil.
+Tarama kaynağı bulunduğun yere göre seçilir:
+
+| Bulunduğun yer | Taranan |
+|---|---|
+| Git deposu | Değişmiş dosyalar; hiç değişiklik yoksa izlenen dosyaların tamamı |
+| Sıradan klasör | Dosya sistemi yürünür — altındaki tüm depolar ve gevşek dosyalar dahil |
+
+Klasör kipinde \`node_modules\`, \`dist\`, \`build\`, \`.venv\`, \`__pycache__\` ve
+benzeri gürültü dizinlerine hiç girilmez. İç içe her \`.slopignore\` yalnızca
+kendi alt ağacında geçerlidir; kardeş depolar birbirinin muafiyetinden
+etkilenmez.
+
+Böylece birden çok proje barındıran bir üst dizinde tek çağrıyla tarama
+yapılabilir; her depoya tek tek girmek gerekmez.
 
 ### Durum çubuğu
 
