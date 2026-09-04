@@ -164,3 +164,51 @@ test('kurulum komutu test damgası atmaz', () => {
   postBash('npm install jest', 'kurulum');
   assert.equal(session('kurulum').testRunAt, null);
 });
+
+// ── Bash üzerinden yazma: kilit ve tarama ───────────────────────────────
+
+test('kabuk üzerinden korumalı yola yazma reddedilir', () => {
+  for (const cmd of ['printf x > .env', "cat > .github/workflows/ci.yml <<'EOF'", 'cp a package-lock.json']) {
+    const r = preBash(cmd);
+    assert.ok(denied(r), cmd);
+    assert.match(reason(r), /korumalı/);
+  }
+});
+
+test('kabuk üzerinden test dosyasına yazma reddedilir — kilit yönlendirmeyle aşılamaz', () => {
+  const r = preBash('cat > test/yeni.test.js');
+  assert.ok(denied(r));
+  assert.match(reason(r), /test dosyası/);
+  assert.match(reason(r), /kilidi aşmaz/);
+});
+
+test('allowTestWrites açıkken kabuk yazımı da serbest', () => {
+  ws.config({ allowTestWrites: true });
+  assert.equal(preBash('cat > test/yeni.test.js').stdout, '');
+  ws.config({});
+});
+
+test('sıradan dosyaya kabuk yazımı engellenmez', () => {
+  assert.equal(preBash('cat > src/index.js').stdout, '');
+  assert.equal(preBash('npm test 2>&1 | tee out.log').stdout, '');
+});
+
+test('post-bash kabuk üzerinden yazılan dosyayı tarar ve deftere işler', () => {
+  const f = ws.file('kabuk.js', 'try{ a() }catch(e){}\n');
+  const r = postBash(`cat > ${f}`, 'kabuk-tarama');
+  assert.equal(r.json.decision, 'block');
+  assert.match(r.json.reason, /KOD-05/);
+  assert.match(r.json.reason, /kabuk\.js/);
+  assert.match(r.json.reason, /Kabuk üzerinden yazıldı ama tarama atlanmaz/);
+  const s = session('kabuk-tarama');
+  assert.equal(Object.keys(s.violations).length, 1, 'stop kapısı için deftere yazılmalı');
+});
+
+test('post-bash temiz kabuk yazımında sessiz', () => {
+  const f = ws.file('temiz-kabuk.js', 'export const a = 1;\n');
+  assert.equal(postBash(`cat > ${f}`, 'kabuk-temiz').stdout, '');
+});
+
+test('post-bash yazmayan komutta dosya taramaz', () => {
+  assert.equal(postBash('git status', 'kabuk-yok').stdout, '');
+});

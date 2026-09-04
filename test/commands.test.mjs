@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isTestCommand, isCommitCommand, parseInstall, packageName, verifyPackages } from '../lib/commands.mjs';
+import { isTestCommand, isCommitCommand, parseInstall, packageName, verifyPackages, writeTargets } from '../lib/commands.mjs';
 
 test('test komutları tanınır', () => {
   for (const c of ['npm test', 'npm run test', 'pnpm test', 'yarn test', 'node --test test/',
@@ -107,4 +107,34 @@ test('git alt komutu bayraklara aldanmaz', () => {
   assert.equal(isCommitCommand('git log --grep commit'), false, 'log commit değildir');
   assert.equal(isCommitCommand('git -C repo status'), false);
   assert.ok(isCommitCommand('git -c user.name=x commit -m "y"'));
+});
+
+// ── Bash üzerinden yazma hedefleri ──────────────────────────────────────
+
+test('yönlendirme hedefleri bulunur', () => {
+  assert.deepEqual(writeTargets('cat > src/x.js'), ['src/x.js']);
+  assert.deepEqual(writeTargets("cat > src/x.js <<'EOF'"), ['src/x.js']);
+  assert.deepEqual(writeTargets('echo hi >> log.txt'), ['log.txt']);
+  assert.deepEqual(writeTargets('node x.mjs > a.txt 2> b.txt'), ['a.txt', 'b.txt']);
+  assert.deepEqual(writeTargets('python3 - > out.json'), ['out.json']);
+});
+
+test('tanıtıcı yönlendirmesi ve /dev hedefi dosya sayılmaz', () => {
+  assert.deepEqual(writeTargets('npm test 2>&1 | grep ok'), []);
+  assert.deepEqual(writeTargets('ls > /dev/null'), []);
+  assert.deepEqual(writeTargets('cmd >&2'), []);
+});
+
+test('tee, sed -i, cp, mv ve touch hedefleri', () => {
+  assert.deepEqual(writeTargets('cat a | tee -a out.log'), ['out.log']);
+  assert.deepEqual(writeTargets("sed -i '' -e 's/a/b/' config.json"), ['config.json']);
+  assert.deepEqual(writeTargets('cp template.js dest.js'), ['dest.js']);
+  assert.deepEqual(writeTargets('mv old.js new.js'), ['new.js']);
+  assert.deepEqual(writeTargets('touch a.js b.js'), ['a.js', 'b.js']);
+});
+
+test('yazmayan komutlar hedef üretmez', () => {
+  for (const c of ['git status --porcelain', 'npm run build', 'ls -la', 'sed -e s/a/b/ x.js']) {
+    assert.deepEqual(writeTargets(c), [], c);
+  }
 });

@@ -7,7 +7,7 @@ Agentic geliştirmede üretilen çıktının kalitesini ve güvenliğini koruyan
 Claude Code plugin'i. Kural metni niyeti taşır, hook sınırı koyar: modelin
 atlayamayacağı yerde durur.
 
-Sürüm 0.1.8 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime bağımlılığı.
+Sürüm 0.1.9 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime bağımlılığı.
 
 ## Ne yapar
 
@@ -37,8 +37,8 @@ Sürüm 0.1.8 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime ba�
 | `user-prompt` | UserPromptSubmit | Tur sayacı, koç uyarıları, kalp atışı damgası |
 | `pre-edit` | PreToolUse Edit/Write | Test dosyası ve korumalı yol → **deny** |
 | `post-edit` | PostToolUse Edit/Write | Desen bulursa **block** ve ihlali deftere yazar |
-| `pre-bash` | PreToolUse Bash | Yıkıcı komut → **deny**; doğrulanmamış paket → **deny** |
-| `post-bash` | PostToolUse Bash | Test ve commit damgası |
+| `pre-bash` | PreToolUse Bash | Yıkıcı komut → **deny**; doğrulanmamış paket → **deny**; korumalı yola yönlendirme → **deny** |
+| `post-bash` | PostToolUse Bash | Test ve commit damgası; kabuk üzerinden yazılan dosyaları tarar |
 | `stop-gate` | Stop | Açık ihlal, doğrulanmamış kod ya da aşırı diff → **block** |
 | `session-end` | SessionEnd | Ölçüm tabanlı oturum özeti |
 
@@ -297,11 +297,12 @@ Gizlenmiyor:
 - Repo geneli duplikasyon (KOD-01) tek dosyaya bakan tarayıcıda görünmez; CI katmanında jscpd.
 - İş mantığı hataları (MTK) mekanik olarak yakalanamaz; yalnızca kural metniyle taşınır.
 - `post-edit` bloğu modeli durdurmaz; garanti `stop-gate`'te.
-- Hook'lar yalnızca araç çağrılarını görür. Bash içinden yazılan dosyalar
-  (`cat > x.js`, `python -c`, `sed -i`) `pre-edit` ve `post-edit`'e görünmez;
-  o komutlar `Bash` matcher'ından geçer ve orada yalnızca komutun kendisi taranır,
-  yazılan içerik değil. `/slop-status` ve `/slop-check` canlı tarama yaptığı için
-  bu boşluğu kapatır; pre-commit hook'u ve CI da kapatır.
+- Bash üzerinden yazma **kısmen** kapsanır. Hedefi komutun kendisinde açıkça
+  görünen biçimler ayrıştırılır — `>`, `>>`, `tee`, `sed -i`, `cp`, `mv`,
+  `touch` — ve bu dosyalar hem korumalı yol kilidinden geçer hem içerikleri
+  taranır. Hedefi komuttan okunamayan yazmalar (`make`, `npm run build`, keyfi
+  script'ler) görünmez. `/slop-check`, `/slop-status`, pre-commit hook'u ve CI
+  canlı tarama yaptığı için o boşluğu kapatır.
 - Paket doğrulaması ağ ister ve zaman aşımında engelleyerek kapanır.
 
 ## Kaldırma

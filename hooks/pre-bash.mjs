@@ -14,14 +14,15 @@
  */
 
 import { runHook } from '../lib/hook.mjs';
-import { scanCommand, actionable } from '../lib/scan.mjs';
-import { actionFor } from '../lib/config.mjs';
-import { parseInstall, verifyPackages, isCommitCommand } from '../lib/commands.mjs';
+import { resolve, relative } from 'node:path';
+import { scanCommand, actionable, isTestPath, protectedPathReason } from '../lib/scan.mjs';
+import { actionFor, isPathIgnored } from '../lib/config.mjs';
+import { parseInstall, verifyPackages, isCommitCommand, writeTargets } from '../lib/commands.mjs';
 import { activePatterns } from '../lib/scan.mjs';
 import { verifyBeforeCommit } from '../lib/coach.mjs';
 import { deny, notify, formatFindings, BRAND } from '../lib/report.mjs';
 
-runHook('pre-bash', async ({ payload, config, state }) => {
+runHook('pre-bash', async ({ payload, config, state, repoRoot }) => {
   const command = payload?.tool_input?.command;
   if (typeof command !== 'string' || command.trim() === '') return;
 
@@ -32,6 +33,29 @@ runHook('pre-bash', async ({ payload, config, state }) => {
   if (blocking.length > 0) {
     deny(formatFindings(blocking, { config, target: command, action: 'block' }));
     return;
+  }
+
+  // Bash üzerinden yazma: `cat > .env`, `sed -i` gibi komutlar Edit/Write
+  // araçlarını atlıyor ve pre-edit kilidine hiç uğramıyordu. Aynı politika
+  // burada da uygulanıyor — yoksa kilit tek bir yönlendirme ile aşılabilirdi.
+  for (const target of writeTargets(command)) {
+    const absolute = resolve(payload.cwd ?? process.cwd(), target);
+    if (isPathIgnored(config, absolute, repoRoot)) continue;
+    const shown = repoRoot ? relative(repoRoot, absolute) : target;
+
+    const why = protectedPathReason(shown);
+    if (why) {
+      deny(`${BRAND}: bu komut ${shown} dosyasına yazıyor ve o yol korumalı (${why}).\n`
+        + `Agent bu dosyaya yazmamalı. Gerçekten gerekiyorsa kullanıcı elle düzenlesin, `
+        + `ya da yolu repo kökündeki .slopignore dosyasına ekleyin.`);
+      return;
+    }
+    if (isTestPath(shown) && !config.allowTestWrites) {
+      deny(`${BRAND}: bu komut ${shown} dosyasına yazıyor ve o bir test dosyası (TST-01).\n`
+        + `Kabuk üzerinden yazmak kilidi aşmaz. Testi değiştirmek yerine testi geçiren `
+        + `kodu düzelt; test gerçekten değişmeliyse config.json içinde allowTestWrites: true yapın.`);
+      return;
+    }
   }
 
   // Paket kurulum kapısı.
