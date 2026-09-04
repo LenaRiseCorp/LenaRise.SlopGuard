@@ -1,17 +1,21 @@
 #!/usr/bin/env node
 /**
  * /slop-check [yol...] — talep üzerine tarama.
- * Yol verilmezse çalışma ağacındaki izlenen ve değişmiş dosyalar taranır.
+ *
+ * Git deposunda: değişmiş dosyalar (yoksa izlenenlerin tamamı).
+ * Sıradan bir klasörde: dosya sistemi yürünür. Komut bir depo içinde
+ * çalıştırılmak zorunda değil — birden çok proje barındıran bir üst dizinde
+ * de anlamlı, ve orada çalışmaması yapay bir kısıt olurdu.
  */
 
-import { execFileSync } from 'node:child_process';
-import { statSync, readdirSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { repoRoot, gitFiles, runScan } from './scan-cli.mjs';
+import { repoRoot, runScan, listFiles, walkFiles } from './scan-cli.mjs';
 import { BRAND } from '../lib/report.mjs';
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith('-'));
-const root = repoRoot() ?? process.cwd();
+const detected = repoRoot({ quiet: true });
+const root = detected ?? process.cwd();
 
 function expand(target) {
   const full = join(root, target);
@@ -23,17 +27,7 @@ function expand(target) {
     return [];
   }
   if (info.isFile()) return [relative(root, full)];
-  const out = [];
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir)) {
-      if (entry === '.git' || entry === 'node_modules') continue;
-      const child = join(dir, entry);
-      if (statSync(child).isDirectory()) walk(child);
-      else out.push(relative(root, child));
-    }
-  };
-  walk(full);
-  return out;
+  return walkFiles(full).map((rel) => relative(root, join(full, rel)));
 }
 
 let files;
@@ -42,15 +36,7 @@ if (args.length > 0) {
   files = args.flatMap(expand);
   label = args.join(' ');
 } else {
-  const changed = gitFiles(['status', '--porcelain', '--untracked-files=all'], root)
-    ?.map((line) => line.slice(3).trim())
-    .filter(Boolean) ?? [];
-  files = changed;
-  label = 'değişmiş dosyalar';
-  if (files.length === 0) {
-    files = gitFiles(['ls-files'], root) ?? [];
-    label = 'tüm izlenen dosyalar';
-  }
+  ({ files, label } = listFiles(root, { isRepo: Boolean(detected) }));
 }
 
 if (files.length === 0) {

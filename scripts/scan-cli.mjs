@@ -10,19 +10,91 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { scanFiles } from '../lib/scan.mjs';
-import { loadConfig, isPathIgnored } from '../lib/config.mjs';
+import { loadConfig, isPathIgnored, parseSlopignore } from '../lib/config.mjs';
 import { formatFinding, BRAND } from '../lib/report.mjs';
 
-export function repoRoot() {
+/**
+ * Git kökü; burası bir depo değilse null.
+ *
+ * `quiet` ile stderr'e yazmaz: git olmaması her zaman hata değildir. Bir
+ * klasörde tarama yapmak meşru bir kullanım ve orada "repo bulunamadı"
+ * uyarısı basmak, olmayan bir sorunu varmış gibi göstermek olurdu.
+ */
+export function repoRoot({ quiet = false } = {}) {
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+    return execFileSync('git', ['rev-parse', '--show-toplevel'],
+      { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch (error) {
-    process.stderr.write(`${BRAND}: git repo bulunamadı — ${error.message}\n`);
+    if (!quiet) process.stderr.write(`${BRAND}: git repo bulunamadı — ${error.message}\n`);
     return null;
   }
+}
+
+/** Yürüyüş sırasında hiç girilmeyen dizinler. */
+const SKIP_DIRS = new Set([
+  '.git', 'node_modules', 'dist', 'build', 'out', 'target', 'vendor',
+  '.next', '.nuxt', '.venv', 'venv', '__pycache__', '.cache', 'coverage',
+]);
+
+/**
+ * Dosya sistemini yürür. Git kullanılmadığı için birden çok depo içeren bir
+ * klasörde de çalışır; iç içe her `.slopignore` kendi alt ağacında geçerlidir.
+ */
+export function walkFiles(root, { maxFiles = 20000 } = {}) {
+  const found = [];
+  const walk = (dir, rules) => {
+    if (found.length >= maxFiles) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch (error) {
+      process.stderr.write(`${BRAND}: dizin okunamadı ${relative(root, dir) || '.'} — ${error.message}\n`);
+      return;
+    }
+
+    // Bu dizindeki .slopignore alt ağacın tamamı için geçerli olur.
+    let active = rules;
+    const ignoreFile = join(dir, '.slopignore');
+    if (existsSync(ignoreFile)) {
+      try {
+        active = [...rules, ...parseSlopignore(readFileSync(ignoreFile, 'utf8')).map((r) => ({ ...r, base: dir }))];
+      } catch (error) {
+        process.stderr.write(`${BRAND}: .slopignore okunamadı ${relative(root, ignoreFile)} — ${error.message}\n`);
+      }
+    }
+
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry.name)) continue;
+      const full = join(dir, entry.name);
+      const ignored = active.some((rule) => rule.re.test(relative(rule.base, full).split('\\').join('/')));
+      if (ignored) continue;
+      if (entry.isDirectory()) walk(full, active);
+      else if (entry.isFile()) found.push(relative(root, full));
+      if (found.length >= maxFiles) return;
+    }
+  };
+  walk(root, []);
+  return found;
+}
+
+/**
+ * Taranacak dosya listesi ve etiketi.
+ *
+ * Git deposundaysak değişmiş dosyalar (yoksa izlenenlerin tamamı) taranır —
+ * hızlı ve anlamlı. Depo değilsek dosya sistemi yürünür, böylece komut sıradan
+ * bir klasörde ve birden çok depo içeren bir üst dizinde de çalışır.
+ */
+export function listFiles(root, { isRepo }) {
+  if (isRepo) {
+    const changed = (gitFiles(['status', '--porcelain', '--untracked-files=all'], root) ?? [])
+      .map((line) => line.slice(3).trim()).filter(Boolean);
+    if (changed.length > 0) return { files: [...new Set(changed)], label: 'değişmiş dosyalar' };
+    return { files: gitFiles(['ls-files'], root) ?? [], label: 'tüm izlenen dosyalar' };
+  }
+  return { files: walkFiles(root), label: 'git dışı klasör' };
 }
 
 export function gitFiles(args, root) {

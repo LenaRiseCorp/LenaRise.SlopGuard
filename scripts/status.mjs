@@ -15,7 +15,7 @@
 
 import { loadConfig, isPathIgnored } from '../lib/config.mjs';
 import { scanFiles } from '../lib/scan.mjs';
-import { repoRoot, gitFiles } from './scan-cli.mjs';
+import { repoRoot, listFiles } from './scan-cli.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadSession, openViolations, sessionSummary } from '../lib/session.mjs';
@@ -58,11 +58,11 @@ if (open.length > 0) {
 }
 
 // Canlı tarama: hook'ların kaydettiğine güvenmeden, şimdi ölç.
-const root = repoRoot();
+// Git deposu şart değil — sıradan bir klasörde dosya sistemi yürünür.
+const detected = repoRoot({ quiet: true });
+const root = detected ?? process.cwd();
 if (root) {
-  const files = (gitFiles(['status', '--porcelain', '--untracked-files=all'], root) ?? [])
-    .map((line) => line.slice(3).trim()).filter(Boolean);
-  const target = files.length > 0 ? files : (gitFiles(['ls-files'], root) ?? []);
+  const { files: target, label } = listFiles(root, { isRepo: Boolean(detected) });
   const { results, scanned, total, suppressed: sup } = scanFiles({
     files: [...new Set(target)],
     config,
@@ -70,11 +70,16 @@ if (root) {
     read: (rel) => {
       const full = join(root, rel);
       if (!existsSync(full)) return null;
-      try { return readFileSync(full, 'utf8'); } catch { return null; }
+      try {
+        return readFileSync(full, 'utf8');
+      } catch (error) {
+        process.stderr.write(`${BRAND}: okunamadı ${rel} — ${error.message}\n`);
+        return null;
+      }
     },
   });
   out.push('');
-  out.push(`  Canlı tarama  ${scanned} dosya (${files.length > 0 ? 'değişmiş' : 'tüm izlenen'})`
+  out.push(`  Canlı tarama  ${scanned} dosya (${label})`
     + ` · ${total === 0 ? 'temiz' : `${total} bulgu`}${sup > 0 ? ` · ${sup} gerekçeli muafiyet` : ''}`);
   for (const [rel, findings] of results.slice(0, 10)) {
     out.push(`    ${rel}`);
