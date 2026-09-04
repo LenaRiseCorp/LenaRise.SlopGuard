@@ -23,6 +23,7 @@ import { readFileSync, writeFileSync, openSync, readSync, closeSync, statSync, e
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, paths } from '../lib/config.mjs';
+import { exitWhenFlushed } from '../lib/report.mjs';
 import { loadSession } from '../lib/session.mjs';
 import { read as readHeartbeat, ageSeconds, formatAge } from '../lib/heartbeat.mjs';
 import { findRepoRoot } from '../lib/hook.mjs';
@@ -215,5 +216,5 @@ process.stdin.on('end', () => {
     line = `${BRAND} ⚠️ bozuk`;
   }
   if (line) process.stdout.write(line);
-  process.exit(0);
+  exitWhenFlushed(0);
 });
