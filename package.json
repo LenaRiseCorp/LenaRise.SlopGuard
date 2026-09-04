@@ -10,8 +10,13 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "docs": "node scripts/gen-docs.mjs",
-    "selfscan": "node scripts/selfscan.mjs"
+    "selfscan": "node scripts/selfscan.mjs",
+    "verify": "npm test && npm run selfscan && npm run docs -- --check"
   },
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LenaRiseCorp/LenaRise.SlopGuard.git"
+  }
 }

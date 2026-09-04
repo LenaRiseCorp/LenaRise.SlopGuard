@@ -32,7 +32,11 @@ function emit(rel, content) {
   written.push(rel);
 }
 
-const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+const VERSION = PKG.version;
+// Kurulum adresi package.json'dan okunur; iki yerde tutmak ilk yeniden
+// adlandırmada ayrışırdı (DOK-07).
+const SLUG = (PKG.repository?.url ?? '').replace(/^.*github\.com\//, '').replace(/\.git$/, '') || 'OWNER/REPO';
 const SCOPE_LABEL = { code: 'kaynak dosya', prose: 'metin dosyası', path: 'dosya yolu', command: 'kabuk komutu' };
 
 // ── Ortak tablolar ───────────────────────────────────────────────────────
@@ -193,7 +197,7 @@ Bu yüzden \`post-edit\` bulduğu ihlali oturum defterine yazar ve kilit
 ## Kurulum
 
 \`\`\`bash
-claude plugin marketplace add OWNER/LenaRise.SlopGuard
+claude plugin marketplace add ${SLUG}
 claude plugin install lenarise-slopguard@lenarise-slopguard -y
 \`\`\`
 

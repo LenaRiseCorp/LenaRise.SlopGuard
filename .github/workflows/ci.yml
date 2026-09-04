@@ -1,0 +1,41 @@
+name: ci
+
+# Bağlayıcı taahhütler burada mekanik hâle geliyor. Niyet beyanı değil, kapı:
+# kendi kuralımızı ihlal eden bir commit yeşil alamaz.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dogrula:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sıfır runtime bağımlılığı (GUV-02)
+        run: |
+          test "$(node -p 'Object.keys(require("./package.json").dependencies || {}).length')" = 0
+          test "$(node -p 'Object.keys(require("./package.json").devDependencies || {}).length')" = 0
+          test ! -d node_modules
+          echo "bağımlılık yok"
+
+      - name: Testler (boru testleri dahil)
+        run: npm test
+
+      - name: Kendi kendini tarama
+        run: npm run selfscan
+
+      - name: Üretilen doküman güncel mi (DOK-07)
+        run: npm run docs -- --check
+
+      - name: Plugin manifesti
+        run: npx --yes @anthropic-ai/claude-code plugin validate . --strict
+        continue-on-error: true

@@ -50,7 +50,7 @@ Bu yüzden `post-edit` bulduğu ihlali oturum defterine yazar ve kilit
 ## Kurulum
 
 ```bash
-claude plugin marketplace add OWNER/LenaRise.SlopGuard
+claude plugin marketplace add LenaRiseCorp/LenaRise.SlopGuard
 claude plugin install lenarise-slopguard@lenarise-slopguard -y
 ```
 
