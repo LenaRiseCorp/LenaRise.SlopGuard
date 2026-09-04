@@ -24,7 +24,7 @@ runHook('post-edit', ({ payload, config, state, repoRoot }) => {
   const shown = repoRoot ? relative(repoRoot, filePath) : filePath;
 
   const { added, removed } = linesChanged(payload.tool_response, payload.tool_input);
-  recordWrite(state, filePath, { added, removed });
+  recordWrite(state, filePath, { added, removed, isCode: classify(filePath) === 'code' });
 
   if (isPathIgnored(config, filePath, repoRoot)) return;
   if (classify(filePath) === 'other') return;
@@ -45,7 +45,7 @@ runHook('post-edit', ({ payload, config, state, repoRoot }) => {
 
   const findings = scanContent({ filePath: shown, content, config });
   const live = actionable(findings);
-  recordViolations(state, filePath, findings);
+  recordViolations(state, filePath, findings, shown);
 
   if (live.length === 0) {
     if (config.ui.cleanScans === 'summary') notify(formatCleanScan(1));
