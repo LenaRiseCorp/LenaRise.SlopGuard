@@ -206,3 +206,29 @@ test('gerçekten ele alınan catch yakalanmaz', () => {
   const body = 'try{a()}catch (e) {\n  // ağ hatası beklenen durum\n  logger.warn(e);\n}';
   assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body }))), []);
 });
+
+test('gömülü sır: bileşik adlar da yakalanır', () => {
+  const cases = [
+    'const secret_key = "abcdefghijklmnopqrst"',
+    'access_token: "abcdefghijklmnopqrst"',
+    'private-key = "abcdefghijklmnopqrst"',
+    'refresh_token="abcdefghijklmnopqrst"',
+    'password = "abcdefghijklmnopqrst"',
+  ];
+  for (const body of cases) {
+    const found = actionable(scanContent({ filePath: 'a.js', content: body }));
+    assert.ok(ids(found).includes('guv-03-inline-secret'), body);
+  }
+});
+
+test('gömülü sır: sır olmayan uzun dizeler yakalanmaz', () => {
+  const cases = [
+    'const description = "uzunca bir açıklama metni burada"',
+    'const tokenizer = buildTokenizer(options)',
+    'const clientName = "abcdefghijklmnopqrst"',
+    'const secretsManager = new SecretsManager()',
+  ];
+  for (const body of cases) {
+    assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body }))), [], body);
+  }
+});
