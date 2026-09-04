@@ -318,7 +318,7 @@ sayılır ve oturum özetinde raporlanır.
 | Komut | Ne yapar |
 |---|---|
 | \`/slop-setup\` | Yapılandırmayı oluşturur, durum çubuğunu kaydeder. Var olanı ezmez |
-| \`/slop-status\` | Bu oturumun ölçümleri |
+| \`/slop-status\` | Oturum sayaçları **ve** canlı tarama; hook kaydına güvenmez |
 | \`/slop-check [yol]\` | Talep üzerine tarama |
 | \`/slop-doctor\` | Kurulum teşhisi; her satır ✅ ya da ❌ |
 | \`/slop-config\` | Ayarları değiştirir |
@@ -403,6 +403,11 @@ Gizlenmiyor:
 - Repo geneli duplikasyon (KOD-01) tek dosyaya bakan tarayıcıda görünmez; CI katmanında jscpd.
 - İş mantığı hataları (MTK) mekanik olarak yakalanamaz; yalnızca kural metniyle taşınır.
 - \`post-edit\` bloğu modeli durdurmaz; garanti \`stop-gate\`'te.
+- Hook'lar yalnızca araç çağrılarını görür. Bash içinden yazılan dosyalar
+  (\`cat > x.js\`, \`python -c\`, \`sed -i\`) \`pre-edit\` ve \`post-edit\`'e görünmez;
+  o komutlar \`Bash\` matcher'ından geçer ve orada yalnızca komutun kendisi taranır,
+  yazılan içerik değil. \`/slop-status\` ve \`/slop-check\` canlı tarama yaptığı için
+  bu boşluğu kapatır; pre-commit hook'u ve CI da kapatır.
 - Paket doğrulaması ağ ister ve zaman aşımında engelleyerek kapanır.
 
 ## Kaldırma

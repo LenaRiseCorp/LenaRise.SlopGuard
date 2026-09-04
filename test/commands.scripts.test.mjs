@@ -341,3 +341,66 @@ test('blok silinerek temiz kaldırılabilir', () => {
   assert.match(temiz.trim(), /^# Kalıcı$/, 'blok çıkınca geriye yalnızca kullanıcının metni kalmalı');
   w.clean();
 });
+
+// ── /slop-status canlı ölçüm yapar ──────────────────────────────────────
+
+function statusRepo(sessionPatch, uiConfig) {
+  const c = mkdtempSync(join(tmpdir(), 'slopguard-st-'));
+  const repo = mkdtempSync(join(tmpdir(), 'slopguard-strepo-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  writeFileSync(join(c, 'heartbeat.json'), JSON.stringify({ ts: Date.now(), sessionId: 'canli', patterns: 26 }));
+  writeFileSync(join(c, `session-canli.json`), JSON.stringify({ version: 1, sessionId: 'canli', ...sessionPatch }));
+  if (uiConfig) writeFileSync(join(c, 'config.json'), JSON.stringify({ ui: uiConfig }));
+  return { c, repo,
+    run: () => run('scripts/status.mjs', [], { SLOPGUARD_CONFIG_DIR: c }, repo).stdout,
+    clean: () => { rmSync(c, { recursive: true, force: true }); rmSync(repo, { recursive: true, force: true }); } };
+}
+
+test('status ui.chatStatus ayarından bağımsız her zaman cevap döner', () => {
+  for (const ui of [{ chatStatus: 0 }, { chatStatus: 2 }, undefined]) {
+    const w = statusRepo({ turns: 3 }, ui);
+    const out = w.run();
+    assert.match(out, /oturum canli/, `chatStatus=${JSON.stringify(ui)}`);
+    assert.match(out, /Canlı tarama/);
+    w.clean();
+  }
+});
+
+test('canlı tarama hook kaydından bağımsız gerçeği bulur', () => {
+  const w = statusRepo({ turns: 5, filesWritten: { 'x.js': 1 } });
+  // Hook hiç çalışmamış gibi: oturumda ihlal kaydı yok ama dosyada var.
+  writeFileSync(join(w.repo, 'kirli.js'), 'try{ a() }catch(e){}\n');
+  const out = w.run();
+  assert.match(out, /Canlı tarama.*1 bulgu/);
+  assert.match(out, /kirli\.js/);
+  assert.match(out, /KOD-05 {2}satır 1/);
+  w.clean();
+});
+
+test('canlı tarama temizken bunu açıkça söyler', () => {
+  const w = statusRepo({ turns: 2, filesWritten: { 'a.js': 1 } });
+  writeFileSync(join(w.repo, 'temiz.js'), 'export const a = 1;\n');
+  assert.match(w.run(), /Canlı tarama.*· temiz/);
+  w.clean();
+});
+
+test('hook kaydı boşken sebebi söylenir — boş sayaç temiz demek değil', () => {
+  const w = statusRepo({ turns: 9, filesWritten: {} });
+  const out = w.run();
+  assert.match(out, /hiç dosya yazımı kaydedilmedi/);
+  assert.match(out, /Bash içinden yazıldı/);
+  assert.match(out, /post-edit yalnızca Edit\/Write araçlarını dinler/);
+  w.clean();
+});
+
+test('hook kaydı doluyken uyarı çıkmaz', () => {
+  const w = statusRepo({ turns: 9, filesWritten: { 'a.js': 2 } });
+  assert.doesNotMatch(w.run(), /hiç dosya yazımı kaydedilmedi/);
+  w.clean();
+});
+
+test('oturum sayaçları hook kaynaklı olduğu belirtilir', () => {
+  const w = statusRepo({ turns: 4, filesWritten: { 'a.js': 1 } });
+  assert.match(w.run(), /Ölçüm .*\(hook kaydı\)/);
+  w.clean();
+});
