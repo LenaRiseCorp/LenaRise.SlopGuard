@@ -58,7 +58,25 @@ Bunlar tercih değil, kural:
 ## config.json şeması
 
 <!-- ÜRETİLEN: config-şeması -->
-Bu bölüm `npm run docs` ile `lib/config.mjs` içindeki varsayılanlardan üretilir.
+| Alan | Varsayılan | Ne yapar |
+|---|---|---|
+| `enabled` | `true` | `false` yapılırsa tüm koruma durur, çubuk "kapalı" gösterir |
+| `mode` | `"strict"` | `strict` engeller, `explore` yalnızca uyarır (geri dönüşsüz komutlar hariç) |
+| `disabled` | `[]` | Kategori (`GUV`), taksonomi ID (`GUV-03`) ya da desen anahtarı |
+| `trustedPackages` | `[]` | Kayıt defterine sorulmadan geçen paket adları |
+| `allowTestWrites` | `false` | `true` yapılırsa test dosyalarına yazma kilidi açılır (TST-01) |
+| `thresholds.maxDiffLines` | `400` | Stop kapısı: son commit'ten beri değişen satır eşiği (SUR-02) |
+| `thresholds.contextTurns` | `40` | Koç uyarısı: oturum tur eşiği (AGT-01) |
+| `thresholds.contextUsedPercent` | `75` | Bağlam doluluk oranı eşiği; durum çubuğu ölçer (AGT-01) |
+| `thresholds.comprehensionGap` | `500` | Koç uyarısı: yazılan eksi okunan satır farkı (INS-01) |
+| `thresholds.uncommittedLines` | `300` | Koç uyarısı: commit'siz biriken satır (AGT-06) |
+| `thresholds.consecutiveFixes` | `3` | Koç uyarısı: aynı dosyaya ardışık düzeltme (MTK-05) |
+| `thresholds.packageCheckTimeoutMs` | `2500` | Paket kayıt defteri sorgusu; aşılırsa engeller (GUV-02) |
+| `thresholds.maxStopBlocks` | `2` | Aynı gerekçeyle en fazla kaç kez bloklanır (AGT-08) |
+| `ui.statusLine` | `"compact"` | `compact` · `minimal` · `off` |
+| `ui.cleanScans` | `"silent"` | `silent` · `summary` — temiz taramada bildirim |
+| `ui.heartbeat` | `true` | oturum başı tek satır onay |
+| `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — plugin yanıt vermediğinde davranış |
 <!-- /ÜRETİLEN: config-şeması -->
 
 ## patterns.local.json şeması
@@ -101,7 +119,34 @@ Sorun listesi boş değilse desen yüklenmemiştir. Sessizce bırakma.
 ## Desen kataloğu
 
 <!-- ÜRETİLEN: desen-kataloğu -->
-Bu bölüm `npm run docs` ile `lib/patterns.mjs` içindeki desen defterinden üretilir.
+| ID | Desen anahtarı | Kapsam | Sertlik | Ne yakalar |
+|---|---|---|---|---|
+| AGT-05 | `agt-05-chmod-777` | kabuk komutu | engeller | Herkese yazma izni. |
+| AGT-05 | `agt-05-delete-without-where` | kabuk komutu | engeller | WHERE siz DELETE — tablonun tamamını siler. |
+| AGT-05 | `agt-05-git-force-push` | kabuk komutu | engeller | Zorlamalı push — başkasının işini siler. |
+| AGT-05 | `agt-05-git-reset-hard` | kabuk komutu | engeller | Commit edilmemiş çalışma sert sıfırlanıyor. |
+| AGT-05 | `agt-05-rm-recursive-force` | kabuk komutu | engeller | Özyinelemeli zorlamalı silme — geri dönüşü yok. |
+| AGT-05 | `agt-05-sql-destructive` | kabuk komutu | engeller | Yıkıcı şema komutu. |
+| DOK-01 | `dok-01-buzzword` | metin dosyası | uyarır | İçerik taşımayan pazarlama dili. |
+| DOK-03 | `dok-03-empty-commit-msg` | kabuk komutu | uyarır | İçi boş commit mesajı — neyin neden değiştiğini söylemiyor. |
+| DOK-04 | `dok-04-emoji-heading` | metin dosyası | uyarır | Emoji ile başlayan başlık. |
+| GUV-01 | `guv-01-eval` | kaynak dosya | engeller | Dinamik kod yürütme. |
+| GUV-03 | `guv-03-aws-key` | kaynak dosya | engeller | AWS erişim anahtarı kimliği. |
+| GUV-03 | `guv-03-inline-secret` | kaynak dosya | engeller | Kaynak koda gömülü sır. |
+| GUV-03 | `guv-03-private-key` | kaynak dosya | engeller | Gömülü özel anahtar. |
+| GUV-05 | `guv-05-sql-concat` | kaynak dosya | engeller | SQL sorgusunun dize birleştirmeyle kurulması — enjeksiyon yüzeyi. |
+| GUV-05 | `guv-05-sql-fstring` | kaynak dosya | engeller | f-string ile kurulan SQL — enjeksiyon yüzeyi. |
+| KOD-01 | `kod-01-versioned-filename` | dosya yolu | engeller | Sürüm ekli dosya adı — eskisinin yanına yenisi yazılıyor. |
+| KOD-04 | `kod-04-guard-and-go` | kaynak dosya | uyarır | Ölü dala alınmış kod — silmek yerine sarmalanmış. |
+| KOD-05 | `kod-05-catch-noop` | kaynak dosya | engeller | Boş .catch() — reddedilen promise sessizce yutuluyor. |
+| KOD-05 | `kod-05-comment-only-catch` | kaynak dosya | engeller | Yalnızca yorum içeren catch gövdesi — hata yine yutuluyor. |
+| KOD-05 | `kod-05-empty-catch` | kaynak dosya | engeller | Boş catch gövdesi — hata yakalanıp yutuluyor. |
+| KOD-05 | `kod-05-except-pass` | kaynak dosya | engeller | except: pass — istisna sessizce yutuluyor. |
+| MTK-02 | `mtk-02-package-install` | kabuk komutu | engeller | Paket kurulumu — adı doğrulanmadan kurulursa slopsquatting yüzeyi (GUV-02). |
+| SUR-08 | `sur-08-effort-estimate` | metin dosyası | engeller | Ölçülemeyen süre tahmini. |
+| TST-01 | `tst-01-skipped-test` | kaynak dosya | engeller | Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. |
+| TST-03 | `tst-03-fake-impl` | kaynak dosya | uyarır | Sahte implementasyon — imza var, gövde yok. |
+| TST-04 | `tst-04-tautological-assert` | kaynak dosya | engeller | Her koşulda geçen totolojik iddia — hiçbir şey doğrulamıyor. |
 <!-- /ÜRETİLEN: desen-kataloğu -->
 
 ## Değişiklikten sonra

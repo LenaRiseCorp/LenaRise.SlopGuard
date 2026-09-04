@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "mode": "strict",
+  "disabled": [],
+  "trustedPackages": [],
+  "allowTestWrites": false,
+  "thresholds": {
+    "maxDiffLines": 400,
+    "contextTurns": 40,
+    "contextUsedPercent": 75,
+    "comprehensionGap": 500,
+    "uncommittedLines": 300,
+    "consecutiveFixes": 3,
+    "packageCheckTimeoutMs": 2500,
+    "maxStopBlocks": 2
+  },
+  "ui": {
+    "statusLine": "compact",
+    "cleanScans": "silent",
+    "heartbeat": true,
+    "livenessCheck": "ask"
+  }
+}

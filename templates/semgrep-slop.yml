@@ -1,0 +1,588 @@
+# LenaRise.SlopGuard — semgrep kuralları
+#
+# ÜRETİLEN DOSYA. Elle düzenleme; kaynağı lib/patterns.mjs.
+# Yeniden üretmek için: npm run docs
+#
+# Bu dosya Claude Code'dan bağımsız çalışır: semgrep'i olan her CI kullanabilir.
+# Kapsam bilerek dar — yol ve komut kapsamındaki desenler (test dosyası kilidi,
+# yıkıcı komutlar, paket doğrulama) statik tarayıcıya çevrilemez, onlar hook
+# ve git katmanında kalır.
+
+rules:
+  - id: slopguard-kod-04-guard-and-go
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      KOD-04 Ölü dala alınmış kod — silmek yerine sarmalanmış. Düzelt: Kodu sil. Geri lazım olursa git geçmişinde duruyor.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\bif\\s*\\(\\s*(?:false|0)\\s*\\)|\\bif\\s+False\\s*:"
+  - id: slopguard-kod-05-empty-catch
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      KOD-05 Boş catch gövdesi — hata yakalanıp yutuluyor. Düzelt: Hatayı logla, yeniden fırlat ya da açıkça ele al.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*\\}"
+  - id: slopguard-kod-05-comment-only-catch
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      KOD-05 Yalnızca yorum içeren catch gövdesi — hata yine yutuluyor. Düzelt: Hatayı logla ya da yeniden fırlat. Gerekçe yorumu ele alma yerine geçmez.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*(?:\\/\\/[^\\n]*\\s*|\\/\\*(?:[^*]|\\*(?!\\/)){0,400}\\*\\/\\s*)+\\}"
+  - id: slopguard-kod-05-except-pass
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      KOD-05 except: pass — istisna sessizce yutuluyor. Düzelt: Hatayı logla ya da yeniden fırlat.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "^[ \\t]*except\\b[^\\n:]*:[ \\t]*(?:\\n[ \\t]+)?pass[ \\t]*$"
+  - id: slopguard-kod-05-catch-noop
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      KOD-05 Boş .catch() — reddedilen promise sessizce yutuluyor. Düzelt: Hatayı logla ya da yukarı taşı.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\.catch\\(\\s*(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
+  - id: slopguard-tst-04-tautological-assert
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      TST-04 Her koşulda geçen totolojik iddia — hiçbir şey doğrulamıyor. Düzelt: Gerçek davranışı iddia et ya da testi sil.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\bassert\\s+True\\b|\\bassert\\s*\\(\\s*(?:true|True|1)\\s*\\)|expect\\(\\s*true\\s*\\)\\s*\\.\\s*toBe\\(\\s*true\\s*\\)|assert\\.ok\\(\\s*true\\s*\\)"
+  - id: slopguard-tst-01-skipped-test
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      TST-01 Atlanan test — kırmızıyı yeşile çevirmenin en kısa yolu. Düzelt: Testi düzelt ya da neden atlandığını gerekçesiyle yaz.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\b(?:it|test|describe|context)\\s*\\.\\s*skip\\s*\\(|\\bx(?:it|describe)\\s*\\(|@pytest\\.mark\\.skip|\\bt\\.Skip\\("
+  - id: slopguard-tst-03-fake-impl
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      TST-03 Sahte implementasyon — imza var, gövde yok. Düzelt: Gövdeyi yaz ya da fonksiyonu henüz ekleme.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "(?i)\\braise\\s+NotImplementedError\\b|throw\\s+new\\s+\\w*Error\\(\\s*['\"`]Not implemented"
+  - id: slopguard-guv-03-inline-secret
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      GUV-03 Kaynak koda gömülü sır. Düzelt: Ortam değişkenine taşı; değer sızdıysa döndür.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "(?i)\\b(?:(?:api|access|secret|auth|private|encryption|refresh)[_-]?(?:key|token|secret)|api[_-]?key|secret|token|password|passwd)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-./+]{16,}['\"]"
+  - id: slopguard-guv-03-aws-key
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      GUV-03 AWS erişim anahtarı kimliği. Düzelt: Anahtarı hemen iptal et ve ortam değişkenine taşı.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "\\bAKIA[0-9A-Z]{16}\\b"
+  - id: slopguard-guv-03-private-key
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      GUV-03 Gömülü özel anahtar. Düzelt: Anahtarı dosyadan çıkar, gizli depoya taşı, döndür.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----"
+  - id: slopguard-guv-05-sql-concat
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      GUV-05 SQL sorgusunun dize birleştirmeyle kurulması — enjeksiyon yüzeyi. Düzelt: Parametreli sorgu kullan.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "(?i)\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^\\n;'\"]{0,120}['\"]\\s*(?:\\+|\\.|%)\\s*[A-Za-z_$]"
+  - id: slopguard-guv-05-sql-fstring
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      GUV-05 f-string ile kurulan SQL — enjeksiyon yüzeyi. Düzelt: Parametreli sorgu kullan.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "(?i)f['\"][^'\"\\n]*\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^'\"\\n]*\\{"
+  - id: slopguard-guv-01-eval
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      GUV-01 Dinamik kod yürütme. Düzelt: Veriyi ayrıştır, yürütme. JSON için JSON.parse kullan.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+    patterns:
+      - pattern-regex: "(?<![.\\w])eval\\s*\\(|(?<![.\\w])exec\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*[,)]"
+  - id: slopguard-dok-04-emoji-heading
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      DOK-04 Emoji ile başlayan başlık. Düzelt: Başlığı kelimeyle yaz.
+    paths:
+      include:
+      - "*.md"
+      - "*.mdx"
+      - "*.markdown"
+      - "*.txt"
+      - "*.rst"
+      - "*.adoc"
+    patterns:
+      - pattern-regex: "^#{1,6}\\s+\\p{Extended_Pictographic}"
+  - id: slopguard-dok-01-buzzword
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      DOK-01 İçerik taşımayan pazarlama dili. Düzelt: Ne yaptığını somut yaz.
+    paths:
+      include:
+      - "*.md"
+      - "*.mdx"
+      - "*.markdown"
+      - "*.txt"
+      - "*.rst"
+      - "*.adoc"
+    patterns:
+      - pattern-regex: "(?i)\\b(?:robust and flexible|seamlessly|cutting[- ]edge|state[- ]of[- ]the[- ]art|leverage the power|güçlü ve esnek|sorunsuzca entegre)\\b"
+  - id: slopguard-sur-08-effort-estimate
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      SUR-08 Ölçülemeyen süre tahmini. Düzelt: Kapsamı dosya, adım ve bilinmeyen sayısıyla ifade et.
+    paths:
+      include:
+      - "*.md"
+      - "*.mdx"
+      - "*.markdown"
+      - "*.txt"
+      - "*.rst"
+      - "*.adoc"
+    patterns:
+      - pattern-regex: "(?i)\\b(?:tahmin\\w*|yaklaşık|ETA|estimated?|estimates?|roughly|about)\\b[^\\n]{0,40}\\b\\d+[-–]?\\d*\\s*(?:saat|gün|hafta|ay\\b|hours?|days?|weeks?|months?)|\\b\\d+[-–]?\\d*\\s*(?:saat|gün|hafta|hours?|days?|weeks?)\\b[^\\n]{0,25}\\b(?:sürer|sürecek|sürüyor|alır|alacak|alıyor|takes|will take)\\b"

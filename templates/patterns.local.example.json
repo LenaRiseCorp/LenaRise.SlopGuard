@@ -1,0 +1,24 @@
+{
+  "patterns": [
+    {
+      "key": "ornek-todo-acil",
+      "id": "KOD-03",
+      "scope": "code",
+      "severity": "warn",
+      "match": "TODO\\s*\\(acil\\)",
+      "flags": "gi",
+      "detects": "Acil işaretli TODO — sahibi ve tarihi yok.",
+      "fix": "Ya şimdi yap ya da issue aç ve numarasını yaz."
+    },
+    {
+      "key": "ornek-yasak-import",
+      "id": "KOD-07",
+      "scope": "code",
+      "severity": "block",
+      "match": "from ['\"]lodash['\"]",
+      "flags": "g",
+      "detects": "Bu projede lodash kullanılmıyor.",
+      "fix": "Yerleşik dizi ve nesne yöntemlerini kullan."
+    }
+  ]
+}
