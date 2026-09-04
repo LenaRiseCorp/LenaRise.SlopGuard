@@ -250,3 +250,22 @@ test('eski sürümlü statusLine girdisi başlatıcıya taşınır', () => {
   assert.doesNotMatch(cmd, /plugins\/cache/);
   rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
 });
+
+test('doctor başlatıcıyı tanır ve sürümlü yolu sorun sayar', () => {
+  // setup ve doctor aynı ölçütü kullanmalı; ayrı ayrı yazılınca biri
+  // diğerinin yazdığı girdiyi yabancı sandı.
+  const mk = (cmd) => {
+    const c = mkdtempSync(join(tmpdir(), 'slopguard-dsl-'));
+    const h = mkdtempSync(join(tmpdir(), 'slopguard-dslhome-'));
+    mkdirSync(join(h, '.claude'), { recursive: true });
+    writeFileSync(join(h, '.claude/settings.json'), JSON.stringify({ statusLine: { type: 'command', command: cmd } }));
+    const out = run('scripts/doctor.mjs', [], { SLOPGUARD_CONFIG_DIR: c, HOME: h }).stdout;
+    rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true });
+    return out;
+  };
+  assert.match(mk('node "/h/.claude/lenarise-slopguard/statusline-launcher.mjs"'),
+    /✅ statusLine kayıtlı \(sürümden bağımsız/);
+  assert.match(mk('node "/h/.claude/plugins/cache/lenarise-slopguard/lenarise-slopguard/0.1.1/bin/statusline.mjs"'),
+    /sürümlü cache yoluna ayarlı/);
+  assert.match(mk('my-own-bar'), /başka bir komuta ayarlı/);
+});

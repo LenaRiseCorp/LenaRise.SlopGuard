@@ -120,10 +120,21 @@ if (!settings.ok) {
 } else if (settings.missing) {
   bad('~/.claude/settings.json yok', '/slop-setup çalıştır');
 } else {
+  // Tanıma ölçütü setup.mjs ile aynı olmalı: başlatıcının adı
+  // statusline-launcher.mjs, yani "statusline.mjs" araması onu kaçırır.
   const statusLine = settings.value.statusLine?.command ?? '';
-  if (/statusline\.mjs/.test(statusLine)) ok('statusLine kayıtlı');
-  else if (statusLine) bad('statusLine başka bir komuta ayarlı', '/slop-setup ile ekle; mevcut girdi korunur');
-  else bad('statusLine kayıtlı değil', '/slop-setup çalıştır — canlılık göstergesi olmadan sessiz ölüm görünmez');
+  const mark = statusLine.toLowerCase();
+  const ours = mark.includes('statusline') && mark.includes('slopguard');
+  if (ours && mark.includes('plugins/cache')) {
+    bad('statusLine sürümlü cache yoluna ayarlı — her güncellemede kırılır',
+      '/slop-setup çalıştır; girdi sürümsüz başlatıcıya taşınır');
+  } else if (ours) {
+    ok('statusLine kayıtlı (sürümden bağımsız başlatıcı)');
+  } else if (statusLine) {
+    bad('statusLine başka bir komuta ayarlı', '/slop-setup ile ekle; mevcut girdi korunur');
+  } else {
+    bad('statusLine kayıtlı değil', '/slop-setup çalıştır — canlılık göstergesi olmadan sessiz ölüm görünmez');
+  }
 }
 
 section('Kalp atışı');
