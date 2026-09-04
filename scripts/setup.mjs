@@ -144,19 +144,65 @@ if (!settings.ok) {
   }
 }
 
-// 4. Canlılık kuralı — kullanıcı dosyası, otomatik eklenmiyor.
+// 4. Canlılık kuralı — sessiz ölüm koruması.
+//
+// Otomatik ekleniyor çünkü bu kural, plugin öldüğünde çalışan TEK katman:
+// hook'lar kayıtlı değilse "çalışıyor musun?" diye soracak hook da yoktur.
+// Üstelik durum çubuğu her ortamda görünmüyor (desktop uygulamasının Code
+// sekmesi statusLine render etmiyor — ölçüldü), yani bazı kullanıcılar için
+// sessiz ölümü yakalayan başka hiçbir mekanizma yok.
+//
+// Güvenli olmasının sebebi işaretçiler: yalnızca kendi bloğumuz yazılıyor,
+// dosyanın geri kalanına dokunulmuyor, ve blok silinerek temiz kaldırılıyor.
+// --skip-claude-md ile atlanabilir.
 out.push('');
-const snippet = join(ROOT, 'templates', 'claude-md-snippet.md');
 const claudeMd = join(homedir(), '.claude', 'CLAUDE.md');
-const alreadyThere = existsSync(claudeMd)
-  && readFileSync(claudeMd, 'utf8').includes('LenaRise.SlopGuard: canlılık kuralı');
-if (alreadyThere) {
-  kept('~/.claude/CLAUDE.md canlılık kuralını zaten içeriyor');
+const BASLANGIC = '<!-- LenaRise.SlopGuard: canlılık kuralı — başlangıç -->';
+const BITIS = '<!-- LenaRise.SlopGuard: canlılık kuralı — bitiş -->';
+
+if (process.argv.includes('--skip-claude-md')) {
+  kept('canlılık kuralı atlandı (--skip-claude-md)');
 } else {
-  out.push('  Önerilen son adım — sessiz ölüm koruması:');
-  out.push(`    ${snippet} içeriğini ${claudeMd} dosyasına ekle.`);
-  out.push('    Bu kural plugin\'in dışında yaşar ve plugin hiç çalışmadığında bile');
-  out.push('    modelin durumu fark etmesini sağlar. Otomatik eklenmiyor: CLAUDE.md senin dosyan.');
+  const snippetFile = join(ROOT, 'templates', 'claude-md-snippet.md');
+  let snippet = null;
+  try {
+    snippet = readFileSync(snippetFile, 'utf8').trim();
+  } catch (error) {
+    warn(`canlılık kuralı şablonu okunamadı — ${error.message}`);
+  }
+
+  if (snippet) {
+    try {
+      const existing = existsSync(claudeMd) ? readFileSync(claudeMd, 'utf8') : null;
+      const start = existing?.indexOf(BASLANGIC) ?? -1;
+      const end = existing?.indexOf(BITIS) ?? -1;
+
+      if (existing !== null && start !== -1 && end !== -1) {
+        const current = existing.slice(start, end + BITIS.length);
+        if (current === snippet) {
+          kept('~/.claude/CLAUDE.md canlılık kuralı güncel');
+        } else {
+          copyFileSync(claudeMd, `${claudeMd}.slopguard-yedek`);
+          writeFileSync(claudeMd, existing.slice(0, start) + snippet + existing.slice(end + BITIS.length));
+          done('~/.claude/CLAUDE.md canlılık kuralı tazelendi (yalnızca işaretli blok)');
+        }
+      } else {
+        mkdirSync(dirname(claudeMd), { recursive: true });
+        if (existing !== null) {
+          copyFileSync(claudeMd, `${claudeMd}.slopguard-yedek`);
+          writeFileSync(claudeMd, `${existing.trimEnd()}\n\n${snippet}\n`);
+          done('~/.claude/CLAUDE.md sonuna canlılık kuralı eklendi');
+        } else {
+          writeFileSync(claudeMd, `${snippet}\n`);
+          done(`~/.claude/CLAUDE.md oluşturuldu ve canlılık kuralı eklendi`);
+        }
+        out.push('     Kaldırmak için iki işaretçi arasındaki bloğu sil; gerisi senin.');
+      }
+    } catch (error) {
+      warn(`~/.claude/CLAUDE.md yazılamadı — ${error.message}`);
+      warn(`Elle eklemek istersen: ${snippetFile}`);
+    }
+  }
 }
 
 out.push('');

@@ -1,6 +1,6 @@
 {
   "name": "lenarise-slopguard",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Agentic kalite koruma plugin'i — slop desenlerini makine katmanında engeller.",
   "type": "module",

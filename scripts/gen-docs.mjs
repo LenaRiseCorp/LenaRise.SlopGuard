@@ -208,6 +208,18 @@ claude plugin install lenarise-slopguard@lenarise-slopguard -y
 Ardından \`/slop-setup\` ve Claude Code'u yeniden başlat. Doğrulamak için
 \`/slop-doctor\`.
 
+\`/slop-setup\` şunları yapar ve **var olan hiçbir dosyayı ezmez**: yapılandırma
+dosyalarını yalnızca yoksa oluşturur, durum çubuğunu kaydeder ve sessiz ölüm
+koruması kuralını \`~/.claude/CLAUDE.md\` dosyasına ekler. Kural işaretçiler
+arasına yazılır; dosyanın geri kalanına dokunulmaz ve blok silinerek temiz
+kaldırılabilir. İstemiyorsan: \`/slop-setup --skip-claude-md\`.
+
+Bu kural neden otomatik: plugin öldüğünde çalışan tek katman odur — hook'lar
+kayıtlı değilse "çalışıyor musun?" diye soracak hook da yoktur. Ayrıca durum
+çubuğu her ortamda görünmez (desktop uygulamasının Code sekmesi statusLine
+render etmiyor), yani bazı kullanıcılar için sessiz ölümü yakalayan başka
+mekanizma kalmaz.
+
 | İş | Komut |
 |---|---|
 | Güncelle | \`claude plugin update lenarise-slopguard@lenarise-slopguard\` |

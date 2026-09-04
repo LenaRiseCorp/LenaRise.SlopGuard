@@ -269,3 +269,75 @@ test('doctor başlatıcıyı tanır ve sürümlü yolu sorun sayar', () => {
     /sürümlü cache yoluna ayarlı/);
   assert.match(mk('my-own-bar'), /başka bir komuta ayarlı/);
 });
+
+// ── Canlılık kuralının CLAUDE.md'ye kurulması ───────────────────────────
+
+const BASLANGIC = '<!-- LenaRise.SlopGuard: canlılık kuralı — başlangıç -->';
+const BITIS = '<!-- LenaRise.SlopGuard: canlılık kuralı — bitiş -->';
+
+function setupHome(claudeMdContent) {
+  const c = mkdtempSync(join(tmpdir(), 'slopguard-cm-'));
+  const h = mkdtempSync(join(tmpdir(), 'slopguard-cmhome-'));
+  if (claudeMdContent !== undefined) {
+    mkdirSync(join(h, '.claude'), { recursive: true });
+    writeFileSync(join(h, '.claude/CLAUDE.md'), claudeMdContent);
+  }
+  return { c, h, md: () => readFileSync(join(h, '.claude/CLAUDE.md'), 'utf8'),
+    run: (args = []) => run('scripts/setup.mjs', args, { SLOPGUARD_CONFIG_DIR: c, HOME: h }),
+    clean: () => { rmSync(c, { recursive: true, force: true }); rmSync(h, { recursive: true, force: true }); } };
+}
+
+test('CLAUDE.md yoksa oluşturulur ve kural eklenir', () => {
+  const w = setupHome();
+  assert.match(w.run().stdout, /CLAUDE\.md oluşturuldu/);
+  assert.ok(w.md().includes(BASLANGIC) && w.md().includes(BITIS));
+  assert.match(w.md(), /heartbeat\.json/);
+  w.clean();
+});
+
+test('var olan CLAUDE.md korunur, kural sonuna eklenir', () => {
+  const w = setupHome('# Benim kurallarım\n\nTarih ISO 8601.\n');
+  assert.match(w.run().stdout, /sonuna canlılık kuralı eklendi/);
+  const md = w.md();
+  assert.match(md, /# Benim kurallarım/, 'kullanıcının içeriği korunmalı');
+  assert.match(md, /Tarih ISO 8601/);
+  assert.ok(md.indexOf('# Benim kurallarım') < md.indexOf(BASLANGIC));
+  w.clean();
+});
+
+test('ikinci çalıştırma tekrar eklemez', () => {
+  const w = setupHome('# Kurallarım\n');
+  w.run();
+  const ilk = w.md();
+  assert.match(w.run().stdout, /canlılık kuralı güncel/);
+  assert.equal(w.md(), ilk, 'dosya hiç değişmemeli');
+  assert.equal(w.md().split(BASLANGIC).length - 1, 1, 'blok bir kez bulunmalı');
+  w.clean();
+});
+
+test('eski blok tazelenirken kullanıcının metnine dokunulmaz', () => {
+  const w = setupHome(`# Üstteki metin\n\n${BASLANGIC}\nESKİ İÇERİK\n${BITIS}\n\n# Alttaki metin\n`);
+  assert.match(w.run().stdout, /tazelendi \(yalnızca işaretli blok\)/);
+  const md = w.md();
+  assert.match(md, /# Üstteki metin/);
+  assert.match(md, /# Alttaki metin/);
+  assert.doesNotMatch(md, /ESKİ İÇERİK/);
+  assert.match(md, /ui\.livenessCheck/);
+  w.clean();
+});
+
+test('--skip-claude-md ile atlanabilir', () => {
+  const w = setupHome('# Dokunma\n');
+  assert.match(w.run(['--skip-claude-md']).stdout, /atlandı/);
+  assert.equal(w.md(), '# Dokunma\n');
+  w.clean();
+});
+
+test('blok silinerek temiz kaldırılabilir', () => {
+  const w = setupHome('# Kalıcı\n');
+  w.run();
+  const md = w.md();
+  const temiz = md.slice(0, md.indexOf(BASLANGIC)) + md.slice(md.indexOf(BITIS) + BITIS.length);
+  assert.match(temiz.trim(), /^# Kalıcı$/, 'blok çıkınca geriye yalnızca kullanıcının metni kalmalı');
+  w.clean();
+});
