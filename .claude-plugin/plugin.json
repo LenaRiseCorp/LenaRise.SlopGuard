@@ -1,7 +1,7 @@
 {
   "name": "lenarise-slopguard",
   "description": "Agentic kalite koruma: slop desenlerini hook katmanında engeller, insan tarafı sinyallerini sohbette uyarı olarak verir.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "LenaRise"
   },

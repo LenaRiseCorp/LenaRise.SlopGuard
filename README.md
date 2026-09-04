@@ -7,7 +7,7 @@ Agentic geliştirmede üretilen çıktının kalitesini ve güvenliğini koruyan
 Claude Code plugin'i. Kural metni niyeti taşır, hook sınırı koyar: modelin
 atlayamayacağı yerde durur.
 
-Sürüm 0.3.0 · 33 mekanik desen · 71 taksonomi girdisi · sıfır runtime bağımlılığı.
+Sürüm 0.3.1 · 33 mekanik desen · 71 taksonomi girdisi · sıfır runtime bağımlılığı.
 
 ## Ne yapar
 
