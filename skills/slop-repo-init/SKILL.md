@@ -30,8 +30,9 @@ user and offer to merge.
 
 ## After installation
 
-1. Replace the `OWNER` placeholder in the CI template with the real GitHub
-   account. Do not guess it — ask.
+1. If the scanner repository is private, the CI job needs a read token. The
+   workflow carries a commented line showing where it goes; ask the user for the
+   secret name rather than guessing one.
 2. Point out that the git hook is not cloned. `core.hooksPath` with an in-repo
    directory can make it work for everyone; offer that.
 3. Review the `.slopignore` defaults — entries such as `vendor` and `dist` may not

@@ -7,7 +7,7 @@ A Claude Code plugin that protects the quality and safety of what gets produced
 during agentic development. Rule text carries the intent; hooks set the boundary,
 and stop where the model cannot step over.
 
-Version 0.4.0 · 33 mechanical patterns · 71 taxonomy entries · zero runtime dependencies.
+Version 0.4.1 · 33 mechanical patterns · 71 taxonomy entries · zero runtime dependencies.
 
 ## What it does
 
@@ -52,11 +52,13 @@ ledger and the lock is built in `stop-gate`.
 ## Installation
 
 ```bash
-claude plugin marketplace add OWNER/LenaRise.SlopGuard
+claude plugin marketplace add LenaRiseCorp/LenaRise.SlopGuard
 claude plugin install lenarise-slopguard@lenarise-slopguard -y
 ```
 
 Then run `/slop-setup` and restart Claude Code. To verify: `/slop-doctor`.
+
+If the repository is private, both commands need an account with access to it.
 
 `/slop-setup` does the following and **never overwrites an existing file**: it
 creates the configuration files only when they are missing, registers the status

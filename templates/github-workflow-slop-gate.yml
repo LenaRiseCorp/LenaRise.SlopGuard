@@ -25,7 +25,9 @@ jobs:
           node-version: '20'
 
       - name: Fetch the LenaRise.SlopGuard scanner
-        run: git clone --depth 1 https://github.com/OWNER/LenaRise.SlopGuard.git .slopguard-tool
+        # A private source repository needs a token with read access here:
+        #   https://x-access-token:${{ secrets.SLOPGUARD_TOKEN }}@github.com/...
+        run: git clone --depth 1 https://github.com/LenaRiseCorp/LenaRise.SlopGuard.git .slopguard-tool
 
       - name: Scan changed files
         run: node .slopguard-tool/scripts/scan-diff.mjs --base "${{ github.event.pull_request.base.sha || github.event.before }}"

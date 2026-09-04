@@ -71,7 +71,7 @@ const workflow = join(ROOT, 'templates', 'github-workflow-slop-gate.yml');
 if (existsSync(workflow)) {
   try {
     writeIfAbsent('.github/workflows/slop-gate.yml', readFileSync(workflow, 'utf8'), 'CI gate');
-    out.push('     Note: replace OWNER in the workflow with the real GitHub account.');
+    out.push('     Note: if the scanner repository is private, the CI job needs a read token.');
   } catch (error) {
     warn(`the CI template could not be read — ${error.message}`);
   }

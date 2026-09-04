@@ -15,6 +15,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, PROSE_EXTENSIONS, CODE_EXTENSIONS, categoryOf } from '../lib/patterns.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 
@@ -34,6 +35,28 @@ function emit(rel, content) {
 }
 
 const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
+
+/**
+ * The GitHub owner and repository, read from the git remote.
+ *
+ * Written by hand this was a placeholder nobody could run: the README told the
+ * reader to `marketplace add OWNER/LenaRise.SlopGuard`. Deriving it from the
+ * remote keeps the install command correct in a fork too, and falls back to the
+ * placeholder only when there really is no remote to read.
+ */
+function repoSlug() {
+  try {
+    const url = execFileSync('git', ['remote', 'get-url', 'origin'],
+      { cwd: ROOT, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    // The repository name may contain dots (LenaRise.SlopGuard), so it cannot
+    // exclude them; only a trailing .git is trimmed.
+    const m = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(url);
+    return m ? `${m[1]}/${m[2]}` : 'OWNER/LenaRise.SlopGuard';
+  } catch {
+    return 'OWNER/LenaRise.SlopGuard';
+  }
+}
+const SLUG = repoSlug();
 const SCOPE_LABEL = { code: 'source file', prose: 'text file', path: 'file path', command: 'shell command' };
 
 // ── Shared tables ────────────────────────────────────────────────────────
@@ -196,11 +219,13 @@ ledger and the lock is built in \`stop-gate\`.
 ## Installation
 
 \`\`\`bash
-claude plugin marketplace add OWNER/LenaRise.SlopGuard
+claude plugin marketplace add ${SLUG}
 claude plugin install lenarise-slopguard@lenarise-slopguard -y
 \`\`\`
 
 Then run \`/slop-setup\` and restart Claude Code. To verify: \`/slop-doctor\`.
+
+If the repository is private, both commands need an account with access to it.
 
 \`/slop-setup\` does the following and **never overwrites an existing file**: it
 creates the configuration files only when they are missing, registers the status

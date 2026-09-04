@@ -14,5 +14,5 @@ Briefly explain what each installed file does:
 - `.git/hooks/pre-commit` — runs only on this machine, and is not cloned
 - `.github/workflows/slop-gate.yml` — the real gate; it covers the whole team
 
-Tell the user to replace the `OWNER` placeholder in the CI template with the real
-GitHub account. Do not guess it — ask.
+If the scanner repository is private, tell the user the CI job needs a read token;
+the workflow has a commented line showing where it goes.
