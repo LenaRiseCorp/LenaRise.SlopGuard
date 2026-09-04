@@ -194,3 +194,15 @@ test('sur-08: ölçülmüş makine zamanını tahmin sanmaz', () => {
     assert.deepEqual(ids(found), [], line);
   }
 });
+
+test('yorumdan ibaret catch de boş catch sayılır', () => {
+  for (const body of ['try{a()}catch{ /* önemsiz */ }', 'try{a()}catch (e) {\n  // yok sayılır\n}']) {
+    const found = actionable(scanContent({ filePath: 'a.js', content: body }));
+    assert.ok(ids(found).includes('kod-05-comment-only-catch'), body);
+  }
+});
+
+test('gerçekten ele alınan catch yakalanmaz', () => {
+  const body = 'try{a()}catch (e) {\n  // ağ hatası beklenen durum\n  logger.warn(e);\n}';
+  assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body }))), []);
+});
