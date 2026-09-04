@@ -4,9 +4,11 @@
   "private": true,
   "description": "Agentic kalite koruma plugin'i — slop desenlerini makine katmanında engeller.",
   "type": "module",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
     "docs": "node scripts/gen-docs.mjs",
     "selfscan": "node scripts/selfscan.mjs"
   },
