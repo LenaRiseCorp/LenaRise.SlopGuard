@@ -14,7 +14,7 @@
 import { runHook } from '../lib/hook.mjs';
 import { recordTurn } from '../lib/session.mjs';
 import { evaluate, formatWarnings } from '../lib/coach.mjs';
-import { notify, BRAND } from '../lib/report.mjs';
+import { notify, statusMetrics, BRAND } from '../lib/report.mjs';
 import { PATTERN_COUNT } from '../lib/patterns.mjs';
 
 runHook('user-prompt', ({ config, state }) => {
@@ -27,6 +27,15 @@ runHook('user-prompt', ({ config, state }) => {
   if (config.ui.heartbeat && turn === 1) {
     const mode = config.mode === 'explore' ? 'keşif' : 'sert';
     messages.push(`etkin — ${mode} kip · ${PATTERN_COUNT} desen`);
+  }
+
+  // Periyodik durum satırı (ui.chatStatus). Desktop uygulamasının Code
+  // sekmesi statusLine render etmiyor (ölçüldü), yani orada ölçümleri pasif
+  // görmenin tek yolu bu. Varsayılan kapalı: sormadan gelen tekrarlı satır
+  // gürültüdür ve görmezden gelinen uyarı da bir slop biçimi (AGT-09).
+  const every = config.ui.chatStatus;
+  if (Number.isInteger(every) && every > 0 && turn % every === 0) {
+    messages.push(statusMetrics(state, config).join(' · '));
   }
 
   for (const warning of evaluate(state, config)) messages.push(warning.message);

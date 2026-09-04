@@ -6,7 +6,7 @@
  * asıl sözleşme stdin JSON'u ve stdout JSON'u.
  */
 
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -40,24 +40,20 @@ export function makeWorkspace() {
  */
 export function pipe(hookRelPath, payload, { cfgDir } = {}) {
   const script = join(ROOT, hookRelPath);
-  let stdout = '', stderr = '', code = 0;
-  try {
-    stdout = execFileSync(process.execPath, [script], {
-      input: JSON.stringify(payload),
-      encoding: 'utf8',
-      env: { ...process.env, SLOPGUARD_CONFIG_DIR: cfgDir },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-  } catch (error) {
-    code = error.status ?? 1;
-    stdout = error.stdout ?? '';
-    stderr = error.stderr ?? '';
-  }
+  // spawnSync, execFileSync'in aksine başarılı çıkışta da stderr veriyor.
+  // execFileSync ile stderr yalnızca hata dalında görülüyordu, yani
+  // "hata sessizce yutulmaz" iddiaları başarılı çalıştırmada sınanamıyordu.
+  const result = spawnSync(process.execPath, [script], {
+    input: JSON.stringify(payload),
+    encoding: 'utf8',
+    env: { ...process.env, SLOPGUARD_CONFIG_DIR: cfgDir },
+  });
+  const stdout = result.stdout ?? '';
   let json = null;
   if (stdout.trim() !== '') {
     try { json = JSON.parse(stdout); } catch { json = null; }
   }
-  return { code, stdout, stderr, json };
+  return { code: result.status ?? 0, stdout, stderr: result.stderr ?? '', json };
 }
 
 /** PostToolUse yükü — alan adları ölçülmüş şemaya uyar. */

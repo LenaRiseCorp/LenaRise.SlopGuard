@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync, openSync, readSync, closeSync, statSync, e
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, paths } from '../lib/config.mjs';
-import { exitWhenFlushed } from '../lib/report.mjs';
+import { exitWhenFlushed, statusMetrics } from '../lib/report.mjs';
 import { loadSession } from '../lib/session.mjs';
 import { read as readHeartbeat, ageSeconds, formatAge } from '../lib/heartbeat.mjs';
 import { findRepoRoot } from '../lib/hook.mjs';
@@ -148,20 +148,13 @@ function render(status, { config, state, beat, payload }) {
     const extra = status.detail ? ` · ${status.detail}` : '';
     return `${BRAND} ${status.label}${extra}`;
   }
-  const t = config.thresholds;
-  const added = payload?.cost?.total_lines_added ?? 0;
-  const removed = payload?.cost?.total_lines_removed ?? 0;
   const parts = [
     `${BRAND} ${status.label}`,
-    config.mode === 'explore' ? 'keşif' : 'sert',
-    `${state.blocked} engellendi`,
-    `tur ${state.turns}/${t.contextTurns}`,
-    `+${added}/-${removed}`,
-    state.testRunAt ? `test ${formatAge(Math.round((Date.now() - state.testRunAt) / 1000))}` : 'test yok',
+    ...statusMetrics(state, config, {
+      added: payload?.cost?.total_lines_added ?? 0,
+      removed: payload?.cost?.total_lines_removed ?? 0,
+    }),
   ];
-  const open = Object.keys(state.violations ?? {}).length;
-  if (open > 0) parts.push(`${open} açık ihlal`);
-  if (state.suppressions > 0) parts.push(`${state.suppressions} muafiyet`);
   void beat;
   return parts.join(' · ');
 }

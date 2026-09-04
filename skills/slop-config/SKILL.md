@@ -77,6 +77,7 @@ Bunlar tercih değil, kural:
 | `ui.cleanScans` | `"silent"` | `silent` · `summary` — temiz taramada bildirim |
 | `ui.heartbeat` | `true` | oturum başı tek satır onay |
 | `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — plugin yanıt vermediğinde davranış |
+| `ui.chatStatus` | `0` | `0` kapalı; `N` her N turda bir sohbete durum satırı. Durum çubuğunun görünmediği ortamlar için |
 <!-- /ÜRETİLEN: config-şeması -->
 
 ## patterns.local.json şeması

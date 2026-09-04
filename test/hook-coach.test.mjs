@@ -111,3 +111,36 @@ test('eski oturum dosyaları temizlenir, güncel olan korunur', () => {
   assert.equal(existsSync(sessionFile('eski')), false, '7 günden eski silinmeli');
   assert.equal(existsSync(sessionFile('yeni')), true);
 });
+
+test('chatStatus varsayılanı kapalı — sormadan gelen satır gürültüdür', () => {
+  prompt('kapali-durum'); prompt('kapali-durum'); prompt('kapali-durum');
+  assert.equal(prompt('kapali-durum').stdout, '');
+});
+
+test('chatStatus: 2 her iki turda bir durum satırı düşürür', () => {
+  ws.config({ ui: { chatStatus: 2, heartbeat: false } });
+  assert.equal(prompt('periyot').stdout, '', 'tur 1: yok');
+  assert.match(prompt('periyot').json.systemMessage, /sert · 0 engellendi · tur 2\/40/, 'tur 2: var');
+  assert.equal(prompt('periyot').stdout, '', 'tur 3: yok');
+  assert.match(prompt('periyot').json.systemMessage, /tur 4\/40/, 'tur 4: var');
+  ws.config({});
+});
+
+test('durum satırı açık ihlali ve doğrulama borcunu taşır', () => {
+  ws.config({ ui: { chatStatus: 1, heartbeat: false } });
+  seed('dolu', { turns: 0, blocked: 3, suppressions: 1, warned: [],
+    violations: { 'a.js': [{ id: 'KOD-05', line: 1, shown: 'a.js' }] } });
+  const msg = prompt('dolu').json.systemMessage;
+  assert.match(msg, /3 engellendi/);
+  assert.match(msg, /1 açık ihlal/);
+  assert.match(msg, /1 muafiyet/);
+  assert.match(msg, /test yok/);
+  ws.config({});
+});
+
+test('geçersiz chatStatus sessizce kabul edilmez', () => {
+  ws.config({ ui: { chatStatus: 'her zaman' } });
+  const r = prompt('gecersiz');
+  assert.match(r.stderr, /ui\.chatStatus: 0 veya pozitif tam sayı bekleniyordu/);
+  ws.config({});
+});

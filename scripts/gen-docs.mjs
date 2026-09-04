@@ -87,6 +87,7 @@ function configSchema() {
     cleanScans: '`silent` · `summary` — temiz taramada bildirim',
     heartbeat: 'oturum başı tek satır onay',
     livenessCheck: '`ask` · `warn` · `off` — plugin yanıt vermediğinde davranış',
+    chatStatus: '`0` kapalı; `N` her N turda bir sohbete durum satırı. Durum çubuğunun görünmediği ortamlar için',
   };
   for (const [k, v] of Object.entries(DEFAULT_CONFIG.ui)) {
     rows.push(`| \`ui.${k}\` | \`${JSON.stringify(v)}\` | ${ui[k] ?? ''} |`);

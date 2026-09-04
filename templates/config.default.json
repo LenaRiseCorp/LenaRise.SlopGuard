@@ -18,6 +18,7 @@
     "statusLine": "compact",
     "cleanScans": "silent",
     "heartbeat": true,
-    "livenessCheck": "ask"
+    "livenessCheck": "ask",
+    "chatStatus": 0
   }
 }

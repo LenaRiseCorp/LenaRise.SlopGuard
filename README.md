@@ -7,7 +7,7 @@ Agentic geliştirmede üretilen çıktının kalitesini ve güvenliğini koruyan
 Claude Code plugin'i. Kural metni niyeti taşır, hook sınırı koyar: modelin
 atlayamayacağı yerde durur.
 
-Sürüm 0.1.6 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime bağımlılığı.
+Sürüm 0.1.7 · 26 mekanik desen · 63 taksonomi girdisi · sıfır runtime bağımlılığı.
 
 ## Ne yapar
 
@@ -134,6 +134,7 @@ Birleştirme sırası: plugin varsayılanları → `config.json` → `patterns.l
 | `ui.cleanScans` | `"silent"` | `silent` · `summary` — temiz taramada bildirim |
 | `ui.heartbeat` | `true` | oturum başı tek satır onay |
 | `ui.livenessCheck` | `"ask"` | `ask` · `warn` · `off` — plugin yanıt vermediğinde davranış |
+| `ui.chatStatus` | `0` | `0` kapalı; `N` her N turda bir sohbete durum satırı. Durum çubuğunun görünmediği ortamlar için |
 
 ### patterns.local.json
 
