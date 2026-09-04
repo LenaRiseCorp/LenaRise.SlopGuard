@@ -14,10 +14,24 @@
 import { runHook } from '../lib/hook.mjs';
 import { recordTurn } from '../lib/session.mjs';
 import { evaluate, formatWarnings } from '../lib/coach.mjs';
-import { notify } from '../lib/report.mjs';
+import { notify, BRAND } from '../lib/report.mjs';
+import { PATTERN_COUNT } from '../lib/patterns.mjs';
 
 runHook('user-prompt', ({ config, state }) => {
-  recordTurn(state);
-  const warnings = evaluate(state, config);
-  if (warnings.length > 0) notify(formatWarnings(warnings));
+  const turn = recordTurn(state);
+  const messages = [];
+
+  // Oturum başı tek satır onay (ui.heartbeat). İlk turda çıkar, çünkü kayıt
+  // kanıtı ancak ilk mesajda oluşur — oturum açılışında "etkin" demek
+  // kanıtlanmamışı iddia etmek olurdu.
+  if (config.ui.heartbeat && turn === 1) {
+    const mode = config.mode === 'explore' ? 'keşif' : 'sert';
+    messages.push(`etkin — ${mode} kip · ${PATTERN_COUNT} desen`);
+  }
+
+  for (const warning of evaluate(state, config)) messages.push(warning.message);
+
+  if (messages.length > 0) {
+    notify(formatWarnings(messages.map((message) => ({ message }))));
+  }
 });

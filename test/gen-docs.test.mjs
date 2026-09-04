@@ -106,3 +106,29 @@ test('skill şema bölümleri üretilmiş içerikle dolu', () => {
   assert.match(skill, /<!-- ÜRETİLEN: desen-kataloğu -->\n\| ID \| Desen anahtarı/);
   assert.ok(skill.includes('`kod-05-empty-catch`'), 'katalog skill e de enjekte edilmeli');
 });
+
+test('belgelenen her ui ayarının bir tüketicisi var — ölü knob yok', () => {
+  const consumers = [
+    read('bin/statusline.mjs'),
+    read('hooks/post-edit.mjs'),
+    read('hooks/session-start.mjs'),
+    read('templates/claude-md-snippet.md'),
+    read('hooks/user-prompt.mjs'),
+  ].join('\n');
+  for (const key of Object.keys(DEFAULT_CONFIG.ui)) {
+    // "ui.x" ya da "ui.x" nesnesinden okuma (config.ui.x) aranıyor.
+    // Yalnızca anahtar adını aramak yanlış pozitif veriyordu: statusline.mjs
+    // içindeki readHeartbeat çağrısı ui.heartbeat sanılıyordu.
+    const re = new RegExp(`(?:config\\.)?ui[.\\[]'?${key}`);
+    assert.ok(re.test(consumers),
+      `ui.${key} belgeleniyor ama hiçbir yerde okunmuyor — kullanıcı değiştirir, hiçbir şey olmaz`);
+  }
+});
+
+test('canlılık kuralı plugin dışında yaşıyor ve ayarı okuyor', () => {
+  const snippet = read('templates/claude-md-snippet.md');
+  assert.match(snippet, /heartbeat\.json/);
+  assert.match(snippet, /ui\.livenessCheck/);
+  for (const value of ['ask', 'warn', 'off']) assert.ok(snippet.includes(`\`${value}\``), value);
+  assert.match(snippet, /aynı oturumda bir daha sorma/);
+});

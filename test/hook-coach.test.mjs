@@ -24,9 +24,21 @@ test('her kullanıcı mesajı tur sayacını artırır', () => {
   assert.equal(session('tur').turns, 3);
 });
 
-test('eşik altında uyarı çıkmaz', () => {
-  const r = prompt('sessiz');
-  assert.equal(r.stdout, '');
+test('ilk turda tek satır onay çıkar (ui.heartbeat)', () => {
+  const r = prompt('onay');
+  assert.match(r.json.systemMessage, /etkin — sert kip · \d+ desen/);
+  assert.equal(prompt('onay').stdout, '', 'ikinci turda tekrar etmez');
+});
+
+test('ui.heartbeat kapalıysa onay çıkmaz — ayar gerçekten okunuyor', () => {
+  ws.config({ ui: { heartbeat: false } });
+  assert.equal(prompt('sessiz-onay').stdout, '');
+  ws.config({});
+});
+
+test('eşik altında ve ilk tur dışında uyarı çıkmaz', () => {
+  prompt('sessiz');
+  assert.equal(prompt('sessiz').stdout, '');
 });
 
 test('kalp atışı bu oturumun kimliğiyle damgalanır — kayıt kanıtı', () => {
@@ -37,7 +49,7 @@ test('kalp atışı bu oturumun kimliğiyle damgalanır — kayıt kanıtı', ()
 });
 
 test('bağlam çürümesi eşiği sohbete uyarı düşürür (AGT-01)', () => {
-  seed('uzun', { turns: 39, warned: [] });
+  seed('uzun', { turns: 39, warned: [] });   // turn 40 olacak, ilk tur değil
   const r = prompt('uzun');
   assert.match(r.json.systemMessage, /40 tura ulaştı/);
   assert.match(r.json.systemMessage, /AGT-01/);
