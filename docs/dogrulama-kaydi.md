@@ -182,3 +182,85 @@ Bu, katmanlı tasarımın neden gerekli olduğunun somut örneği: modelin kendi
 muhakemesi çoğu zaman doğru çalışır, ama ona dayanan bir koruma modelin
 muhakemesinin bozulduğu günde de sessizce yok olur. Kapıların kanıtı bu yüzden
 boru testlerinde ve doğrudan ölçümde aranır, modelin nazik davranmasında değil.
+
+---
+
+## Kurulum provası ve kuruluma bağlı doğrulamalar
+
+Gerçek kurulum yolundan yapıldı: `LenaRiseCorp/LenaRise.SlopGuard` (private repo).
+
+### D3 — Kurulum provası
+
+| Sınanan | Sonuç |
+|---|---|
+| Private repo `marketplace add` ile eklenebiliyor mu | Evet — SSH yoksa HTTPS'e düşüyor, kullanıcının git kimliğiyle klonluyor |
+| `pixel-agents` hook'ları korunuyor mu | **Evet, 14/14 yerinde** |
+| `settings.json`'a başka ne ekleniyor | Yalnızca üç alan: `statusLine`, `enabledPlugins`, `extraKnownMarketplaces`. Diğer her şey birebir aynı |
+
+**Kurulumun ortaya çıkardığı hata:** `plugin.json` içinde `"hooks": "./hooks/hooks.json"`
+yazıyordu. Claude Code o dosyayı zaten otomatik yüklüyor; açıkça bildirmek
+`Duplicate hooks file detected` hatası veriyor ve **plugin hiç yüklenmiyor**.
+
+`claude plugin validate --strict` bunu yakalamadı: doğrulama şemayı kontrol
+ediyor, yüklemeyi simüle etmiyor. Planın "Kurulum provası" maddesinin varlık
+sebebi tam olarak bu.
+
+### D8 — Güncelleme dayanıklılığı
+
+`config.json` özelleştirildi (`disabled`, `trustedPackages`, eşik), `rules.local.md`
+yazıldı, sonra `plugin update` ve `plugin disable` çalıştırıldı.
+
+| Dosya | Güncelleme sonrası | Devre dışı bırakma sonrası |
+|---|---|---|
+| `config.json` | değişmedi (sha256 aynı) | korundu |
+| `patterns.local.json` | değişmedi | korundu |
+| `rules.local.md` | değişmedi | korundu |
+
+**Not:** `claude plugin update lenarise-slopguard` "Plugin not found" veriyor;
+komut marketplace nitelikli adı istiyor:
+`claude plugin update lenarise-slopguard@lenarise-slopguard`. README'nin sorun
+giderme tablosuna eklendi.
+
+**Güncellemenin ortaya çıkardığı hata:** `/slop-setup`, `settings.json`'a
+sürümlü cache yolu yazıyordu
+(`.../lenarise-slopguard/0.1.1/bin/statusline.mjs`). Her `plugin update` o yolu
+geçersiz kılıyor, yani çubuk sessizce kırılıyor — koruma var sanılırken bozuk
+olması, bu aracın engellemek için var olduğu durumun ta kendisi.
+
+Çözüm: kullanıcının yapılandırma dizininde yaşayan sürümden bağımsız bir
+başlatıcı. Plugin güncellemesi ona dokunmuyor; tek işi en yeni kurulu sürümü
+bulup devretmek, kurulu sürüm yoksa çubuğa "kurulu değil" yazmak.
+
+İkinci tur düzeltme gerekti: başlatıcı yazılıyordu ama `settings.json`'daki
+eski girdi "bizim" sayılıp dokunulmadan bırakılıyordu. Ayrım netleştirildi —
+girdi bizimse ve eskiyse taşınır, başkasınınsa dokunulmaz.
+
+### D9 — README yetenek testi (kullanıcının asıl şartı)
+
+Temiz bağlamlı bir oturumda tek cümle: *"LenaRise.SlopGuard'da DOK-01 desenini kapat."*
+
+| Sınanan | İlk deneme | Katalog düzeltmesinden sonra |
+|---|---|---|
+| Doğru dosyayı düzenledi mi | Evet — `~/.claude/lenarise-slopguard/config.json` | Evet |
+| Plugin cache'ine dokundu mu | Hayır | Hayır |
+| Ne kaybedildiğini doğru söyledi mi | **Hayır** — DOK-01'i "başlığa emoji koyma" sandı, o DOK-04 | **Evet** — "pazarlama dili", ve hâlâ etkin DOK desenlerini doğru saydı |
+
+İlk denemenin başarısızlığı gerçek bir belge hatasını gösterdi: desen
+kataloğunda taksonominin **kanonik adı** yoktu, yalnızca "ne yakalar" vardı.
+README'nin "bir deseni kapatırken neyi kaybettiğini söyle" kuralı, kaybedilen
+şey yanlış söylenirse pratikte çöker. Kataloga kanonik ad sütunu eklendi ve
+kural setinde DOK maddelerinin ID karşılıkları yazıldı.
+
+### D10 — Sessiz ölüm testi
+
+Plugin `claude plugin disable` ile kasten devre dışı bırakıldı.
+
+| Senaryo | Çubuk ne diyor |
+|---|---|
+| Devre dışı, kullanıcı mesaj atmamış | `SlopGuard hazır` — "canlı" demiyor, "kayıtsız" da demiyor |
+| Devre dışı, kullanıcı mesaj atmış | `SlopGuard ⚠️ kayıtsız · son damga 37 sn önce` |
+| Etkin, gerçek oturum | `SlopGuard canlı · sert · 0 engellendi · tur 1/40 · +0/-0 · test yok` |
+| Plugin tamamen kaldırılmış | `SlopGuard ⚠️ kurulu değil` (başlatıcı söylüyor) |
+
+İlk satır kasıtlı: mesaj atılmadan kayıt kanıtlanamaz, o yüzden "kayıtsız"
+iddiası da edilmiyor. Belirsizliği iki yöne de yuvarlamamak tasarımın gereği.
