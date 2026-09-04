@@ -413,7 +413,7 @@ Tek kaynak; hook'lar, `/slop-check`, semgrep şablonu ve README buradan türer.
 - **AGT** — `rm -rf` · `DROP TABLE` · `TRUNCATE` · `WHERE`'siz `DELETE FROM` · `git push --force` · `git reset --hard` · `chmod 777` · yıkıcı fiil + `prod|production`
 - **SUR** — Stop'ta değişen satır eşiği (varsayılan 400) + son test damgası
 - **SUR-08 temelsiz efor tahmini** — dokümanda `(tahmini|süre|ETA|estimate)` yakınında `\d+\s*(saat|gün|hafta|hour|day|week)` → engelle: "ölçülemeyen süre tahmini; kapsam birimine çevir"
-- **DOK** — `^#{1,6}\s+\p{Emoji}` · "robust and flexible" / "seamlessly" / "güçlü ve esnek" · `^(update|fix|improve)\s*(code|issues|stuff)?$`
+- **DOK** — `^#{1,6}\s+\p{Emoji}` · `robust and flexible` / `seamlessly` / `güçlü ve esnek` · `^(update|fix|improve)\s*(code|issues|stuff)?$`
 - **INS** — mekanik desen yok; Katman 2 eşikleriyle ölçülür
 
 ### Bilinen sınırlar (gizlenmiyor)
@@ -431,7 +431,7 @@ Kullanıcı sordu: AI kendi geliştirme hızına göre süre hesaplayabilir mi? 
 
 **Neden yapamam:** Darboğaz yazma hızı değil, **iterasyon sayısı** — kaç şeyin ters gideceğine bağlı, yani tam olarak öngörülemeyen değişkene. Kendi geçmiş oturumlarımın gerçek süresine dair geri besleme döngüm de yok.
 
-**Neden slop sayılır:** Kendinden emin, anında üretilen, doğrulanamayan çıktı; yanlış olduğunu keşfetme maliyeti ona göre plan yapan kişiye kalıyor. Mekanizması **AGT-03 sycophancy**: "2 saat sürer" hoşa gittiği için "bilmiyorum, şu üç belirsizliğe bağlı"nın önüne geçiyor. METR bulgusu insan tarafındaki kanıtı: deneyimli geliştiriciler kendi AI destekli hızlarını 39 puan yanlış tahmin etti.
+**Neden slop sayılır:** Kendinden emin, anında üretilen, doğrulanamayan çıktı; yanlış olduğunu keşfetme maliyeti ona göre plan yapan kişiye kalıyor. Mekanizması **AGT-03 sycophancy**: `2 saat sürer` hoşa gittiği için "bilmiyorum, şu üç belirsizliğe bağlı"nın önüne geçiyor. METR bulgusu insan tarafındaki kanıtı: deneyimli geliştiriciler kendi AI destekli hızlarını 39 puan yanlış tahmin etti.
 
 **Yerine ölçülebilir kapsam:**
 
