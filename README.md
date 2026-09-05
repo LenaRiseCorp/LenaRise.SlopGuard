@@ -404,6 +404,23 @@ Not hidden:
   `SLOPGUARD_TOKEN` is not there to read. The job fails rather than passing
   quietly. The leaked-secret and duplication jobs are unaffected.
 
+## Licence
+
+Apache License 2.0 — see [LICENSE](LICENSE). Copyright (c) 2026 Lena Rise.
+
+Use it, change it, ship it in a commercial product; keep the notice and say what
+you changed.
+
+What the licence does **not** grant is the name. "Lena Rise", "LenaRise",
+"SlopGuard" and "LenaRise.SlopGuard" are reserved (Apache-2.0 section 6): a fork
+under different maintenance carries a different name and does not imply
+endorsement. The code is open; the name is not.
+
+Pull requests need a signed [CLA](CLA.md) — it keeps a later licence change
+possible without tracking down every past contributor. Contributing is described
+in [CONTRIBUTING.md](CONTRIBUTING.md); vulnerabilities go through
+[SECURITY.md](SECURITY.md), never a public issue.
+
 ## Removal
 
 ```bash

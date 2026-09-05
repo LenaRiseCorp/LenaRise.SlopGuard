@@ -1,0 +1,4 @@
+# Every path needs the owner's review before it can be merged.
+# This file is what turns "one approval" into "this person's approval":
+# without it any approval satisfies the rule, including another admin's.
+* @berkkored
