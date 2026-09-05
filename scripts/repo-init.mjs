@@ -90,8 +90,29 @@ const hookTarget = join(repo, '.git', 'hooks', 'pre-commit');
 if (!existsSync(hookSource)) {
   warn('the pre-commit template was not found');
 } else if (existsSync(hookTarget)) {
-  kept('.git/hooks/pre-commit already exists, left alone');
-  out.push(`     To add ours, take the contents from: ${hookSource}`);
+  // A hook we installed ourselves is refreshed; anyone else's is left alone.
+  // Without this an old hook stayed in place forever, and a fix to the template
+  // never reached the repositories that already had it — which is how a stale
+  // hook kept running a months-old build of the scanner.
+  let existing = null;
+  try {
+    existing = readFileSync(hookTarget, 'utf8');
+  } catch (error) {
+    warn(`.git/hooks/pre-commit could not be read — ${error.message}`);
+  }
+  const ours = existing !== null && existing.includes('LenaRise.SlopGuard');
+  if (!ours) {
+    kept('.git/hooks/pre-commit belongs to something else, left alone');
+    out.push(`     To add ours, take the contents from: ${hookSource}`);
+  } else {
+    try {
+      const fresh = readFileSync(hookSource, 'utf8');
+      if (fresh === existing) kept('.git/hooks/pre-commit is current');
+      else { writeFileSync(hookTarget, fresh); chmodSync(hookTarget, 0o755); done('.git/hooks/pre-commit refreshed'); }
+    } catch (error) {
+      warn(`.git/hooks/pre-commit could not be refreshed — ${error.message}`);
+    }
+  }
 } else {
   try {
     mkdirSync(dirname(hookTarget), { recursive: true });

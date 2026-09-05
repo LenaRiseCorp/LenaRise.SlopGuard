@@ -112,3 +112,31 @@ test('--skip-ci leaves the CI workflow out', () => {
   assert.ok(existsSync(join(repo, '.git/hooks/pre-commit')));
   rmSync(repo, { recursive: true, force: true });
 });
+
+test('repo-init refreshes its own pre-commit hook but not a foreign one', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'slopguard-hook-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  const run = () => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), '--skip-ci'],
+    { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  const hook = join(repo, '.git/hooks/pre-commit');
+
+  run();
+  assert.match(run(), /pre-commit is current/, 'an unchanged hook is reported as current');
+
+  // An outdated hook of ours is refreshed.
+  writeFileSync(hook, '#!/bin/sh\n# LenaRise.SlopGuard — old version\nexit 0\n');
+  assert.match(run(), /pre-commit refreshed/);
+  assert.equal(readFileSync(hook, 'utf8'), readFileSync(join(ROOT, 'templates/pre-commit'), 'utf8'));
+
+  // Someone else's hook is never touched.
+  writeFileSync(hook, '#!/bin/sh\necho mine\n');
+  assert.match(run(), /belongs to something else, left alone/);
+  assert.equal(readFileSync(hook, 'utf8'), '#!/bin/sh\necho mine\n');
+  rmSync(repo, { recursive: true, force: true });
+});
+
+test('the pre-commit hook resolves the newest installed version', () => {
+  const body = readFileSync(join(ROOT, 'templates/pre-commit'), 'utf8');
+  assert.match(body, /sort -V/, 'without a version sort the oldest cached build wins');
+  assert.match(body, /tail -1/);
+});

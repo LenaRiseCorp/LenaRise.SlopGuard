@@ -16,12 +16,23 @@ find_scanner() {
   if [ -n "$SLOPGUARD_HOME" ] && [ -f "$SLOPGUARD_HOME/scripts/scan-staged.mjs" ]; then
     echo "$SLOPGUARD_HOME/scripts/scan-staged.mjs"; return 0
   fi
-  for dir in "$HOME"/.claude/plugins/cache/*/lenarise-slopguard/*/ \
-             "$HOME"/.claude/plugins/cache/*/lenarise-slopguard \
-             "$HOME"/.claude/skills/lenarise-slopguard; do
-    if [ -f "$dir/scripts/scan-staged.mjs" ]; then echo "$dir/scripts/scan-staged.mjs"; return 0; fi
-  done
-  return 1
+  # The newest installed version wins.
+  #
+  # The plugin cache keeps every version ever installed, and taking the first
+  # glob match pinned the hook to the oldest one — the hook kept running a build
+  # from months ago while the editor ran the current one. Sorting by version is
+  # the same fix the status line needed, for the same reason.
+  candidate=$(
+    ls -d "$HOME"/.claude/plugins/cache/*/lenarise-slopguard/*/ \
+          "$HOME"/.claude/plugins/cache/*/lenarise-slopguard \
+          "$HOME"/.claude/skills/lenarise-slopguard 2>/dev/null \
+    | while IFS= read -r dir; do
+        [ -f "${dir%/}/scripts/scan-staged.mjs" ] && echo "${dir%/}"
+      done \
+    | sort -V | tail -1
+  )
+  [ -n "$candidate" ] || return 1
+  echo "$candidate/scripts/scan-staged.mjs"
 }
 
 if ! command -v node >/dev/null 2>&1; then
