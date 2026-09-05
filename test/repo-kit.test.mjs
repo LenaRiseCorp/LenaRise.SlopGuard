@@ -140,3 +140,62 @@ test('the pre-commit hook resolves the newest installed version', () => {
   assert.match(body, /sort -V/, 'without a version sort the oldest cached build wins');
   assert.match(body, /tail -1/);
 });
+
+// ── The CI gate against a private scanner repository ─────────────────────
+
+test('the CI workflow can reach a private scanner repository', () => {
+  const body = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
+  assert.match(body, /secrets\.SLOPGUARD_TOKEN/,
+    'the built-in GITHUB_TOKEN cannot read a sibling private repository');
+  assert.match(body, /\|\| github\.token/,
+    'the fallback is what makes the same file work once the repository is public');
+  assert.match(body, /persist-credentials: false/, 'the token must not be left in .git/config');
+});
+
+test('a failed scanner fetch explains itself instead of failing cryptically', () => {
+  const body = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
+  assert.match(body, /continue-on-error: true/, 'the checkout has to be allowed to fail so we can explain it');
+  assert.match(body, /steps\.fetch\.outcome == 'failure'/);
+  assert.match(body, /gh secret set SLOPGUARD_TOKEN/, 'the message must carry the fix, not just the symptom');
+  assert.match(body, /exit 1/, 'a gate that cannot run must not report success (TEST-05)');
+});
+
+test('the workflow carries the marker repo-init refreshes on', () => {
+  // Strip the marker and every installed copy freezes forever; that is the bug
+  // that left a months-old workflow running in two repositories.
+  const body = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
+  assert.ok(body.includes('LenaRise.SlopGuard'));
+});
+
+test('repo-init refreshes its own CI workflow but not a foreign one', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'slopguard-ci-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  const run = () => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')],
+    { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  const wf = join(repo, '.github/workflows/slop-gate.yml');
+  const template = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
+
+  assert.match(run(), /slop-gate\.yml — CI gate/);
+  assert.equal(readFileSync(wf, 'utf8'), template);
+  assert.match(run(), /slop-gate\.yml is current/, 'an unchanged workflow is reported as current');
+
+  // An outdated workflow of ours is brought up to date.
+  writeFileSync(wf, 'name: slop-gate\n# LenaRise.SlopGuard — old version\n');
+  assert.match(run(), /slop-gate\.yml refreshed/);
+  assert.equal(readFileSync(wf, 'utf8'), template);
+
+  // Someone else's workflow of the same name is never touched.
+  writeFileSync(wf, 'name: slop-gate\njobs: {}\n');
+  assert.match(run(), /slop-gate\.yml belongs to something else, left alone/);
+  assert.equal(readFileSync(wf, 'utf8'), 'name: slop-gate\njobs: {}\n');
+  rmSync(repo, { recursive: true, force: true });
+});
+
+test('the token requirement is stated at install time, not only when CI fails', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'slopguard-citoken-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  const out = execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')],
+    { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  assert.match(out, /SLOPGUARD_TOKEN/);
+  rmSync(repo, { recursive: true, force: true });
+});

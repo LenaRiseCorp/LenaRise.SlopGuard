@@ -5,11 +5,15 @@
  * Claude Code hooks only cover Claude Code. The files here work whichever agent
  * writes the code: the git hook covers everyone on this machine, CI covers everyone.
  *
- * Existing files are never overwritten; doing so would quietly change the user's
- * own setup.
+ * Two policies, deliberately different:
+ *   - Files the user owns (AGENTS.md, .slopignore) are written once and never
+ *     touched again; overwriting them would quietly change the user's own setup.
+ *   - Files we own (the pre-commit hook, the CI workflow) are refreshed when they
+ *     came from us and left alone when they did not. Without that, a fix to a
+ *     template never reached the repositories that already had it.
  */
 
-import { writeFileSync, readFileSync, existsSync, mkdirSync, copyFileSync, chmodSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, chmodSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -43,6 +47,49 @@ function writeIfAbsent(rel, content, label) {
   }
 }
 
+/**
+ * Install a file we own, or refresh it when an older copy of ours is already there.
+ *
+ * Ours is recognised by the BRAND string in the body, which every template carries
+ * in a header comment. Anything else is someone's own file and is never written over.
+ */
+function installOrRefresh({ rel, source, target, label, executable = false }) {
+  if (!existsSync(source)) { warn(`the template for ${rel} was not found`); return; }
+  let fresh;
+  try {
+    fresh = readFileSync(source, 'utf8');
+  } catch (error) {
+    warn(`the template for ${rel} could not be read — ${error.message}`);
+    return;
+  }
+
+  if (existsSync(target)) {
+    let existing = null;
+    try {
+      existing = readFileSync(target, 'utf8');
+    } catch (error) {
+      warn(`${rel} could not be read — ${error.message}`);
+      return;
+    }
+    if (!existing.includes('LenaRise.SlopGuard')) {
+      kept(`${rel} belongs to something else, left alone`);
+      out.push(`     To adopt ours, take the contents from: ${source}`);
+      return;
+    }
+    if (fresh === existing) { kept(`${rel} is current`); return; }
+  }
+
+  try {
+    mkdirSync(dirname(target), { recursive: true });
+    const isNew = !existsSync(target);
+    writeFileSync(target, fresh);
+    if (executable) chmodSync(target, 0o755);
+    done(isNew ? `${rel} — ${label}` : `${rel} refreshed`);
+  } catch (error) {
+    warn(`${rel} could not be written — ${error.message}`);
+  }
+}
+
 // AGENTS.md derives from the rule set; keeping a second copy would be DOC-07.
 let baseRules = null;
 try {
@@ -67,62 +114,32 @@ writeIfAbsent('.slopignore',
   + '# Library\n# Temp\n# Builds\n# .godot\n# Binaries\n# Intermediate\n# Saved\n',
   'per-project exemption list');
 
-// --skip-ci: the CI job clones the scanner repository, so when that repository
-// is private the workflow fails on every push until a read token is configured.
-// Installing a workflow that is red from the first commit is worse than not
-// installing one, so skipping it has to be possible.
-const workflow = join(ROOT, 'templates', 'github-workflow-slop-gate.yml');
+// --skip-ci: the CI job reads the scanner from its own repository. While that
+// repository is private the job needs a SLOPGUARD_TOKEN secret, and until the
+// secret exists every push goes red. A workflow that is red from the first
+// commit is worse than no workflow, so skipping it has to be possible.
+const CI_REL = '.github/workflows/slop-gate.yml';
 if (process.argv.includes('--skip-ci')) {
   kept('CI workflow skipped (--skip-ci)');
-} else if (existsSync(workflow)) {
-  try {
-    writeIfAbsent('.github/workflows/slop-gate.yml', readFileSync(workflow, 'utf8'), 'CI gate');
-    out.push('     Note: if the scanner repository is private, the CI job needs a read token.');
-  } catch (error) {
-    warn(`the CI template could not be read — ${error.message}`);
-  }
 } else {
-  warn('the CI template was not found');
+  installOrRefresh({
+    rel: CI_REL,
+    source: join(ROOT, 'templates', 'github-workflow-slop-gate.yml'),
+    target: join(repo, CI_REL),
+    label: 'CI gate',
+  });
+  out.push('     While the scanner repository is private the CI job needs a read token:');
+  out.push('       gh secret set SLOPGUARD_TOKEN --org LenaRiseCorp --visibility all');
+  out.push('     A fine-grained token with Contents: read on the scanner repository is enough.');
 }
 
-const hookSource = join(ROOT, 'templates', 'pre-commit');
-const hookTarget = join(repo, '.git', 'hooks', 'pre-commit');
-if (!existsSync(hookSource)) {
-  warn('the pre-commit template was not found');
-} else if (existsSync(hookTarget)) {
-  // A hook we installed ourselves is refreshed; anyone else's is left alone.
-  // Without this an old hook stayed in place forever, and a fix to the template
-  // never reached the repositories that already had it — which is how a stale
-  // hook kept running a months-old build of the scanner.
-  let existing = null;
-  try {
-    existing = readFileSync(hookTarget, 'utf8');
-  } catch (error) {
-    warn(`.git/hooks/pre-commit could not be read — ${error.message}`);
-  }
-  const ours = existing !== null && existing.includes('LenaRise.SlopGuard');
-  if (!ours) {
-    kept('.git/hooks/pre-commit belongs to something else, left alone');
-    out.push(`     To add ours, take the contents from: ${hookSource}`);
-  } else {
-    try {
-      const fresh = readFileSync(hookSource, 'utf8');
-      if (fresh === existing) kept('.git/hooks/pre-commit is current');
-      else { writeFileSync(hookTarget, fresh); chmodSync(hookTarget, 0o755); done('.git/hooks/pre-commit refreshed'); }
-    } catch (error) {
-      warn(`.git/hooks/pre-commit could not be refreshed — ${error.message}`);
-    }
-  }
-} else {
-  try {
-    mkdirSync(dirname(hookTarget), { recursive: true });
-    copyFileSync(hookSource, hookTarget);
-    chmodSync(hookTarget, 0o755);
-    done('.git/hooks/pre-commit — scanning at the git level');
-  } catch (error) {
-    warn(`pre-commit could not be installed — ${error.message}`);
-  }
-}
+installOrRefresh({
+  rel: '.git/hooks/pre-commit',
+  source: join(ROOT, 'templates', 'pre-commit'),
+  target: join(repo, '.git', 'hooks', 'pre-commit'),
+  label: 'scanning at the git level',
+  executable: true,
+});
 
 out.push('');
 out.push('  The git hook runs only on your machine and is not cloned.');

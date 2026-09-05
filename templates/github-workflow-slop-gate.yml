@@ -1,5 +1,9 @@
 name: slop-gate
 
+# LenaRise.SlopGuard — installed by /slop-repo-init.
+# A later /slop-repo-init refreshes this file; edit it and it will be overwritten.
+# Rename the file (or delete the line above) to take it over yourself.
+#
 # The repository layer: whichever agent wrote the code, it stops here.
 # Claude Code hooks covered only Claude Code; this workflow covers everyone.
 
@@ -24,10 +28,43 @@ jobs:
         with:
           node-version: '20'
 
+      # The scanner lives in its own repository. While that repository is
+      # private, the runner's built-in GITHUB_TOKEN cannot read it — it is
+      # scoped to this repository alone — so a read token has to be supplied.
+      # Once the scanner repository is public the fallback below works with no
+      # secret at all, and this step needs no editing.
       - name: Fetch the LenaRise.SlopGuard scanner
-        # A private source repository needs a token with read access here:
-        #   https://x-access-token:${{ secrets.SLOPGUARD_TOKEN }}@github.com/...
-        run: git clone --depth 1 https://github.com/LenaRiseCorp/LenaRise.SlopGuard.git .slopguard-tool
+        id: fetch
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: LenaRiseCorp/LenaRise.SlopGuard
+          token: ${{ secrets.SLOPGUARD_TOKEN || github.token }}
+          path: .slopguard-tool
+          persist-credentials: false
+
+      # A failed fetch must say what to do. Left to itself the checkout reports
+      # "repository not found", which is what a private repository looks like to
+      # an unauthorised caller and sends the reader hunting for the wrong bug.
+      - name: Explain a failed fetch
+        if: steps.fetch.outcome == 'failure'
+        run: |
+          echo "::error title=SlopGuard scanner could not be fetched::LenaRiseCorp/LenaRise.SlopGuard is private and no usable read token was supplied."
+          echo "The pattern scan needs read access to the scanner repository."
+          echo
+          echo "One-time setup:"
+          echo "  1. Create a fine-grained personal access token with Contents: read"
+          echo "     on LenaRiseCorp/LenaRise.SlopGuard."
+          echo "  2. Store it as a secret named SLOPGUARD_TOKEN."
+          echo "     For every repository at once (needs organisation admin):"
+          echo "       gh secret set SLOPGUARD_TOKEN --org LenaRiseCorp --visibility all"
+          echo "     For this repository only:"
+          echo "       gh secret set SLOPGUARD_TOKEN --repo ${{ github.repository }}"
+          echo
+          echo "If SLOPGUARD_TOKEN is already set, the token has expired or lost"
+          echo "Contents: read on the scanner repository. A fine-grained token also"
+          echo "has to be approved by the organisation before it works."
+          exit 1
 
       - name: Scan changed files
         run: node .slopguard-tool/scripts/scan-diff.mjs --base "${{ github.event.pull_request.base.sha || github.event.before }}"

@@ -16,8 +16,10 @@ also working in the same repository, hooks do not see them. A git hook and CI do
 node "${CLAUDE_PLUGIN_ROOT}/scripts/repo-init.mjs"
 ```
 
-Existing files are not overwritten. If a file is reported as left alone, tell the
-user and offer to merge.
+`AGENTS.md` and `.slopignore` are written once and never touched again. The
+pre-commit hook and the CI workflow are ours to keep current: an older copy of
+ours is refreshed, and a file that is not ours is reported as left alone — tell
+the user and offer to merge.
 
 ## What gets installed
 
@@ -30,9 +32,12 @@ user and offer to merge.
 
 ## After installation
 
-1. If the scanner repository is private, the CI job needs a read token. The
-   workflow carries a commented line showing where it goes; ask the user for the
-   secret name rather than guessing one.
+1. While the scanner repository is private the CI job needs a read token in a
+   secret named `SLOPGUARD_TOKEN` (`Contents: read` on the scanner repository).
+   Until it exists the Pattern scan job fails on purpose — a gate that cannot run
+   must not report green. The failure log carries the exact command:
+   `gh secret set SLOPGUARD_TOKEN --org <org> --visibility all`. Give the user
+   that command; do not create or handle the token yourself.
 2. Point out that the git hook is not cloned. `core.hooksPath` with an in-repo
    directory can make it work for everyone; offer that.
 3. Review the `.slopignore` defaults — entries such as `vendor` and `dist` may not

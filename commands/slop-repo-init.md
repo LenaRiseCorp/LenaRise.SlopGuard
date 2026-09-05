@@ -14,5 +14,11 @@ Briefly explain what each installed file does:
 - `.git/hooks/pre-commit` — runs only on this machine, and is not cloned
 - `.github/workflows/slop-gate.yml` — the real gate; it covers the whole team
 
-If the scanner repository is private, tell the user the CI job needs a read token;
-the workflow has a commented line showing where it goes.
+`AGENTS.md` and `.slopignore` are written once and then belong to the user. The
+hook and the workflow are refreshed on every run when they are ours, and left
+alone when they are not — say which happened.
+
+While the scanner repository is private the CI job needs a `SLOPGUARD_TOKEN`
+secret with `Contents: read` on it. Until that secret exists the Pattern scan job
+fails on purpose; the failure prints the `gh secret set` command to run. Pass on
+that command rather than creating a token yourself.

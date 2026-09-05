@@ -385,6 +385,47 @@ inherit each other's exemptions.
 That makes it possible to scan a parent directory holding several projects in one
 call, rather than entering each repository separately.
 
+#### The repository layer
+
+\`/slop-repo-init\` installs four files under two different policies:
+
+| File | Policy |
+|---|---|
+| \`AGENTS.md\` | Written once, then yours |
+| \`.slopignore\` | Written once, then yours |
+| \`.git/hooks/pre-commit\` | Refreshed on every run — if it is ours |
+| \`.github/workflows/slop-gate.yml\` | Refreshed on every run — if it is ours |
+
+The last two carry a \`LenaRise.SlopGuard\` header line. A file without that line
+belongs to someone else and is never written over; the command says so and prints
+the path to copy from. Without the distinction a fix to a template never reaches
+the repositories that already hold an older copy — which is how a months-old
+workflow kept running long after it was corrected.
+
+\`--skip-ci\` leaves the workflow out.
+
+#### CI while the scanner repository is private
+
+The workflow reads the scanner from its own repository. A runner's built-in
+\`GITHUB_TOKEN\` is scoped to the repository being built and cannot read a private
+sibling, so a read token is supplied once:
+
+\`\`\`bash
+gh secret set SLOPGUARD_TOKEN --org ${SLUG.split('/')[0]} --visibility all
+\`\`\`
+
+A fine-grained token with \`Contents: read\` on the scanner repository is enough,
+and an organisation secret covers every repository at once.
+
+Until that secret exists the **Pattern scan** job fails. That is deliberate: a
+gate that cannot run must not report success (TEST-05). It fails with the command
+above in the log rather than a bare "repository not found", which is what a
+private repository looks like to an unauthorised caller. The other two jobs —
+leaked secrets and duplication — need no token and keep working.
+
+Once the scanner repository is public the workflow falls back to \`GITHUB_TOKEN\`
+on its own; the secret can be deleted and the file needs no editing.
+
 ### Status line
 
 Saying \`live\` requires two separate proofs: the heartbeat stamp carries this
