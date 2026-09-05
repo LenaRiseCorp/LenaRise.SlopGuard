@@ -28,11 +28,11 @@ jobs:
         with:
           node-version: '20'
 
-      # The scanner lives in its own repository. While that repository is
-      # private, the runner's built-in GITHUB_TOKEN cannot read it — it is
-      # scoped to this repository alone — so a read token has to be supplied.
-      # Once the scanner repository is public the fallback below works with no
-      # secret at all, and this step needs no editing.
+      # The scanner lives in its own repository, which is public, so the
+      # runner's built-in GITHUB_TOKEN reads it and no secret is needed.
+      # SLOPGUARD_TOKEN stays in the expression for the other case: a private
+      # fork of the scanner, where GITHUB_TOKEN is scoped to the repository
+      # being built and cannot reach a private sibling.
       - name: Fetch the LenaRise.SlopGuard scanner
         id: fetch
         continue-on-error: true
@@ -49,10 +49,10 @@ jobs:
       - name: Explain a failed fetch
         if: steps.fetch.outcome == 'failure'
         run: |
-          echo "::error title=SlopGuard scanner could not be fetched::LenaRiseCorp/LenaRise.SlopGuard is private and no usable read token was supplied."
+          echo "::error title=SlopGuard scanner could not be fetched::LenaRiseCorp/LenaRise.SlopGuard could not be read. It is public, so this usually means a network or outage problem — or you are pointing at a private fork."
           echo "The pattern scan needs read access to the scanner repository."
           echo
-          echo "One-time setup:"
+          echo "If you are using a PRIVATE fork of the scanner, it needs a read token:"
           echo "  1. Create a fine-grained personal access token with Contents: read"
           echo "     on LenaRiseCorp/LenaRise.SlopGuard."
           echo "  2. Store it as a secret named SLOPGUARD_TOKEN."
