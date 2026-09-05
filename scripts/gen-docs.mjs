@@ -404,27 +404,30 @@ workflow kept running long after it was corrected.
 
 \`--skip-ci\` leaves the workflow out.
 
-#### CI while the scanner repository is private
+#### CI and the scanner repository
 
-The workflow reads the scanner from its own repository. A runner's built-in
-\`GITHUB_TOKEN\` is scoped to the repository being built and cannot read a private
-sibling, so a read token is supplied once:
+The workflow reads the scanner from this repository. It is public, so a runner's
+built-in \`GITHUB_TOKEN\` can read it and **no secret is needed**.
 
-\`\`\`bash
-gh secret set SLOPGUARD_TOKEN --org ${SLUG.split('/')[0]} --visibility all
+Both inputs are variables, so a private fork of the scanner works too:
+
+\`\`\`yaml
+repository: \${{ vars.SLOPGUARD_REPO || 'LenaRiseCorp/LenaRise.SlopGuard' }}
+token: \${{ secrets.SLOPGUARD_TOKEN || github.token }}
 \`\`\`
 
-A fine-grained token with \`Contents: read\` on the scanner repository is enough,
-and an organisation secret covers every repository at once.
+A token on its own would not be enough — it authenticates the checkout, it does
+not change which repository is checked out. That is why a private fork needs the
+pair, set together:
 
-Until that secret exists the **Pattern scan** job fails. That is deliberate: a
-gate that cannot run must not report success (TEST-05). It fails with the command
-above in the log rather than a bare "repository not found", which is what a
-private repository looks like to an unauthorised caller. The other two jobs —
-leaked secrets and duplication — need no token and keep working.
+\`\`\`bash
+gh variable set SLOPGUARD_REPO --body '<owner>/<fork>' --org <org>
+gh secret   set SLOPGUARD_TOKEN --org <org> --visibility all
+\`\`\`
 
-Once the scanner repository is public the workflow falls back to \`GITHUB_TOKEN\`
-on its own; the secret can be deleted and the file needs no editing.
+When the fetch fails the job stops and prints those commands rather than the bare
+"repository not found" a private repository returns to an unauthorised caller. A
+gate that cannot run must not report success (TEST-05).
 
 ### Status line
 
@@ -513,10 +516,9 @@ Not hidden:
   are invisible. \`/slop-check\`, \`/slop-status\`, the pre-commit hook and CI close
   that gap with a live scan.
 - Package verification needs the network and fails closed on timeout.
-- While the scanner repository is private, the CI pattern scan cannot run on a
-  pull request from a fork: GitHub does not pass secrets to fork workflows, so
-  \`SLOPGUARD_TOKEN\` is not there to read. The job fails rather than passing
-  quietly. The leaked-secret and duplication jobs are unaffected.
+- If you fork this project privately, the CI pattern scan cannot run on a pull
+  request from a fork of your fork: GitHub does not pass secrets to fork
+  workflows. It does not apply to this repository, which is public.
 
 ## Licence
 
