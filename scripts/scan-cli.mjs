@@ -14,7 +14,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { scanFiles } from '../lib/scan.mjs';
+import { scanFiles, protectedPathReason } from '../lib/scan.mjs';
 import { loadConfig, isPathIgnored, parseSlopignore } from '../lib/config.mjs';
 import { formatFinding, BRAND } from '../lib/report.mjs';
 
@@ -183,10 +183,27 @@ export function runScan(files, root, label) {
     },
   });
 
+  // The protected-path lock lived only in the hooks, so it covered Claude Code
+  // and nothing else. Cursor, Copilot, a shell script or a person could change
+  // CI config, a lockfile or an engine-generated file and no layer said a word.
+  // Reported, not blocked: at this layer we cannot tell who made the change, and
+  // a person editing their own CI is doing nothing wrong. The rule was always
+  // about visibility.
+  const protectedTouched = files
+    .map((rel) => [rel, protectedPathReason(rel)])
+    .filter(([, why]) => why);
+  const noteProtected = () => {
+    if (protectedTouched.length === 0) return;
+    process.stdout.write(`\n${BRAND}: ${protectedTouched.length} protected file(s) in this change\n`);
+    for (const [rel, why] of protectedTouched) process.stdout.write(`  ${rel}\n        ${why}\n`);
+    process.stdout.write('  Intended? Carry on. Written by an agent? Read it before it lands.\n');
+  };
+
   if (total === 0) {
     process.stdout.write(`${BRAND}: ${scanned} file(s) scanned (${label}) · clean`);
     if (suppressed > 0) process.stdout.write(` · ${suppressed} reasoned waiver(s)`);
     process.stdout.write('\n');
+    noteProtected();
     return 0;
   }
 
@@ -198,5 +215,6 @@ export function runScan(files, root, label) {
   }
   process.stdout.write('Fix them, or write a reasoned inline waiver:\n');
   process.stdout.write('  // slop-guard-ignore <ID>: why this line has to stay as it is\n');
+  noteProtected();
   return 1;
 }

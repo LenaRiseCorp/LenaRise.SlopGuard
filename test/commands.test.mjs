@@ -138,3 +138,45 @@ test('commands that write nothing produce no targets', () => {
     assert.deepEqual(writeTargets(c), [], c);
   }
 });
+
+// ── Interpreter one-liners ───────────────────────────────────────────────
+
+test('a write through an interpreter one-liner is seen', () => {
+  // Measured against the live hook: `sh -c 'echo x > f'` was refused while the
+  // python form passed, although the path is in plain sight in both. The shell
+  // redirection parser simply never saw it.
+  const target = ['.github', 'workflows', 'ci.yml'].join('/');
+  for (const command of [
+    `python3 -c "open('${target}','w').write(1)"`,
+    `node -e "require('fs').writeFileSync('${target}','x')"`,
+    `ruby -e "File.write('${target}', 'x')"`,
+    `python3 -c "import os; os.unlink('${target}')"`,
+  ]) {
+    assert.ok(writeTargets(command).includes(target), command);
+  }
+});
+
+test('reading through an interpreter is not a write', () => {
+  const target = ['conf', 'app.yml'].join('/');
+  assert.deepEqual(writeTargets(`python3 -c "print(open('${target}').read())"`), [],
+    'blocking a read would be a false positive with no upside');
+  assert.deepEqual(writeTargets('python3 -c "print(1+1)"'), []);
+});
+
+test('-c and -e belonging to other commands are left alone', () => {
+  for (const command of [
+    'git commit -m "save conf/app.yml"',
+    'grep -c "write to logs/out.txt" file.txt',
+    'sort -c data/list.txt',
+    'docker run -e "PATH=/usr/bin" img',
+  ]) {
+    assert.deepEqual(writeTargets(command), [], command);
+  }
+});
+
+test('a quoted semicolon does not hide half the one-liner', () => {
+  // commandSegments splits on ';' without regard for quoting, so reading per
+  // segment lost the half that names the file.
+  const target = ['data', 'store.db'].join('/');
+  assert.ok(writeTargets(`python3 -c "import os; os.remove('${target}')"`).includes(target));
+});

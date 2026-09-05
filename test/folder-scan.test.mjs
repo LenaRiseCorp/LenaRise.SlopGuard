@@ -133,3 +133,23 @@ test('a file that is new and not ignored is still scanned', () => {
   assert.ok(walkFiles(base).some((f) => f.endsWith('proje-b/src/yeni.js')));
   rmSync(fresh, { force: true });
 });
+
+test('a protected file in the change is reported at the git layer too', () => {
+  // The lock lived only in pre-edit and pre-bash, so it covered Claude Code and
+  // nothing else: Cursor, a script or a person could change CI config and no
+  // layer said a word. Reported rather than blocked — here we cannot tell who
+  // made the change, and a person editing their own CI is doing nothing wrong.
+  const proj = join(base, 'korumali');
+  mkdirSync(join(proj, '.github/workflows'), { recursive: true });
+  writeFileSync(join(proj, '.github/workflows/ci.yml'), 'name: ci\non: [push]\n');
+  const r = runCheck(base);
+  assert.match(r.stdout, /protected file\(s\) in this change/);
+  assert.match(r.stdout, /korumali\/\.github\/workflows\/ci\.yml/);
+  assert.match(r.stdout, /CI configuration/);
+  rmSync(proj, { recursive: true, force: true });
+});
+
+test('a change with no protected file says nothing about them', () => {
+  assert.doesNotMatch(runCheck(base).stdout, /protected file\(s\)/,
+    'a notice that appears every time is a notice nobody reads');
+});
