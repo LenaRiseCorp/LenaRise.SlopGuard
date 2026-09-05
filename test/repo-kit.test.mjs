@@ -217,3 +217,15 @@ test('the token requirement is stated at install time, not only when CI fails', 
   assert.match(out, /SLOPGUARD_TOKEN/);
   rmSync(repo, { recursive: true, force: true });
 });
+
+test('the secret scan does not depend on a licensed action', () => {
+  // gitleaks-action stops with "missing gitleaks license" on an organisation
+  // account, so the job went red for a billing reason in every org repository.
+  // A permanently red gate teaches people to ignore the gate.
+  const body = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
+  assert.doesNotMatch(body, /gitleaks\/gitleaks-action/,
+    'the action requires a paid licence for organisations');
+  assert.match(body, /releases\/download\/v\$\{GITLEAKS_VERSION\}/, 'the MIT-licensed binary is used instead');
+  assert.match(body, /--exit-code 1/, 'a found secret must fail the job');
+  assert.match(body, /GITLEAKS_VERSION: '\d+\.\d+\.\d+'/, 'the version is pinned, not latest');
+});
