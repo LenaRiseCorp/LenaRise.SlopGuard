@@ -107,3 +107,29 @@ test('a clean folder is reported as clean', () => {
   assert.match(r.stdout, /clean/);
   rmSync(clean, { recursive: true, force: true });
 });
+
+test('a repository is asked, not walked — what it ignores is not scanned', () => {
+  // Folder mode used to walk everything SKIP_DIRS did not name. In one real
+  // repository that meant 1139 files where git tracks 122: Electron build
+  // output, installer binaries and vendored copies. Slow, and a false-positive
+  // farm — those files are not what the patterns are written for.
+  const repo = join(base, 'proje-a');
+  writeFileSync(join(repo, '.gitignore'), 'olusan/\n');
+  mkdirSync(join(repo, 'olusan'), { recursive: true });
+  writeFileSync(join(repo, 'olusan/derlenmis.js'), 'try{}catch(e){}\n');
+
+  const walked = walkFiles(base);
+  assert.equal(walked.some((f) => f.includes('olusan/')), false, 'gitignored dosya taranmamalı');
+  assert.ok(walked.some((f) => f.endsWith('proje-a/src/a.js')), 'izlenen dosya hâlâ bulunmalı');
+  rmSync(join(repo, '.gitignore'), { force: true });
+  rmSync(join(repo, 'olusan'), { recursive: true, force: true });
+});
+
+test('a file that is new and not ignored is still scanned', () => {
+  // git ls-files alone would miss it, and a file just written is the one most
+  // worth scanning.
+  const fresh = join(base, 'proje-b/src/yeni.js');
+  writeFileSync(fresh, 'try{ x() }catch(e){}\n');
+  assert.ok(walkFiles(base).some((f) => f.endsWith('proje-b/src/yeni.js')));
+  rmSync(fresh, { force: true });
+});
