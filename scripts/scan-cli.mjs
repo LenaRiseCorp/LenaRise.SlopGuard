@@ -47,11 +47,60 @@ const SKIP_DIRS = new Set([
 ]);
 
 /**
- * Walks the filesystem. Because it does not use git it also works in a folder
- * holding several repositories; every nested `.slopignore` applies to its own subtree.
+ * Walks the filesystem, so it works in a folder holding several repositories.
+ * Every nested `.slopignore` applies to its own subtree.
+ *
+ * A repository is listed with git instead of being walked — tracked files plus
+ * new ones, minus what the project ignores.
+ * Without that, everything the project ignores gets scanned: in one repository
+ * the walk found 1139 files where git tracks 122, the rest being Electron build
+ * output and installer binaries, and a scan that should take a moment took a
+ * minute. Ignored files are also a false-positive farm — minified bundles and
+ * vendored copies are exactly what the patterns are not written for.
  */
 export function walkFiles(root, { maxFiles = 20000 } = {}) {
   const found = [];
+
+  /** A .slopignore in this directory applies to the whole subtree below it. */
+  const withLocalIgnore = (dir, rules) => {
+    const ignoreFile = join(dir, '.slopignore');
+    if (!existsSync(ignoreFile)) return rules;
+    try {
+      return [...rules, ...parseSlopignore(readFileSync(ignoreFile, 'utf8')).map((r) => ({ ...r, base: dir }))];
+    } catch (error) {
+      process.stderr.write(`${BRAND}: .slopignore could not be read ${relative(root, ignoreFile)} — ${error.message}\n`);
+      return rules;
+    }
+  };
+
+  /**
+   * A repository is asked, not walked: git already knows what it ignores.
+   * Reimplementing .gitignore would mean reimplementing its negations and
+   * anchoring too, and a partial version would silently skip files that should
+   * be scanned. Returns false when this directory is not a repository.
+   */
+  const takeTracked = (dir, rules) => {
+    if (!existsSync(join(dir, '.git'))) return false;
+    // --others --exclude-standard: tracked files AND new ones, minus what the
+    // project ignores. Plain `ls-files` would miss a file just created, which is
+    // exactly the file most worth scanning.
+    const tracked = gitFiles(['ls-files', '--cached', '--others', '--exclude-standard'], dir);
+    if (!tracked) return false;
+    // The repository's own .slopignore still applies; git does not know about it.
+    const active = withLocalIgnore(dir, rules);
+    for (const rel of tracked) {
+      // SKIP_DIRS is not only noise reduction — Unity's Library directory alone
+      // can hold hundreds of thousands of files. A repository that does not
+      // ignore node_modules must not drag it into the scan either.
+      if (rel.split('/').some((segment) => SKIP_DIRS.has(segment))) continue;
+      const abs = join(dir, rel);
+      if (active.some((rule) => rule.re.test(relative(rule.base, abs).split('\\').join('/')))) continue;
+      found.push(relative(root, abs));
+      if (found.length >= maxFiles) return true;
+    }
+    return true;
+  };
+
   const walk = (dir, rules) => {
     if (found.length >= maxFiles) return;
     let entries;
@@ -62,28 +111,23 @@ export function walkFiles(root, { maxFiles = 20000 } = {}) {
       return;
     }
 
-    // A .slopignore in this directory applies to the whole subtree below it.
-    let active = rules;
-    const ignoreFile = join(dir, '.slopignore');
-    if (existsSync(ignoreFile)) {
-      try {
-        active = [...rules, ...parseSlopignore(readFileSync(ignoreFile, 'utf8')).map((r) => ({ ...r, base: dir }))];
-      } catch (error) {
-        process.stderr.write(`${BRAND}: .slopignore could not be read ${relative(root, ignoreFile)} — ${error.message}\n`);
-      }
-    }
+    const active = withLocalIgnore(dir, rules);
 
     for (const entry of entries) {
       if (SKIP_DIRS.has(entry.name)) continue;
       const full = join(dir, entry.name);
       const ignored = active.some((rule) => rule.re.test(relative(rule.base, full).split('\\').join('/')));
       if (ignored) continue;
-      if (entry.isDirectory()) walk(full, active);
-      else if (entry.isFile()) found.push(relative(root, full));
+      if (entry.isDirectory()) {
+        if (!takeTracked(full, active)) walk(full, active);
+      } else if (entry.isFile()) found.push(relative(root, full));
       if (found.length >= maxFiles) return;
     }
   };
-  walk(root, []);
+  // The root may itself be a repository — reached by a path argument, or by
+  // scanning one directly. Walking it would scan everything it ignores.
+  const rootRules = withLocalIgnore(root, []);
+  if (!takeTracked(root, rootRules)) walk(root, rootRules);
   return found;
 }
 
