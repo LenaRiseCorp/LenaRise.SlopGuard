@@ -12,7 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
-import { runHook, editedPath, linesChanged } from '../lib/hook.mjs';
+import { runHook, editedPath, linesChanged, isInsideRepo } from '../lib/hook.mjs';
 import { scanContent, actionable, classify } from '../lib/scan.mjs';
 import { isPathIgnored } from '../lib/config.mjs';
 import { recordWrite, recordViolations } from '../lib/session.mjs';
@@ -25,7 +25,10 @@ runHook('post-edit', ({ payload, config, state, repoRoot }) => {
   const shown = repoRoot ? relative(repoRoot, filePath) : filePath;
 
   const { added, removed } = linesChanged(payload.tool_response, payload.tool_input);
-  recordWrite(state, filePath, { added, removed, isCode: classify(filePath) === 'code' });
+  recordWrite(state, filePath, {
+    added, removed, isCode: classify(filePath) === 'code',
+    inRepo: isInsideRepo(filePath, repoRoot),
+  });
 
   if (isPathIgnored(config, filePath, repoRoot)) return;
   if (classify(filePath) === 'other') return;
