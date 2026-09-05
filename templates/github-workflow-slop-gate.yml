@@ -28,17 +28,19 @@ jobs:
         with:
           node-version: '20'
 
-      # The scanner lives in its own repository. While that repository is
-      # private, the runner's built-in GITHUB_TOKEN cannot read it — it is
-      # scoped to this repository alone — so a read token has to be supplied.
-      # Once the scanner repository is public the fallback below works with no
-      # secret at all, and this step needs no editing.
+      # The scanner lives in its own repository, which is public, so the
+      # runner's built-in GITHUB_TOKEN reads it and no secret is needed.
+      #
+      # Both inputs are variables so that a private fork actually works. A token
+      # alone would not have been enough: it authenticates the checkout, it does
+      # not change which repository is checked out. Point SLOPGUARD_REPO at the
+      # fork and SLOPGUARD_TOKEN at a token with Contents: read on it.
       - name: Fetch the LenaRise.SlopGuard scanner
         id: fetch
         continue-on-error: true
         uses: actions/checkout@v4
         with:
-          repository: LenaRiseCorp/LenaRise.SlopGuard
+          repository: ${{ vars.SLOPGUARD_REPO || 'LenaRiseCorp/LenaRise.SlopGuard' }}
           token: ${{ secrets.SLOPGUARD_TOKEN || github.token }}
           path: .slopguard-tool
           persist-credentials: false
@@ -49,21 +51,22 @@ jobs:
       - name: Explain a failed fetch
         if: steps.fetch.outcome == 'failure'
         run: |
-          echo "::error title=SlopGuard scanner could not be fetched::LenaRiseCorp/LenaRise.SlopGuard is private and no usable read token was supplied."
+          echo "::error title=SlopGuard scanner could not be fetched::${{ vars.SLOPGUARD_REPO || 'LenaRiseCorp/LenaRise.SlopGuard' }} could not be read."
           echo "The pattern scan needs read access to the scanner repository."
           echo
-          echo "One-time setup:"
-          echo "  1. Create a fine-grained personal access token with Contents: read"
-          echo "     on LenaRiseCorp/LenaRise.SlopGuard."
-          echo "  2. Store it as a secret named SLOPGUARD_TOKEN."
-          echo "     For every repository at once (needs organisation admin):"
-          echo "       gh secret set SLOPGUARD_TOKEN --org LenaRiseCorp --visibility all"
-          echo "     For this repository only:"
-          echo "       gh secret set SLOPGUARD_TOKEN --repo ${{ github.repository }}"
+          echo "The upstream scanner is public, so this is normally a network or"
+          echo "outage problem and a re-run fixes it."
           echo
-          echo "If SLOPGUARD_TOKEN is already set, the token has expired or lost"
-          echo "Contents: read on the scanner repository. A fine-grained token also"
-          echo "has to be approved by the organisation before it works."
+          echo "If you point SLOPGUARD_REPO at a PRIVATE fork, it also needs a token:"
+          echo "  1. Create a fine-grained token with Contents: read on that fork."
+          echo "  2. gh variable set SLOPGUARD_REPO --body '<owner>/<fork>' --org <org>"
+          echo "  3. gh secret set SLOPGUARD_TOKEN --org <org> --visibility all"
+          echo "     (or --repo ${{ github.repository }} for this repository alone)"
+          echo
+          echo "A token alone is not enough: it authenticates the checkout, it does"
+          echo "not change which repository is checked out. Set both, or neither."
+          echo
+          echo "A fine-grained token must also be approved by the organisation."
           exit 1
 
       - name: Scan changed files

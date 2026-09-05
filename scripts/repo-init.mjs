@@ -128,9 +128,9 @@ if (process.argv.includes('--skip-ci')) {
     target: join(repo, CI_REL),
     label: 'CI gate',
   });
-  out.push('     While the scanner repository is private the CI job needs a read token:');
-  out.push('       gh secret set SLOPGUARD_TOKEN --org LenaRiseCorp --visibility all');
-  out.push('     A fine-grained token with Contents: read on the scanner repository is enough.');
+  out.push('     The scanner repository is public, so the CI job needs no secret.');
+  out.push('     A private fork of it needs both SLOPGUARD_REPO and SLOPGUARD_TOKEN;');
+  out.push('     a token alone does not change which repository is checked out.');
 }
 
 installOrRefresh({

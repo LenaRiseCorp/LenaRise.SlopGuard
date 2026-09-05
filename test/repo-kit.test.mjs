@@ -143,13 +143,31 @@ test('the pre-commit hook resolves the newest installed version', () => {
 
 // ── The CI gate against a private scanner repository ─────────────────────
 
-test('the CI workflow can reach a private scanner repository', () => {
+test('the CI workflow can reach a private fork of the scanner', () => {
   const body = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
   assert.match(body, /secrets\.SLOPGUARD_TOKEN/,
-    'the built-in GITHUB_TOKEN cannot read a sibling private repository');
+    'the built-in GITHUB_TOKEN cannot read a private repository it is not scoped to');
   assert.match(body, /\|\| github\.token/,
-    'the fallback is what makes the same file work once the repository is public');
+    'the fallback is what lets the same file work against the public upstream');
   assert.match(body, /persist-credentials: false/, 'the token must not be left in .git/config');
+
+  // The earlier version of this test asserted the token and stopped there, so it
+  // passed while `repository:` was still a hard-coded slug — a token authenticates
+  // a checkout, it does not choose what is checked out. Both inputs, or the
+  // private-fork claim in the documentation is false (DOC-07).
+  assert.match(body, /repository: \$\{\{ vars\.SLOPGUARD_REPO \|\|/,
+    'a token without a configurable slug still checks out the public upstream');
+  assert.doesNotMatch(body, /^\s*repository: [\w.-]+\/[\w.-]+\s*$/m,
+    'a bare slug leaves no way to point at a fork');
+});
+
+test('the private-fork path is documented as a pair, never as a token alone', () => {
+  for (const rel of ['README.md', 'commands/slop-repo-init.md', 'skills/slop-repo-init/SKILL.md']) {
+    const body = readFileSync(join(ROOT, rel), 'utf8');
+    if (!body.includes('SLOPGUARD_TOKEN')) continue;
+    assert.match(body, /SLOPGUARD_REPO/,
+      `${rel} names the token without the variable, which promises something the workflow cannot do`);
+  }
 });
 
 test('a failed scanner fetch explains itself instead of failing cryptically', () => {
