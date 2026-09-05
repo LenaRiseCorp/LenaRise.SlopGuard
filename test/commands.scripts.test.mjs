@@ -145,8 +145,9 @@ test('repo-init installs the files and does not overwrite existing ones', () => 
   assert.match(r.stdout, /\.slopignore/);
   assert.match(r.stdout, /pre-commit/);
   assert.ok(existsSync(join(repo, 'AGENTS.md')));
-  assert.ok(existsSync(join(repo, '.github/workflows/slop-gate.yml')));
   assert.ok(existsSync(join(repo, '.git/hooks/pre-commit')));
+  assert.equal(existsSync(join(repo, '.github/workflows/slop-gate.yml')), false,
+    'CI is opt-in; the default install must not spend a repository CI minutes');
 
   const agents = readFileSync(join(repo, 'AGENTS.md'), 'utf8');
   assert.match(agents, /# AGENTS\.md/);

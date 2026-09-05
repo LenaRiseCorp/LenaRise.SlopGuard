@@ -28,13 +28,18 @@ the user and offer to merge.
 | `AGENTS.md` | every agent | Generated from the rule set; hand edits drift from the source |
 | `.slopignore` | this repository | Paths that are not scanned |
 | `.git/hooks/pre-commit` | this machine only | Not cloned; not enough for a team |
-| `.github/workflows/slop-gate.yml` | the whole team | **This is the real gate** |
+| `.github/workflows/slop-gate.yml` | the whole team | Opt-in: `--with-ci` |
 
 ## After installation
 
-1. The scanner repository is public: the CI job works with no secret and no
-   setup. Do not recommend creating a token — a privileged token that nothing
-   needs is a cost, not a precaution.
+1. CI is opt-in. `/slop-repo-init` installs the local layer only; the workflow
+   comes with `--with-ci`. Offer it, do not add it unasked — a workflow a
+   repository did not choose spends their CI minutes, and a red job nobody
+   wanted teaches a team that red means nothing.
+
+   When it is opted into it needs no secret and no paid service: the scanner
+   repository is public. Do not recommend creating a token — a privileged token
+   that nothing needs is a cost, not a precaution.
 
    The single exception is a private fork of the scanner. That needs **both**
    `SLOPGUARD_REPO` (a variable naming the fork) and `SLOPGUARD_TOKEN` (a token
