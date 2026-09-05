@@ -212,3 +212,23 @@ test('warnings merge into one systemMessage body', () => {
   const two = C.formatWarnings([{ message: 'one' }, { message: 'two' }]);
   assert.match(two, /2 notices/);
 });
+
+test('only writes inside the repository count as uncommitted work', () => {
+  // PROC-02 and AGENT-06 mean "there is no point left to roll back to". A file
+  // outside any repository can never be committed, so counting it produces a
+  // warning whose advice cannot be followed — which is how a session spent
+  // entirely on measurement scripts in a temp directory got told to commit.
+  const s = S.loadSession(SID);
+  S.recordWrite(s, '/tmp/probe.mjs', { added: 300, removed: 100, inRepo: false });
+  assert.equal(s.linesSinceCommit, 0, 'a scratch file is activity, not uncommitted debt');
+  assert.equal(s.linesWritten, 300, 'it is still recorded as work done');
+
+  S.recordWrite(s, 'src/a.js', { added: 40, removed: 10, inRepo: true });
+  assert.equal(s.linesSinceCommit, 50);
+});
+
+test('inRepo defaults to true so an unaware caller still counts', () => {
+  const s = S.loadSession(SID);
+  S.recordWrite(s, 'src/a.js', { added: 7 });
+  assert.equal(s.linesSinceCommit, 7, 'the safe default is to count, not to skip');
+});

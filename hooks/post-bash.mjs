@@ -15,7 +15,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, relative } from 'node:path';
-import { runHook } from '../lib/hook.mjs';
+import { runHook, isInsideRepo } from '../lib/hook.mjs';
 import { isTestCommand, isCommitCommand, writeTargets } from '../lib/commands.mjs';
 import { recordTestRun, recordCommit, recordViolations, recordWrite } from '../lib/session.mjs';
 import { scanContent, actionable, classify } from '../lib/scan.mjs';
@@ -48,7 +48,10 @@ runHook('post-bash', ({ payload, config, state, repoRoot }) => {
     }
 
     const findings = scanContent({ filePath: shown, content, config });
-    recordWrite(state, absolute, { added: content.split('\n').length, isCode: classify(absolute) === 'code' });
+    recordWrite(state, absolute, {
+      added: content.split('\n').length, isCode: classify(absolute) === 'code',
+      inRepo: isInsideRepo(absolute, repoRoot),
+    });
     recordViolations(state, absolute, findings, shown);
     all.push([shown, findings]);
   }
