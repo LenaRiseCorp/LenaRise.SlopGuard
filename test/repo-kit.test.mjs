@@ -1,7 +1,7 @@
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ROOT } from './pipe.mjs';
@@ -98,4 +98,17 @@ test('pre-commit does not block when the scanner is missing, but does not stay s
   const body = readFileSync(join(ROOT, 'templates/pre-commit'), 'utf8');
   assert.match(body, /not scanned/);
   assert.match(body, /exit 0/);
+});
+
+test('--skip-ci leaves the CI workflow out', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'slopguard-skipci-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  const out = execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), '--skip-ci'],
+    { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  assert.match(out, /CI workflow skipped/);
+  assert.equal(existsSync(join(repo, '.github/workflows/slop-gate.yml')), false);
+  assert.ok(existsSync(join(repo, 'AGENTS.md')), 'the other files are still installed');
+  assert.ok(existsSync(join(repo, '.slopignore')));
+  assert.ok(existsSync(join(repo, '.git/hooks/pre-commit')));
+  rmSync(repo, { recursive: true, force: true });
 });

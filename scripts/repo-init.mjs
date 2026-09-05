@@ -67,8 +67,14 @@ writeIfAbsent('.slopignore',
   + '# Library\n# Temp\n# Builds\n# .godot\n# Binaries\n# Intermediate\n# Saved\n',
   'per-project exemption list');
 
+// --skip-ci: the CI job clones the scanner repository, so when that repository
+// is private the workflow fails on every push until a read token is configured.
+// Installing a workflow that is red from the first commit is worse than not
+// installing one, so skipping it has to be possible.
 const workflow = join(ROOT, 'templates', 'github-workflow-slop-gate.yml');
-if (existsSync(workflow)) {
+if (process.argv.includes('--skip-ci')) {
+  kept('CI workflow skipped (--skip-ci)');
+} else if (existsSync(workflow)) {
   try {
     writeIfAbsent('.github/workflows/slop-gate.yml', readFileSync(workflow, 'utf8'), 'CI gate');
     out.push('     Note: if the scanner repository is private, the CI job needs a read token.');
