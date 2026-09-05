@@ -32,12 +32,15 @@ the user and offer to merge.
 
 ## After installation
 
-1. While the scanner repository is private the CI job needs a read token in a
-   secret named `SLOPGUARD_TOKEN` (`Contents: read` on the scanner repository).
-   Until it exists the Pattern scan job fails on purpose — a gate that cannot run
-   must not report green. The failure log carries the exact command:
-   `gh secret set SLOPGUARD_TOKEN --org <org> --visibility all`. Give the user
-   that command; do not create or handle the token yourself.
+1. The scanner repository is public: the CI job works with no secret and no
+   setup. Do not recommend creating a token — a privileged token that nothing
+   needs is a cost, not a precaution.
+
+   The single exception is a private fork of the scanner. That needs **both**
+   `SLOPGUARD_REPO` (a variable naming the fork) and `SLOPGUARD_TOKEN` (a token
+   with `Contents: read` on it); a token on its own authenticates the checkout
+   but does not change which repository is checked out. Give the user the
+   commands; never create or handle the token yourself.
 2. Point out that the git hook is not cloned. `core.hooksPath` with an in-repo
    directory can make it work for everyone; offer that.
 3. Review the `.slopignore` defaults — entries such as `vendor` and `dist` may not

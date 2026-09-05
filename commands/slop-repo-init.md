@@ -18,7 +18,10 @@ Briefly explain what each installed file does:
 hook and the workflow are refreshed on every run when they are ours, and left
 alone when they are not — say which happened.
 
-While the scanner repository is private the CI job needs a `SLOPGUARD_TOKEN`
-secret with `Contents: read` on it. Until that secret exists the Pattern scan job
-fails on purpose; the failure prints the `gh secret set` command to run. Pass on
-that command rather than creating a token yourself.
+The scanner repository is public, so the CI job needs no secret. Do not tell the
+user to create one, and do not create one yourself.
+
+A token is needed in exactly one case: the user points `SLOPGUARD_REPO` at a
+private fork of the scanner. Then that fork also needs a `SLOPGUARD_TOKEN` with
+`Contents: read`. Both are set together — a token alone does not change which
+repository the workflow checks out.

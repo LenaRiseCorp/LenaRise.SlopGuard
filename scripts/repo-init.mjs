@@ -129,7 +129,8 @@ if (process.argv.includes('--skip-ci')) {
     label: 'CI gate',
   });
   out.push('     The scanner repository is public, so the CI job needs no secret.');
-  out.push('     Only a private fork of it does: gh secret set SLOPGUARD_TOKEN --org <org>');
+  out.push('     A private fork of it needs both SLOPGUARD_REPO and SLOPGUARD_TOKEN;');
+  out.push('     a token alone does not change which repository is checked out.');
 }
 
 installOrRefresh({

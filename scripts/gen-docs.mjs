@@ -409,20 +409,23 @@ workflow kept running long after it was corrected.
 The workflow reads the scanner from this repository. It is public, so a runner's
 built-in \`GITHUB_TOKEN\` can read it and **no secret is needed**.
 
-The fetch step is written to survive the other case too:
+Both inputs are variables, so a private fork of the scanner works too:
 
 \`\`\`yaml
+repository: \${{ vars.SLOPGUARD_REPO || 'LenaRiseCorp/LenaRise.SlopGuard' }}
 token: \${{ secrets.SLOPGUARD_TOKEN || github.token }}
 \`\`\`
 
-If you fork this project into a private repository, set a \`SLOPGUARD_TOKEN\`
-secret with \`Contents: read\` on your fork and the same file keeps working:
+A token on its own would not be enough — it authenticates the checkout, it does
+not change which repository is checked out. That is why a private fork needs the
+pair, set together:
 
 \`\`\`bash
-gh secret set SLOPGUARD_TOKEN --org <org> --visibility all
+gh variable set SLOPGUARD_REPO --body '<owner>/<fork>' --org <org>
+gh secret   set SLOPGUARD_TOKEN --org <org> --visibility all
 \`\`\`
 
-When the fetch fails the job stops and prints that command, rather than the bare
+When the fetch fails the job stops and prints those commands rather than the bare
 "repository not found" a private repository returns to an unauthorised caller. A
 gate that cannot run must not report success (TEST-05).
 
