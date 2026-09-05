@@ -387,14 +387,15 @@ call, rather than entering each repository separately.
 
 #### The repository layer
 
-\`/slop-repo-init\` installs four files under two different policies:
+\`/slop-repo-init\` installs three files. The CI workflow is a fourth, and it is
+opt-in:
 
-| File | Policy |
-|---|---|
-| \`AGENTS.md\` | Written once, then yours |
-| \`.slopignore\` | Written once, then yours |
-| \`.git/hooks/pre-commit\` | Refreshed on every run — if it is ours |
-| \`.github/workflows/slop-gate.yml\` | Refreshed on every run — if it is ours |
+| File | Installed | Policy |
+|---|---|---|
+| \`AGENTS.md\` | always | Written once, then yours |
+| \`.slopignore\` | always | Written once, then yours |
+| \`.git/hooks/pre-commit\` | always | Refreshed on every run — if it is ours |
+| \`.github/workflows/slop-gate.yml\` | \`--with-ci\` | Refreshed once present — if it is ours |
 
 The last two carry a \`LenaRise.SlopGuard\` header line. A file without that line
 belongs to someone else and is never written over; the command says so and prints
@@ -402,9 +403,23 @@ the path to copy from. Without the distinction a fix to a template never reaches
 the repositories that already hold an older copy — which is how a months-old
 workflow kept running long after it was corrected.
 
-\`--skip-ci\` leaves the workflow out.
+**The default is local.** The protection you feel while working is the hook
+layer: a \`PreToolUse\` deny while an agent writes, and the pre-commit hook before
+anything leaves the machine. Neither needs a network, a service or an account.
 
-#### CI and the scanner repository
+CI is opt-in because a workflow nobody asked for spends someone's minutes, and a
+red job nobody chose is the fastest way to teach a team that red means nothing.
+Add it where the gate should cover people who are not running the hooks:
+
+\`\`\`bash
+/slop-repo-init --with-ci
+\`\`\`
+
+Opting out later does not delete a workflow the repository already has — an
+outdated copy left behind would be worse than no copy. Remove the file to remove
+the gate.
+
+#### The optional CI gate
 
 The workflow reads the scanner from this repository. It is public, so a runner's
 built-in \`GITHUB_TOKEN\` can read it and **no secret is needed**.

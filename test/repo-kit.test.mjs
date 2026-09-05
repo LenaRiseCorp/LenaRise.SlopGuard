@@ -100,23 +100,43 @@ test('pre-commit does not block when the scanner is missing, but does not stay s
   assert.match(body, /exit 0/);
 });
 
-test('--skip-ci leaves the CI workflow out', () => {
+test('CI is left out unless it is asked for', () => {
   const repo = mkdtempSync(join(tmpdir(), 'slopguard-skipci-'));
   execFileSync('git', ['init', '-q'], { cwd: repo });
-  const out = execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), '--skip-ci'],
+  const out = execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')],
     { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-  assert.match(out, /CI workflow skipped/);
+  assert.match(out, /CI workflow not installed/);
   assert.equal(existsSync(join(repo, '.github/workflows/slop-gate.yml')), false);
   assert.ok(existsSync(join(repo, 'AGENTS.md')), 'the other files are still installed');
   assert.ok(existsSync(join(repo, '.slopignore')));
-  assert.ok(existsSync(join(repo, '.git/hooks/pre-commit')));
+  assert.ok(existsSync(join(repo, '.git/hooks/pre-commit')),
+    'the local layer is the default, and it is what must always be there');
+  rmSync(repo, { recursive: true, force: true });
+});
+
+test('--with-ci installs the workflow, and a later run keeps it current', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'slopguard-withci-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  const run = (...args) => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), ...args],
+    { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  const wf = join(repo, '.github/workflows/slop-gate.yml');
+
+  assert.match(run('--with-ci'), /slop-gate\.yml — CI gate/);
+  assert.ok(existsSync(wf));
+
+  // Opting out later does not delete a file the repository chose to have; an
+  // outdated copy left behind would be worse than no copy at all.
+  writeFileSync(wf, 'name: slop-gate\n# LenaRise.SlopGuard — old version\n');
+  assert.match(run(), /slop-gate\.yml refreshed/);
+  assert.equal(readFileSync(wf, 'utf8'),
+    readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8'));
   rmSync(repo, { recursive: true, force: true });
 });
 
 test('repo-init refreshes its own pre-commit hook but not a foreign one', () => {
   const repo = mkdtempSync(join(tmpdir(), 'slopguard-hook-'));
   execFileSync('git', ['init', '-q'], { cwd: repo });
-  const run = () => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), '--skip-ci'],
+  const run = () => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')],
     { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   const hook = join(repo, '.git/hooks/pre-commit');
 
@@ -188,12 +208,12 @@ test('the workflow carries the marker repo-init refreshes on', () => {
 test('repo-init refreshes its own CI workflow but not a foreign one', () => {
   const repo = mkdtempSync(join(tmpdir(), 'slopguard-ci-'));
   execFileSync('git', ['init', '-q'], { cwd: repo });
-  const run = () => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')],
+  const run = (...args) => execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), ...args],
     { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   const wf = join(repo, '.github/workflows/slop-gate.yml');
   const template = readFileSync(join(ROOT, 'templates/github-workflow-slop-gate.yml'), 'utf8');
 
-  assert.match(run(), /slop-gate\.yml — CI gate/);
+  assert.match(run('--with-ci'), /slop-gate\.yml — CI gate/);
   assert.equal(readFileSync(wf, 'utf8'), template);
   assert.match(run(), /slop-gate\.yml is current/, 'an unchanged workflow is reported as current');
 
@@ -209,12 +229,14 @@ test('repo-init refreshes its own CI workflow but not a foreign one', () => {
   rmSync(repo, { recursive: true, force: true });
 });
 
-test('the token requirement is stated at install time, not only when CI fails', () => {
+test('opting into CI states the private-fork requirement at install time', () => {
   const repo = mkdtempSync(join(tmpdir(), 'slopguard-citoken-'));
   execFileSync('git', ['init', '-q'], { cwd: repo });
-  const out = execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')],
+  const out = execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs'), '--with-ci'],
     { cwd: repo, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   assert.match(out, /SLOPGUARD_TOKEN/);
+  assert.match(out, /SLOPGUARD_REPO/);
+  assert.match(out, /no paid action/, 'nothing in the default path may need a paid service');
   rmSync(repo, { recursive: true, force: true });
 });
 

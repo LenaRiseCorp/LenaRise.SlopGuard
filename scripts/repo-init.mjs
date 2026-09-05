@@ -114,23 +114,33 @@ writeIfAbsent('.slopignore',
   + '# Library\n# Temp\n# Builds\n# .godot\n# Binaries\n# Intermediate\n# Saved\n',
   'per-project exemption list');
 
-// --skip-ci: the CI job reads the scanner from its own repository. While that
-// repository is private the job needs a SLOPGUARD_TOKEN secret, and until the
-// secret exists every push goes red. A workflow that is red from the first
-// commit is worse than no workflow, so skipping it has to be possible.
+// CI is opt-in, and deliberately so. The protection people actually feel is the
+// local one: the hooks while an agent writes, and the pre-commit hook before
+// anything leaves the machine. A workflow added to a repository that did not ask
+// for it spends someone's CI minutes, and a red job nobody chose is the fastest
+// way to teach a team that red means nothing.
+//
+// --with-ci installs it for a repository that wants the gate to cover everyone,
+// including people who are not running the hooks locally.
 const CI_REL = '.github/workflows/slop-gate.yml';
-if (process.argv.includes('--skip-ci')) {
-  kept('CI workflow skipped (--skip-ci)');
+const ciTarget = join(repo, CI_REL);
+const ciArgs = {
+  rel: CI_REL,
+  source: join(ROOT, 'templates', 'github-workflow-slop-gate.yml'),
+  target: ciTarget,
+  label: 'CI gate (opt-in)',
+};
+if (process.argv.includes('--with-ci')) {
+  installOrRefresh(ciArgs);
+  out.push('     The scanner repository is public: no secret, no paid action.');
+  out.push('     A private fork of it needs SLOPGUARD_REPO and SLOPGUARD_TOKEN');
+  out.push('     together; a token alone does not change what is checked out.');
+} else if (existsSync(ciTarget)) {
+  // Installed on purpose at some point: keep it current rather than leaving an
+  // old copy behind. Not installing and silently outdating are different things.
+  installOrRefresh(ciArgs);
 } else {
-  installOrRefresh({
-    rel: CI_REL,
-    source: join(ROOT, 'templates', 'github-workflow-slop-gate.yml'),
-    target: join(repo, CI_REL),
-    label: 'CI gate',
-  });
-  out.push('     The scanner repository is public, so the CI job needs no secret.');
-  out.push('     A private fork of it needs both SLOPGUARD_REPO and SLOPGUARD_TOKEN;');
-  out.push('     a token alone does not change which repository is checked out.');
+  kept('CI workflow not installed — add it with --with-ci');
 }
 
 installOrRefresh({
@@ -142,6 +152,8 @@ installOrRefresh({
 });
 
 out.push('');
-out.push('  The git hook runs only on your machine and is not cloned.');
-out.push('  For the team, the CI workflow is the real gate.');
+out.push('  Protection is local by default: the Claude Code hooks while an agent');
+out.push('  writes, and the pre-commit hook before anything leaves this machine.');
+out.push('  The git hook is not cloned, so it covers you and not your colleagues.');
+out.push('  To cover everyone, add the optional CI gate: /slop-repo-init --with-ci');
 process.stdout.write(out.join('\n') + '\n');
