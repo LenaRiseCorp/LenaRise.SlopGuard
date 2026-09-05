@@ -399,6 +399,10 @@ Not hidden:
   are invisible. `/slop-check`, `/slop-status`, the pre-commit hook and CI close
   that gap with a live scan.
 - Package verification needs the network and fails closed on timeout.
+- While the scanner repository is private, the CI pattern scan cannot run on a
+  pull request from a fork: GitHub does not pass secrets to fork workflows, so
+  `SLOPGUARD_TOKEN` is not there to read. The job fails rather than passing
+  quietly. The leaked-secret and duplication jobs are unaffected.
 
 ## Removal
 
