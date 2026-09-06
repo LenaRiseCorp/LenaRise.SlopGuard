@@ -133,7 +133,13 @@ export function walkFiles(root, { maxFiles = 20000 } = {}) {
 
 export function gitFiles(args, root) {
   try {
-    return execFileSync('git', args, { encoding: 'utf8', cwd: root })
+    // maxBuffer: at the 1 MB default, `git ls-files` in a large repository
+    // overflows and throws ENOBUFS. Measured across 23 repositories: one of them
+    // produced "the file list could not be obtained" on stderr and was then
+    // skipped entirely, with the run still exiting 0. A repository silently not
+    // scanned is the worst failure this tool can have — it reports safety it
+    // never checked.
+    return execFileSync('git', args, { encoding: 'utf8', cwd: root, maxBuffer: 256 * 1024 * 1024 })
       .split('\n').map((l) => l.trim()).filter(Boolean);
   } catch (error) {
     process.stderr.write(`${BRAND}: the file list could not be obtained — ${error.message}\n`);

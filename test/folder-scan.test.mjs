@@ -153,3 +153,30 @@ test('a change with no protected file says nothing about them', () => {
   assert.doesNotMatch(runCheck(base).stdout, /protected file\(s\)/,
     'a notice that appears every time is a notice nobody reads');
 });
+
+test('a repository whose file list exceeds 1 MB is still listed', () => {
+  // Found while surveying 23 repositories: one printed "the file list could not
+  // be obtained" on stderr and was then skipped, with the run still exiting 0.
+  // A repository silently not scanned is the worst failure this tool can have —
+  // it reports safety it never checked. git status --untracked-files=all in a
+  // repository with a large untracked tree overflows execFileSync's 1 MB default.
+  const big = mkdtempSync(join(tmpdir(), 'slopguard-big-'));
+  execFileSync('git', ['init', '-q'], { cwd: big });
+  const segment = 'd'.repeat(120);
+  const deep = join(big, segment, segment, segment, segment, segment, segment, segment);
+  mkdirSync(deep, { recursive: true });
+  for (let i = 0; i < 1400; i += 1) writeFileSync(join(deep, `f${String(i).padStart(4, '0')}.js`), '');
+
+  // The premise: this really does exceed the default, or the test proves nothing.
+  let overflowed = false;
+  try {
+    execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: big });
+  } catch (error) {
+    overflowed = /ENOBUFS|maxBuffer/.test(error.message);
+  }
+  assert.ok(overflowed, 'the fixture must be large enough to overflow the default buffer');
+
+  const listed = listFiles(big, { isRepo: true });
+  assert.ok(listed.files.length >= 1400, `expected the whole list, got ${listed.files.length}`);
+  rmSync(big, { recursive: true, force: true });
+});
