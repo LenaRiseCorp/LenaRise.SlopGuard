@@ -92,7 +92,13 @@ for (const p of chosen) {
     const mutated = mutate(p.key, replacement);
     if (mutated === null) { line.push(`${name}:unparsed`); continue; }
     writeFileSync(target, mutated);
-    const r = spawnSync('node', ['--test', ...behaviourTests], { cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    // maxBuffer: a widened pattern fires on everything, so a run can produce tens
+    // of megabytes of diffs. At the 1 MB default the output was truncated and the
+    // "# fail" summary went with it, which the script then read as "could not be
+    // measured" for 12 patterns that were in fact perfectly measurable.
+    const r = spawnSync('node', ['--test', ...behaviourTests], {
+      cwd: work, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 256 * 1024 * 1024,
+    });
     const failed = Number(/^# fail (\d+)/m.exec(r.stdout ?? '')?.[1] ?? -1);
     if (failed === 0) { survivors.push(`${p.key} (${name})`); line.push(`${name}:SURVIVED`); }
     else if (failed < 0) {

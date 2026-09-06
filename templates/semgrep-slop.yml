@@ -476,7 +476,7 @@ rules:
       - "*.svelte"
       - "*.gd"
     patterns:
-      - pattern-regex: "(?i)\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^\\n;'\"]{0,120}['\"]\\s*(?:\\+|\\.|%)\\s*[A-Za-z_$]"
+      - pattern-regex: "(?i)\\b(?:SELECT\\b[^\\n;'\"]{0,120}?\\bFROM|UPDATE\\b[^\\n;'\"]{0,120}?\\bSET|INSERT\\s+INTO|DELETE\\s+FROM)\\b[^\\n;'\"]{0,120}['\"]\\s*(?:\\+|\\.|%)\\s*[A-Za-z_$]"
   - id: slopguard-sec-05-sql-fstring
     languages: [generic]
     severity: ERROR

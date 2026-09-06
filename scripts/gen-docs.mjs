@@ -605,9 +605,16 @@ the pattern gets widened.
 npm test          # ${PATTERN_COUNT} patterns, pipe tests included
 npm run selfscan  # our source through our own scanner
 npm run docs      # refresh the generated documentation
+npm run mutate    # is every pattern actually watched by a test?
 \`\`\`
 
 \`npm run docs -- --check\` exits 1 when a generated file is stale; that is the CI gate.
+
+\`npm run mutate\` is separate and slower. It disables each pattern, then widens
+it to match everything, running the suite both times. A pattern nothing notices
+either way is a pattern no test is watching — it found one, a block-severity SQL
+injection pattern that could be deleted outright with the suite still green. Run
+it when adding or changing a pattern, not before every commit.
 
 ## The measurements the architecture rests on
 
@@ -677,6 +684,12 @@ npm test                  # every pattern, hook pipe tests included
 npm run selfscan          # this source through its own scanner
 npm run docs -- --check   # exits 1 when a generated file is stale
 \`\`\`
+
+Adding or changing a pattern? Run \`npm run mutate\` as well. It disables your
+pattern and then widens it to match everything, running the suite each time. If
+neither breaks a test, the pattern has no test watching it — and that is how a
+block-severity SQL injection pattern sat in the registry with no coverage at all
+until the check was written.
 
 If \`npm run docs -- --check\` fails, run \`npm run docs\` and commit what changes.
 Editing a generated file by hand is reverted on the next run.

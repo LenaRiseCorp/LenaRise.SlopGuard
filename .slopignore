@@ -1,12 +1,13 @@
-# LenaRise.SlopGuard — bu deponun kendi muafiyeti
+# LenaRise.SlopGuard — this repository's own exemption
 #
-# Bu depo bir test aracıdır ve testleri ürünün doğrulama mekanizmasıdır;
-# geliştirme testleri yazmadan ilerleyemez. Global allowTestWrites yerine
-# depo kapsamlı muafiyet seçildi: kilit diğer tüm projelerde açık kalıyor.
+# This repository is a testing tool, and its tests are the product's verification
+# mechanism: it cannot be developed without writing them. A repository-scoped
+# exemption was chosen over the global allowTestWrites, so the lock stays on in
+# every other project.
 #
-# Zaten tutarlı bir karar: runtime da test yollarını taramıyor (pre-edit'in
-# TST kilidi oraya yazmayı reddettiği için post-edit bir test dosyasını
-# hiçbir zaman görmüyor) ve scripts/selfscan.mjs bu yüzden test yollarını
-# tarama yüzeyinin dışında tutuyor.
+# It is also the consistent decision: the runtime does not scan test paths either
+# (pre-edit's TEST lock refuses to write there, so post-edit never sees a test
+# file), and scripts/selfscan.mjs keeps test paths outside the scanned surface
+# for the same reason.
 test
 node_modules
