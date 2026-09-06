@@ -28,7 +28,7 @@ the pattern gets widened.
 ## Before making a change
 
 ```bash
-npm test          # 33 patterns, pipe tests included
+npm test          # 36 patterns, pipe tests included
 npm run selfscan  # our source through our own scanner
 npm run docs      # refresh the generated documentation
 npm run mutate    # is every pattern actually watched by a test?
