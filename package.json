@@ -1,6 +1,6 @@
 {
   "name": "lenarise-slopguard",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "license": "Apache-2.0",
   "description": "Agentic quality guard: blocks slop patterns at the hook layer.",
@@ -12,7 +12,8 @@
     "test": "node --test test/*.test.mjs",
     "docs": "node scripts/gen-docs.mjs",
     "selfscan": "node scripts/selfscan.mjs",
-    "verify": "npm test && npm run selfscan && npm run docs -- --check"
+    "verify": "npm test && npm run selfscan && npm run docs -- --check",
+    "mutate": "node scripts/mutate.mjs"
   },
   "dependencies": {},
   "devDependencies": {},

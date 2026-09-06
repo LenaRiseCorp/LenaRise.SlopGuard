@@ -232,3 +232,45 @@ test('embedded secrets: long strings that are not secrets are left alone', () =>
     assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body }))), [], body);
   }
 });
+
+// ── SEC-05: SQL built by concatenation ───────────────────────────────────
+
+/**
+ * Written after the mutation run found this pattern had no test at all: it could
+ * be disabled outright and the whole suite stayed green. It is a block-severity
+ * security pattern, so it was the worst place in the registry to be blind.
+ *
+ * Writing the negative cases immediately turned up a real false positive. The
+ * match is case-insensitive, so `\bSELECT\b` fired on the English word in
+ * `"Select a file" + name` and `\bUPDATE\b` on `"update the config" + suffix` —
+ * ordinary interface strings. The pattern now requires the statement shape
+ * (SELECT with FROM, UPDATE with SET), not just the keyword.
+ */
+
+const sqlConcat = (filePath, content) =>
+  actionable(scanContent({ filePath, content })).some((f) => f.key === 'sec-05-sql-concat');
+
+test('SEC-05 catches SQL assembled from a string and a variable', () => {
+  const cases = [
+    ['a.js', 'const q = "SELECT * FROM users WHERE id = " + id;'],
+    ['a.js', 'const q = "DELETE FROM logs WHERE k = " + key;'],
+    ['a.php', '$q = "UPDATE t SET a = 1 WHERE id = " . $id;'],
+    ['a.py', 'q = "INSERT INTO t VALUES (%s)" % val'],
+    ['a.js', "const q = 'SELECT name FROM users WHERE id = ' + uid;"],
+  ];
+  for (const [file, code] of cases) assert.ok(sqlConcat(file, code), code);
+});
+
+test('SEC-05 leaves parameterised queries and ordinary prose alone', () => {
+  const cases = [
+    ['a.js', 'const q = "SELECT * FROM users WHERE id = ?";'],
+    ['a.js', 'db.query("SELECT * FROM users WHERE id = ?", [id]);'],
+    ['a.js', 'const q = "SELECT * FROM users";'],
+    // Interface strings. The keyword alone is not a query; without this the
+    // pattern fires on any sentence containing "select" or "update".
+    ['a.js', 'const label = "Select a file" + name;'],
+    ['a.js', 'const msg = "update the config" + suffix;'],
+    ['a.js', 'const t = "select the update mode" + mode;'],
+  ];
+  for (const [file, code] of cases) assert.equal(sqlConcat(file, code), false, code);
+});
