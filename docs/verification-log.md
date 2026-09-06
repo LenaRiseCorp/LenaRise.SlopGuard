@@ -194,3 +194,127 @@ model's own judgement works most of the time, but protection that rests on it
 also disappears silently on the day that judgement fails. Evidence for the gates
 is therefore sought in pipe tests and direct measurement, not in the model
 behaving politely.
+
+---
+
+## The protected-path lock — what it actually covered
+
+Measured by driving `hooks/pre-bash.mjs` with real PreToolUse payloads, against a
+path the lock protects.
+
+| Command shape | Result |
+|---|---|
+| Shell redirection | refused |
+| The same wrapped in `sh -c` | refused |
+| `cp` onto a git hook | refused |
+| A python one-liner opening it for writing | **passed** |
+| `node script.mjs`, target not in the command | **passed** |
+
+The python case is not the documented "target cannot be read from the command"
+limit: the path is in plain sight. It simply is not a shell redirection, so the
+redirection parser never saw it. `writeTargets` now reads `-c` / `-e` bodies for
+python, node, ruby, perl and php.
+
+The last row cannot be closed by parsing, and it is why the notice was added at
+the git layer. Reading the source settled a second question: `protectedPathReason`
+was called from `pre-edit` and `pre-bash` and nowhere else, so `scan-staged`,
+`scan-diff` and `scan-cli` never looked. The repository layer exists to cover
+agents that are not Claude Code, and this was the one rule it did not carry.
+
+## Folder mode was reading everything git ignores
+
+One repository, timed end to end:
+
+| | files | |
+|---|---|---|
+| `walk` | 1139 | Electron build output, `.exe` installers, `.claude/worktrees` |
+| `git ls-files` | 122 | |
+
+`scanContent` over the tracked files totals **20 ms**, and no pattern took more
+than a few milliseconds on any file — the engine was never the problem. The
+command took **63 seconds**; after asking git instead of walking, **0.08 s**.
+
+Ignored files are also a false-positive farm: minified bundles and vendored
+copies are precisely what the patterns are not written for.
+
+`git ls-files` alone was the wrong call and the existing tests caught it —
+untracked files disappeared, and a file just created is the one most worth
+scanning. It takes `--cached --others --exclude-standard`.
+
+## A repository silently not scanned
+
+While surveying 23 repositories one printed
+
+```
+LenaRise.SlopGuard: the file list could not be obtained — spawnSync git ENOBUFS
+```
+
+and was then skipped, with the run still exiting 0 — the tool reporting safety it
+had never checked. `execFileSync` defaults to a 1 MB buffer, which
+`git status --porcelain --untracked-files=all` passes in any repository with a
+large untracked tree. After raising it, the same survey covered 33264 files
+instead of 18364: roughly 15000 files had been going unread.
+
+The same default broke the mutation runner, where a widened pattern produces tens
+of megabytes of failures and the truncation took the `# fail` summary with it.
+
+## Mutation: is every pattern actually watched?
+
+Each pattern is disabled, then widened to match everything, and the suite is run
+both times. A pattern nothing notices either way is a pattern no test is watching.
+
+First real run: **one survivor.** `sec-05-sql-concat` could be deleted outright
+with all 351 tests green — a block-severity SQL injection pattern with no
+coverage at all.
+
+Writing its missing test produced more than the coverage. The match is
+case-insensitive, so the English words in interface strings such as a "Select a
+file" label were read as SQL and blocked. A keyword alone is not a query; the
+pattern now requires the statement shape.
+
+The runner itself measured the wrong thing three times before it measured
+anything real, all the same class of error:
+
+- `git archive HEAD` tested the last commit rather than the working tree, so
+  deleting a test and re-running still reported the pattern covered.
+- `gen-docs` asserts that generated files match the registry, so it failed for
+  any change to a regex and made every mutant look caught.
+- Truncated output, as above.
+
+It is not treated as working on a green result. Adding a pattern with no test of
+its own must make it report SURVIVED, and it does. An unmeasurable mutant counts
+against coverage rather than passing quietly.
+
+## The false-positive rate, measured
+
+23 repositories, 33264 files. Every block-severity finding was read rather than
+counted.
+
+| Pattern | Findings | Verdict |
+|---|---|---|
+| `code-01-versioned-filename` | 45 | all assets or documents — image renders, a `brand-new.md` command file |
+| `sec-03-aws-key` | 3 | all three were AWS's own published documentation key |
+| `sec-03-inline-secret` in tests | 100 | invented credentials in `.test.mjs` fixtures |
+| `code-05-comment-only-catch` | 489 | true by the rule, and the largest block source by far |
+| `proc-08-effort-estimate` | 5 | true |
+| `code-05-except-pass` | 1 | true |
+
+The first three were fixed. The fourth was moved to `warn`: the rule did not
+change, but refusing 489 commits would have got the tool switched off, and a rule
+nobody runs protects nobody.
+
+One was knowingly left: `test-backup.sh` reads as a backup copy. Telling it from
+`config-backup.js` is not something a path pattern can do, and the waiver exists
+for exactly that.
+
+After the three new SEC patterns, the same 33264 files produced one further
+finding: a test comment quoting `rejectUnauthorized` while explaining why they do
+not use it. Mention rather than use, one in 33264, and already a warning under the
+test carve-out — not worth over-fitting the pattern for.
+
+## Commit signing without gpg
+
+`gpg` is not installed on this machine. Git 2.50 signs with SSH
+(`gpg.format = ssh`), using a key that already exists, and GitHub verifies those
+signatures once the key is registered as a **signing** key — a separate list from
+authentication keys. Configured; the registration is an account action.
