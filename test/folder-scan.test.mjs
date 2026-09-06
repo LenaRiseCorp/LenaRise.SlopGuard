@@ -31,7 +31,7 @@ mkdirSync(join(base, 'proje-b'), { recursive: true });
 execFileSync('git', ['init', '-q'], { cwd: join(base, 'proje-a') });
 execFileSync('git', ['init', '-q'], { cwd: join(base, 'proje-b') });
 file('proje-a/src/a.js', 'try{ a() }catch(e){}\n');
-file('proje-b/src/b.js', 'const k = "AKIAIOSFODNN7EXAMPLE"\n');
+file('proje-b/src/b.js', 'const k = "AKIA2E4RJKLMNPQRSTUV"\n');
 file('gevsek/c.js', 'if (false) { eski() }\n');
 mkdirSync(join(base, 'proje-a/node_modules/paket'), { recursive: true });
 file('proje-a/node_modules/paket/index.js', 'try{}catch(e){}\n');

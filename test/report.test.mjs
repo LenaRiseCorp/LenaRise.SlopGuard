@@ -64,7 +64,7 @@ const findings = scanContent({
   filePath: 'a.js',
   content: [
     'try { a() } catch (e) {}',
-    'const k = "AKIAIOSFODNN7EXAMPLE"',
+    'const k = "AKIA2E4RJKLMNPQRSTUV"',
     '// slop-guard-ignore CODE-04: deliberate dead branch, removed when the migration lands',
     'if (false) { legacy() }',
   ].join('\n'),

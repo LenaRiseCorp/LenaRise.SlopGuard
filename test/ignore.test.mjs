@@ -61,7 +61,7 @@ test('a waiver silences only its own finding', () => {
   const src = [
     '// slop-guard-ignore CODE-05: only this',
     'try { a() } catch (e) {}',
-    'const k = "AKIAIOSFODNN7EXAMPLE"',
+    'const k = "AKIA2E4RJKLMNPQRSTUV"',
   ].join('\n');
   const all = scan(src);
   assert.equal(suppressed(all).length, 1);
