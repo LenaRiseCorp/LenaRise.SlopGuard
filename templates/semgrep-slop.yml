@@ -398,7 +398,7 @@ rules:
       - "*.svelte"
       - "*.gd"
     patterns:
-      - pattern-regex: "\\bAKIA[0-9A-Z]{16}\\b"
+      - pattern-regex: "\\bAKIA(?![0-9A-Z]{9}EXAMPLE\\b)[0-9A-Z]{16}\\b"
   - id: slopguard-sec-03-private-key
     languages: [generic]
     severity: ERROR

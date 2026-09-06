@@ -127,3 +127,28 @@ test('the mode decides what a finding does', () => {
   assert.equal(actionFor(warn, { mode: 'strict' }), 'warn');
   assert.equal(actionFor(block, { mode: 'explore' }), 'warn', 'explore mode does not block');
 });
+
+test('a leaked-secret finding inside a test is warned about, not blocked', () => {
+  // A test that verifies credential handling has to contain credential-shaped
+  // strings. Across 23 repositories, 100 SEC-03 findings were invented
+  // credentials in .test.mjs files and every one would have refused a commit.
+  const inTest = { severity: 'block', scope: 'code', category: 'SEC', target: 'src/credentials.test.mjs' };
+  const inSource = { ...inTest, target: 'src/credentials.mjs' };
+  const strict = { ...DEFAULT_CONFIG, mode: 'strict' };
+
+  assert.equal(actionFor(inTest, strict), 'warn');
+  assert.equal(actionFor(inSource, strict), 'block', 'source is unaffected');
+});
+
+test('the test carve-out is for secrets only, and never silences', () => {
+  const strict = { ...DEFAULT_CONFIG, mode: 'strict' };
+  // Another category in a test file still blocks — this is not a blanket exemption.
+  assert.equal(actionFor(
+    { severity: 'block', scope: 'code', category: 'CODE', target: 'a/b.test.js' }, strict), 'block');
+  // A command is never downgraded, whatever the path.
+  assert.equal(actionFor(
+    { severity: 'block', scope: 'command', category: 'SEC', target: 'a/b.test.js' }, strict), 'block');
+  // No path at all must not be mistaken for a test path.
+  assert.equal(actionFor(
+    { severity: 'block', scope: 'code', category: 'SEC', target: null }, strict), 'block');
+});

@@ -113,7 +113,7 @@ test('a silenced finding stays out of the ledger but is counted', () => {
 test('violations from several files are kept apart', () => {
   const s = S.loadSession(SID);
   S.recordViolations(s, 'a.js', scanContent({ filePath: 'a.js', content: 'try{}catch(e){}' }));
-  S.recordViolations(s, 'b.js', scanContent({ filePath: 'b.js', content: 'const k="AKIAIOSFODNN7EXAMPLE"' }));
+  S.recordViolations(s, 'b.js', scanContent({ filePath: 'b.js', content: 'const k="AKIA2E4RJKLMNPQRSTUV"' }));
   assert.equal(S.openViolations(s).length, 2);
   assert.deepEqual(S.openViolations(s).map((v) => v.file).sort(), ['a.js', 'b.js']);
   assert.equal(s.byCategory.CODE, 1);

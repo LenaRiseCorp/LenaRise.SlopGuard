@@ -108,8 +108,8 @@ test('a changed violation set restarts the counter — progress is not punished'
   write('prog.js', 'try{}catch(e){}\n', 'ilerleme');
   assert.match(stop('ilerleme').json.reason, /\(1\/2\)/);
   assert.match(stop('ilerleme').json.reason, /\(2\/2\)/);
-  ws.file('prog.js', 'const k = "AKIAIOSFODNN7EXAMPLE"\n');
-  pipe('hooks/post-edit.mjs', postToolUsePayload({ cwd: ws.repo, filePath: ws.file('prog.js', 'const k = "AKIAIOSFODNN7EXAMPLE"\n'), sessionId: 'ilerleme' }), { cfgDir: ws.cfgDir });
+  ws.file('prog.js', 'const k = "AKIA2E4RJKLMNPQRSTUV"\n');
+  pipe('hooks/post-edit.mjs', postToolUsePayload({ cwd: ws.repo, filePath: ws.file('prog.js', 'const k = "AKIA2E4RJKLMNPQRSTUV"\n'), sessionId: 'ilerleme' }), { cfgDir: ws.cfgDir });
   const r = stop('ilerleme');
   assert.match(r.json.reason, /\(1\/2\)/, 'farklı ihlal, yeni sayaç');
   assert.match(r.json.reason, /SEC-03/);

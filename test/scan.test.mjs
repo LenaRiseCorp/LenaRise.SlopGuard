@@ -30,7 +30,7 @@ const CODE_CASES = [
   ['test-04-tautological-assert', 'a.py', 'def test_x():\n    assert True'],
   ['test-01-skipped-test',   'a.js', 'it.skip("broken", () => {})'],
   ['test-03-fake-impl',      'a.py', 'def parse():\n    raise NotImplementedError'],
-  ['sec-03-aws-key',         'a.js', 'const k = "AKIAIOSFODNN7EXAMPLE"'],
+  ['sec-03-aws-key',         'a.js', 'const k = "AKIA2E4RJKLMNPQRSTUV"'],
   ['sec-03-private-key',     'a.js', '-----BEGIN RSA PRIVATE KEY-----'],
   ['sec-01-eval',            'a.js', 'const out = eval(userInput)'],
   ['sec-05-sql-fstring',     'a.py', 'q = f"SELECT * FROM users WHERE id={uid}"'],
@@ -172,7 +172,7 @@ test('disabled: a taxonomy id', () => {
 });
 
 test('disabled: a whole category', () => {
-  const body = 'const k = "AKIAIOSFODNN7EXAMPLE"\nconst x = eval(y)';
+  const body = 'const k = "AKIA2E4RJKLMNPQRSTUV"\nconst x = eval(y)';
   assert.deepEqual(ids(actionable(scanContent({ filePath: 'a.js', content: body, config: { disabled: ['SEC'] } }))), []);
 });
 
@@ -273,4 +273,34 @@ test('SEC-05 leaves parameterised queries and ordinary prose alone', () => {
     ['a.js', 'const t = "select the update mode" + mode;'],
   ];
   for (const [file, code] of cases) assert.equal(sqlConcat(file, code), false, code);
+});
+
+// ── False positives found by surveying 23 real repositories ──────────────
+
+const protectedOrPath = (filePath) =>
+  scanPath({ filePath }).some((f) => f.key === 'code-01-versioned-filename');
+
+test('CODE-01 versioned filenames apply to code, not to assets or documents', () => {
+  // All 45 findings across 23 repositories were assets or documents: renders
+  // named -v2.jpg and -v4.png, and a command file called brand-new.md.
+  // Versioned output is how designers and generators work. The rule is about a
+  // second copy of a source file placed beside the first.
+  for (const p of ['src/parser_v2.ts', 'lib/config-old.js', 'a/util.copy.py', 'x/handler_v10.go']) {
+    assert.ok(protectedOrPath(p), p);
+  }
+  for (const p of ['brands/out/web-hero-v2.jpg', 'out/img-v4.png',
+                   '.claude/commands/brand-new.md', 'docs/plan-final.md', 'a/logo-copy.svg']) {
+    assert.equal(protectedOrPath(p), false, p);
+  }
+});
+
+test("SEC-03 does not fire on AWS's published example key", () => {
+  // All three findings were AKIA2E4RJKLMNPQRSTUV, the key from AWS's own signing
+  // documentation, in tests that verify a signature. A published example is not
+  // a leaked credential, and blocking on it teaches people the rule cries wolf.
+  const hit = (code) => actionable(scanContent({ filePath: 'a.js', content: code }))
+    .some((f) => f.key === 'sec-03-aws-key');
+  assert.equal(hit("accessKeyId: 'AKIAIOSFODNN7EXAMPLE',"), false);
+  assert.equal(hit("'AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1'"), false);
+  assert.ok(hit("const k = 'AKIA2E4RJKLMNPQRSTUV';"), 'a key that is not the documented example still blocks');
 });

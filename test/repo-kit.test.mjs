@@ -64,7 +64,7 @@ test('.slopignore applies to the staged scan too', () => {
 test('the diff scanner scans between two commits', () => {
   git('add', '-A'); git('commit', '-q', '-m', 'temel');
   const base = git('rev-parse', 'HEAD').trim();
-  writeFileSync(join(repo, 'later.js'), 'const k = "AKIAIOSFODNN7EXAMPLE"\n');
+  writeFileSync(join(repo, 'later.js'), 'const k = "AKIA2E4RJKLMNPQRSTUV"\n');
   git('add', 'later.js'); git('commit', '-q', '-m', 'sır eklendi');
   const r = runScript('scripts/scan-diff.mjs', ['--base', base]);
   assert.equal(r.code, 1);
