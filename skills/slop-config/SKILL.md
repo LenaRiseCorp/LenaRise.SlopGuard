@@ -132,7 +132,7 @@ If the problem list is not empty the pattern did not load. Do not leave it at th
 | CODE-01 | `code-01-versioned-filename` | file path | blocks | Version-suffixed filename — a new copy placed beside the old one. |
 | CODE-04 | `code-04-guard-and-go` | source file | warns | Code parked on a dead branch — wrapped instead of deleted. |
 | CODE-05 | `code-05-catch-noop` | source file | blocks | Empty .catch() — the rejected promise is silently swallowed. |
-| CODE-05 | `code-05-comment-only-catch` | source file | blocks | Catch body containing only comments — the error is still swallowed. |
+| CODE-05 | `code-05-comment-only-catch` | source file | warns | Catch body containing only comments — the error is still swallowed. |
 | CODE-05 | `code-05-empty-catch` | source file | blocks | Empty catch body — the error is caught and swallowed. |
 | CODE-05 | `code-05-except-pass` | source file | blocks | except: pass — the exception is silently swallowed. |
 | DOC-01 | `doc-01-buzzword` | text file | warns | Marketing language carrying no information. |
@@ -148,11 +148,14 @@ If the problem list is not empty the pattern did not load. Do not leave it at th
 | LOGIC-02 | `logic-02-package-install` | shell command | blocks | Package install — installing an unverified name is a slopsquatting surface (SEC-02). |
 | PROC-08 | `proc-08-effort-estimate` | text file | blocks | A time estimate that cannot be measured. |
 | SEC-01 | `sec-01-eval` | source file | blocks | Dynamic code execution. |
+| SEC-01 | `sec-01-tls-verification-disabled` | source file | blocks | TLS certificate verification disabled. |
 | SEC-03 | `sec-03-aws-key` | source file | blocks | AWS access key ID. |
 | SEC-03 | `sec-03-inline-secret` | source file | blocks | Secret committed to source. |
 | SEC-03 | `sec-03-private-key` | source file | blocks | Private key embedded in a file. |
 | SEC-05 | `sec-05-sql-concat` | source file | blocks | SQL built by string concatenation — an injection surface. |
 | SEC-05 | `sec-05-sql-fstring` | source file | blocks | SQL built with an f-string — an injection surface. |
+| SEC-08 | `sec-08-open-ingress` | source file | warns | Network rule open to the whole internet. |
+| SEC-08 | `sec-08-public-write-storage` | source file | blocks | Storage open for anyone to write to. |
 | TEST-01 | `test-01-skipped-test` | source file | blocks | A skipped test — the shortest route from red to green. |
 | TEST-03 | `test-03-fake-impl` | source file | warns | Fake implementation — a signature with no body. |
 | TEST-04 | `test-04-tautological-assert` | source file | blocks | An assertion that passes under every condition — it verifies nothing. |

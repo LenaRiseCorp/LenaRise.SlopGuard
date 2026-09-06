@@ -304,3 +304,72 @@ test("SEC-03 does not fire on AWS's published example key", () => {
   assert.equal(hit("'AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1'"), false);
   assert.ok(hit("const k = 'AKIA2E4RJKLMNPQRSTUV';"), 'a key that is not the documented example still blocks');
 });
+
+test('a comment-only catch warns; its siblings still block', () => {
+  // Measured across 23 repositories: this shape fired 489 times, by far the
+  // largest block-severity source. Refusing that many commits would have got the
+  // tool switched off, and a rule nobody runs protects nobody. It is also the
+  // one shape where the author left evidence of a decision.
+  const sev = (content) => {
+    const f = actionable(scanContent({ filePath: 'a.js', content }))[0];
+    return f ? `${f.key}:${f.severity}` : 'none';
+  };
+  assert.equal(sev('try { a() } catch (e) { /* the API returns 404 when absent */ }'),
+    'code-05-comment-only-catch:warn');
+  assert.equal(sev('try { a() } catch (e) {}'), 'code-05-empty-catch:block',
+    'an empty body records no decision at all');
+  assert.equal(sev('p().catch(() => {});'), 'code-05-catch-noop:block');
+});
+
+// ── SEC-01 and SEC-08: rules that had no mechanical form ─────────────────
+
+const secHit = (key, content, filePath = 'a.js') =>
+  actionable(scanContent({ filePath, content })).some((f) => f.key === key);
+
+test('SEC-01 catches TLS certificate verification being switched off', () => {
+  // The standard way to make a TLS error go away, and it removes the only thing
+  // distinguishing the real server from anyone able to answer in its place.
+  const cases = [
+    ['a.js', 'const agent = new https.Agent({ rejectUnauthorized: false });'],
+    ['a.py', 'requests.get(url, verify=False)'],
+    ['a.go', 'tls.Config{InsecureSkipVerify: true}'],
+    ['a.sh', 'NODE_TLS_REJECT_UNAUTHORIZED=0 node app.js'],
+    ['a.php', 'curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);'],
+  ];
+  for (const [file, code] of cases) {
+    assert.ok(secHit('sec-01-tls-verification-disabled', code, file), code);
+  }
+});
+
+test('SEC-01 stays silent when verification is on, or the word merely appears', () => {
+  const cases = [
+    'const agent = new https.Agent({ rejectUnauthorized: true });',
+    'requests.get(url, verify=True)',
+    'const verified = false;',
+    'if (!user.verify) return;',
+    '// rejectUnauthorized must never be false here',
+  ];
+  for (const code of cases) {
+    assert.equal(secHit('sec-01-tls-verification-disabled', code), false, code);
+  }
+});
+
+test('SEC-08 catches storage anyone can write to, not storage anyone can read', () => {
+  // public-read is how a CDN bucket is meant to be configured. Only the writable
+  // form is a finding, so static hosting is left alone.
+  assert.ok(secHit('sec-08-public-write-storage', 'acl: "public-read-write"'));
+  assert.ok(secHit('sec-08-public-write-storage', 'ACL: BucketCannedACL.PublicReadWrite'));
+  assert.equal(secHit('sec-08-public-write-storage', 'acl: "public-read"'), false);
+  assert.equal(secHit('sec-08-public-write-storage', 'acl: "private"'), false);
+});
+
+test('SEC-08 warns about a rule open to the internet without refusing it', () => {
+  // Right for a public web port, the classic exposure on a database port, and a
+  // per-line scanner cannot tell which. Surfaced for a person to judge.
+  const found = actionable(scanContent({
+    filePath: 'main.tf', content: 'cidr_blocks = ["0.0.0.0/0"]',
+  })).find((f) => f.key === 'sec-08-open-ingress');
+  assert.ok(found);
+  assert.equal(found.severity, 'warn', 'a public web port is a legitimate use');
+  assert.equal(secHit('sec-08-open-ingress', 'cidr_blocks = ["10.0.0.0/8"]'), false);
+});

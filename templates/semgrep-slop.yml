@@ -46,6 +46,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\bif\\s*\\(\\s*(?:false|0)\\s*\\)|\\bif\\s+False\\s*:"
   - id: slopguard-code-05-empty-catch
@@ -85,11 +87,13 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*\\}"
   - id: slopguard-code-05-comment-only-catch
     languages: [generic]
-    severity: ERROR
+    severity: WARNING
     message: >-
       CODE-05 Catch body containing only comments — the error is still swallowed. Fix: Log it or rethrow it. A justification comment is not error handling.
     paths:
@@ -124,6 +128,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\bcatch\\s*(?:\\([^)]*\\))?\\s*\\{\\s*(?:\\/\\/[^\\n]*\\s*|\\/\\*(?:[^*]|\\*(?!\\/)){0,400}\\*\\/\\s*)+\\}"
   - id: slopguard-code-05-except-pass
@@ -163,6 +169,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "^[ \\t]*except\\b[^\\n:]*:[ \\t]*(?:\\n[ \\t]+)?pass[ \\t]*$"
   - id: slopguard-code-05-catch-noop
@@ -202,6 +210,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\.catch\\(\\s*(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
   - id: slopguard-test-04-tautological-assert
@@ -241,6 +251,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\bassert\\s+True\\b|\\bassert\\s*\\(\\s*(?:true|True|1)\\s*\\)|expect\\(\\s*true\\s*\\)\\s*\\.\\s*toBe\\(\\s*true\\s*\\)|assert\\.ok\\(\\s*true\\s*\\)"
   - id: slopguard-test-01-skipped-test
@@ -280,6 +292,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\b(?:it|test|describe|context)\\s*\\.\\s*skip\\s*\\(|\\bx(?:it|describe)\\s*\\(|@pytest\\.mark\\.skip|\\bt\\.Skip\\("
   - id: slopguard-test-03-fake-impl
@@ -319,6 +333,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?i)\\braise\\s+NotImplementedError\\b|throw\\s+new\\s+\\w*Error\\(\\s*['\"`]Not implemented"
   - id: slopguard-sec-03-inline-secret
@@ -358,6 +374,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?i)\\b(?:(?:api|access|secret|auth|private|encryption|refresh)[_-]?(?:key|token|secret)|api[_-]?key|secret|token|password|passwd)\\s*[:=]\\s*['\"][A-Za-z0-9_\\-./+]{16,}['\"]"
   - id: slopguard-sec-03-aws-key
@@ -397,6 +415,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\bAKIA(?![0-9A-Z]{9}EXAMPLE\\b)[0-9A-Z]{16}\\b"
   - id: slopguard-sec-03-private-key
@@ -436,6 +456,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----"
   - id: slopguard-sec-05-sql-concat
@@ -475,6 +497,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?i)\\b(?:SELECT\\b[^\\n;'\"]{0,120}?\\bFROM|UPDATE\\b[^\\n;'\"]{0,120}?\\bSET|INSERT\\s+INTO|DELETE\\s+FROM)\\b[^\\n;'\"]{0,120}['\"]\\s*(?:\\+|\\.|%)\\s*[A-Za-z_$]"
   - id: slopguard-sec-05-sql-fstring
@@ -514,6 +538,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?i)f['\"][^'\"\\n]*\\b(?:SELECT|INSERT\\s+INTO|UPDATE|DELETE\\s+FROM)\\b[^'\"\\n]*\\{"
   - id: slopguard-sec-01-eval
@@ -553,8 +579,133 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?<![.\\w])eval\\s*\\(|(?<![.\\w])exec\\s*\\(\\s*[A-Za-z_$][\\w$]*\\s*[,)]"
+  - id: slopguard-sec-01-tls-verification-disabled
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      SEC-01 TLS certificate verification disabled. Fix: Trust the right certificate authority instead. In development, add the local CA rather than switching the check off.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "\\brejectUnauthorized\\s*:\\s*false\\b|\\bverify\\s*=\\s*False\\b|\\bInsecureSkipVerify\\s*:\\s*true\\b|\\bNODE_TLS_REJECT_UNAUTHORIZED\\b\\s*[=:]\\s*['\"]?0\\b|\\bCURLOPT_SSL_VERIFYPEER\\s*,\\s*(?:false|0)\\b"
+  - id: slopguard-sec-08-public-write-storage
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      SEC-08 Storage open for anyone to write to. Fix: Grant write access to a role. public-read is enough to serve files.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "\\bpublic-read-write\\b|\\bPublicReadWrite\\b"
+  - id: slopguard-sec-08-open-ingress
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      SEC-08 Network rule open to the whole internet. Fix: Right for a public web port; check that this is not a database, SSH or admin port.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "\\b0\\.0\\.0\\.0\\/0\\b|\\b::\\/0\\b"
   - id: slopguard-doc-04-emoji-heading
     languages: [generic]
     severity: WARNING
@@ -637,6 +788,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\btransform\\.Translate\\s*\\((?![^)]*\\bTime\\.)[^)]*\\)|\\btransform\\.position\\s*\\+=\\s*(?![^;\\n]*\\bTime\\.)[^;\\n]*[*][^;\\n]*;"
   - id: slopguard-game-02-scene-lookup-per-frame
@@ -676,6 +829,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\b(?:GameObject\\.Find\\w*\\s*\\(|Object\\.FindObjectOfType|FindObjectOfType\\s*<|FindFirstObjectByType\\s*<|Camera\\.main\\b|GetComponent\\s*<)"
   - id: slopguard-game-03-physics-in-update
@@ -715,6 +870,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?(?:\\b(?:AddForce|AddRelativeForce|AddTorque|MovePosition|MoveRotation)\\s*\\(|\\.velocity\\s*=[^=])"
   - id: slopguard-game-04-hot-path-allocation
@@ -754,6 +911,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\.(?:Where|Select|OrderBy|OrderByDescending|ToList|ToArray|FirstOrDefault)\\s*\\("
   - id: slopguard-game-05-logging-per-frame
@@ -793,6 +952,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?:^|\\s)(?:private\\s+|public\\s+|protected\\s+)?void\\s+(?:Update|LateUpdate)\\s*\\(\\s*\\)\\s*\\{(?:(?!\\b(?:void|IEnumerator)\\s+\\w+\\s*\\()[\\s\\S]){0,500}?\\bDebug\\.Log\\w*\\s*\\("
   - id: slopguard-game-06-client-side-economy
@@ -832,6 +993,8 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "(?i)\\bPlayerPrefs\\.Set(?:Int|Float|String)\\s*\\(\\s*[\"'][^\"']*(?:coin|gem|gold|money|currency|credit|score|level|xp|premium|purchase|unlock)"
   - id: slopguard-game-07-fragile-node-path
@@ -871,5 +1034,7 @@ rules:
       - "*.vue"
       - "*.svelte"
       - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
     patterns:
       - pattern-regex: "\\b(?:get_node|GetNode(?:<[^>]*>)?)\\s*\\(\\s*[\"'][^\"']*\\.\\.\\/"
