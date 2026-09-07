@@ -1,7 +1,7 @@
 # Scope expansion: interface output, accessibility, prose and comments
 
 Date: 2026-09-07
-Status: approved, not yet implemented
+Status: implemented (see the commits on ui-copy-scope-expansion)
 
 ## Why
 
@@ -42,16 +42,16 @@ Universal additions to existing categories. They run in every project:
 
 | ID | Title | Entries |
 |---|---|---|
-| `CODE-10` | AI comment noise | ~8 |
-| `DOC-08` | Machine-voice prose | ~8 |
-| `DOC-09` | Fabricated evidence in delivered output | ~6 |
+| `CODE-10` | AI comment noise | 10 |
+| `DOC-08` | Machine-voice prose | 7 |
+| `DOC-09` | Fabricated evidence in delivered output | 6 |
 
 Two new domain-scoped categories, both `layer: 'machine'`,
 `enforcement: 'domain-scoped'`:
 
 ```
 UI:   { name: 'Interface output',                layer: 'machine', enforcement: 'domain-scoped' }
-A11Y: { name: 'Accessibility and responsiveness', layer: 'machine', enforcement: 'domain-scoped' }
+A11Y: { name: 'Accessibility',      layer: 'machine', enforcement: 'domain-scoped' }
 ```
 
 | ID | Title |
@@ -62,15 +62,19 @@ A11Y: { name: 'Accessibility and responsiveness', layer: 'machine', enforcement:
 | `UI-04` | Generic icon vocabulary |
 | `UI-05` | Dead control |
 | `UI-06` | Template typography |
-| `UI-07` | Stock illustration |
+| `UI-07` | Illustration with no connection to the product |
 | `A11Y-01` | Removed focus indicator |
-| `A11Y-02` | Under-sized tap target |
 | `A11Y-03` | Hover-only interaction |
-| `A11Y-04` | Type that cannot scale |
+| `A11Y-04` | Zoom disabled |
 | `A11Y-05` | Overflow hidden as a leak fix |
 | `A11Y-06` | Viewport-locked section |
 
-16 new IDs carrying roughly 50 to 60 pattern entries. Categories go from 9 to
+As shipped: 24 new IDs carrying 45 pattern entries, 36 to 81 in total. Three
+designed patterns were dropped for having no signal — bold overuse, tap target
+size (A11Y-02, whose number is left unused so the gap stays visible), and the
+general "restating the obvious" comment. `A11Y-04` became zoom disabled, which
+has an unambiguous signal in the viewport meta tag, rather than fixed-px type,
+which does not. Categories go from 9 to
 11, not to 14: mobile and responsive items live in `A11Y` rather than in a
 category of their own, and `HUMAN` is already taken by the coach layer.
 
@@ -95,7 +99,7 @@ be claiming a file is code when it is not.
 
 ## Rule text and web detection
 
-`lib/project.mjs` gains `detectWeb(root)`, true when any of these hold:
+`lib/project.mjs` gains `isWebProject(root)`, true when any of these hold:
 
 - `package.json` dependencies or devDependencies name react, vue, svelte, next,
   nuxt, astro, solid or angular
@@ -107,7 +111,7 @@ Like `detectEngines`, it gates text injection only.
 Delivery is two-layered:
 
 - `rules/ui-rules.md` — one line per rule, injected by `session-start` only when
-  `detectWeb` is true. Same mechanism as `game-rules.md`.
+  the project is a web project. Same mechanism as `game-rules.md`.
 - `skills/slop-ui/SKILL.md` — the tell / why / fix depth for the judgment items,
   loaded on demand.
 
@@ -123,7 +127,7 @@ A model writing "PASS" is a claim. `scripts/deliver.mjs` running is an event.
 The verification log already records why this distinction is load-bearing:
 "the tests passed" is known from the hook firing, not from the text.
 
-- `post-edit` increments `state.uiWritesSinceReport` when a write targets a
+- `post-edit` increments `state.interfaceWritesSinceReport` when a write targets a
   style, markup or JSX file in a web project.
 - `scripts/deliver.mjs` re-scans the changed interface files and writes a
   per-item PASS/FAIL record into session state.
@@ -149,7 +153,7 @@ Tailwind project.
 ## Severity
 
 Every new pattern lands as `warn`. Promotion to `block` happens only after
-measurement on a real project. Going from 36 to roughly 96 patterns with `block`
+measurement on a real project. Going from 36 to 81 patterns with `block`
 as the default is the fastest way to make the tool something people switch off.
 
 ## Reconciling with our own rules
@@ -176,7 +180,7 @@ One commit per step, `npm run verify` between them (PROC-02, AGENT-06):
 
 - **Scan cost.** v0.6.4 was a release about a large repository silently not being
   scanned. The surface grows here; measure after step 1.
-- **Sterility.** A tool that blocks 96 patterns and offers no direction produces
+- **Sterility.** A tool that blocks 81 patterns and offers no direction produces
   sterile output. The source rule set hit this wall and answered it with its
   R-37. Our rule text needs the same counter-statement.
 - **`disabled` ergonomics.** `disabled: ["UI", "A11Y"]` must switch the whole
