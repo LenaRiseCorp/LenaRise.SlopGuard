@@ -19,11 +19,12 @@ import { runHook } from '../lib/hook.mjs';
 import { paths } from '../lib/config.mjs';
 import { PATTERN_COUNT, CATEGORIES } from '../lib/patterns.mjs';
 import { inject, capabilityIndex, fail } from '../lib/report.mjs';
-import { detectEngines } from '../lib/project.mjs';
+import { detectEngines, isWebProject } from '../lib/project.mjs';
 
 const RULES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'rules');
 const BASE_RULES = join(RULES_DIR, 'base-rules.md');
 const GAME_RULES = join(RULES_DIR, 'game-rules.md');
+const UI_RULES = join(RULES_DIR, 'ui-rules.md');
 const LOCAL_RULES_MAX = 8000;
 
 function readIfPresent(file, label) {
@@ -53,6 +54,15 @@ runHook('session-start', ({ config, repoRoot }) => {
     const game = readIfPresent(GAME_RULES, 'game rules');
     if (game) sections.push(`${game.trim()}\n\nEngine detected: ${engines.join(', ')}.`);
     else fail('session-start', 'game rules not found; GAME patterns remain active regardless');
+  }
+
+  // Interface rules only in a web project, for the same reason as the game
+  // rules. The UI and A11Y patterns need no such condition: they key off web
+  // tokens and stay silent elsewhere on their own.
+  if (isWebProject(repoRoot)) {
+    const ui = readIfPresent(UI_RULES, 'interface rules');
+    if (ui) sections.push(ui.trim());
+    else fail('session-start', 'interface rules not found; UI and A11Y patterns remain active regardless');
   }
 
   let local = readIfPresent(paths.localRules, 'rules.local.md');
