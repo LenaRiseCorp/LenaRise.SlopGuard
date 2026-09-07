@@ -194,26 +194,31 @@ Version ${VERSION} · ${PATTERN_COUNT} mechanical patterns · ${TAXONOMY.length}
 
 ## What changes when it runs
 
-The agent is stopped while the file is being written rather than at review time:
-an empty \`catch\`, a skipped test, an assertion that cannot fail, a secret
-pasted into source, an \`rm -rf\` about to run. ${BLOCKING} of the
-${PATTERN_COUNT} patterns deny outright and ${WARNING} warn, and the turn
-cannot close while a finding is open.
+The agent meets the rules while it works rather than at review time: an empty
+\`catch\`, a skipped test, an assertion that cannot fail, a secret pasted into
+source, an \`rm -rf\` about to run. ${BLOCKING} of the ${PATTERN_COUNT} patterns
+carry block severity and ${WARNING} warn. The table describes strict mode;
+\`explore\` warns and lets the rest through, apart from irreversible commands.
 
 | | Without it | With it |
 |---|---|---|
-| A finding surfaces | At review, or never | As the file is written, before the command runs |
+| A finding surfaces | At review, or never | In the turn that produced it |
 | What enforces the rule | The model remembering it | A hook the harness runs, which the model cannot skip |
-| Saying "done" | The model declares it | \`stop-gate\` refuses while a violation is open |
-| \`rm -rf\` · \`DROP TABLE\` · force push | They run | Denied in \`pre-bash\` |
+| \`rm -rf\` · \`DROP TABLE\` · force push | They run | \`pre-bash\` denies before the command runs |
 | Installing a package | Whatever answers to that name | The name is checked against the registry first |
-| The agent's own conduct | Unmeasured | Turns, unread lines and uncommitted work are counted |
-| The rest of the team | Your machine only | A pre-commit hook and CI, whichever agent wrote the code |
+| A pattern in written content | Ships | \`post-edit\` records it and \`stop-gate\` holds the turn |
+| Saying "done" | The model declares it | A test has to have run in that turn (TEST-05) |
+| The agent's own conduct | Unmeasured | Turns and uncommitted lines are counted |
+| The rest of the team | Your machine only | \`/slop-repo-init\` adds a pre-commit hook, and CI with \`--with-ci\` |
+
+The gate is deliberately not unconditional: when the same reason blocks more
+than \`maxStopBlocks\` times with no progress it opens and says that it did,
+because a gate nobody can pass is one people learn to route around (AGENT-08).
 
 Mechanical matching covers what has a shape: LOGIC — an invented API, a package
 name nobody published — holds ${LOGIC_MECH} of the ${PATTERN_COUNT} patterns and
-leans on the rule text, and HUMAN is measured and warned, never blocked. The rest
-of what it cannot see is in [Known limits](#known-limits).
+leans on the rule text. The rest of what it cannot see is in
+[Known limits](#known-limits).
 
 ## What it does
 
