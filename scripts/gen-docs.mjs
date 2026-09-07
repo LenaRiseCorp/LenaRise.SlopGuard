@@ -59,6 +59,12 @@ function repoSlug() {
 const SLUG = repoSlug();
 const SCOPE_LABEL = { code: 'source file', prose: 'text file', style: 'stylesheet', markup: 'markup file', path: 'file path', command: 'shell command' };
 
+// Severity split and the LOGIC share, derived so the introduction cannot drift
+// from the registry when a pattern is added or its severity changes.
+const BLOCKING = PATTERNS.filter((p) => p.severity === 'block').length;
+const WARNING = PATTERN_COUNT - BLOCKING;
+const LOGIC_MECH = PATTERNS.filter((p) => categoryOf(p.id) === 'LOGIC').length;
+
 // ── Shared tables ────────────────────────────────────────────────────────
 
 function patternCatalogue() {
@@ -185,6 +191,34 @@ during agentic development. Rule text carries the intent; hooks set the boundary
 and stop where the model cannot step over.
 
 Version ${VERSION} · ${PATTERN_COUNT} mechanical patterns · ${TAXONOMY.length} taxonomy entries · zero runtime dependencies.
+
+## What changes when it runs
+
+The agent meets the rules while it works rather than at review time: an empty
+\`catch\`, a skipped test, an assertion that cannot fail, a secret pasted into
+source, an \`rm -rf\` about to run. ${BLOCKING} of the ${PATTERN_COUNT} patterns
+carry block severity and ${WARNING} warn. The table describes strict mode;
+\`explore\` warns and lets the rest through, apart from irreversible commands.
+
+| | Without it | With it |
+|---|---|---|
+| A finding surfaces | At review, or never | In the turn that produced it |
+| What enforces the rule | The model remembering it | A hook the harness runs, which the model cannot skip |
+| \`rm -rf\` · \`DROP TABLE\` · force push | They run | \`pre-bash\` denies before the command runs |
+| Installing a package | Whatever answers to that name | The name is checked against the registry first |
+| A pattern in written content | Ships | \`post-edit\` records it and \`stop-gate\` holds the turn |
+| Saying "done" | The model declares it | A test has to have run in that turn (TEST-05) |
+| The agent's own conduct | Unmeasured | Turns and uncommitted lines are counted |
+| The rest of the team | Your machine only | \`/slop-repo-init\` adds a pre-commit hook, and CI with \`--with-ci\` |
+
+The gate is deliberately not unconditional: when the same reason blocks more
+than \`maxStopBlocks\` times with no progress it opens and says that it did,
+because a gate nobody can pass is one people learn to route around (AGENT-08).
+
+Mechanical matching covers what has a shape: LOGIC — an invented API, a package
+name nobody published — holds ${LOGIC_MECH} of the ${PATTERN_COUNT} patterns and
+leans on the rule text. The rest of what it cannot see is in
+[Known limits](#known-limits).
 
 ## What it does
 
