@@ -7,10 +7,15 @@
  * while a PostToolUse block only reaches the model and can be ignored. That is
  * why post-edit records what it finds in the ledger and the lock is built here.
  *
- * Three reasons to block:
+ * Four reasons to block:
  *   1. Unfixed violations sit in the ledger
  *   2. Code changed but no verification ran this turn (TEST-05)
  *   3. The diff accumulated since the last commit is too large to review (PROC-02)
+ *   4. Interface files changed but the delivery gate never ran
+ *
+ * The fourth is the same argument as the second, one layer out: a model saying
+ * the page works is a claim, and scripts/deliver.mjs running is an event. It is
+ * the run that is checked here, never a sentence.
  *
  * Loop guard: blocking forever on the same reason would break our own AGENT-08
  * rule. A fingerprint is tracked; if the violation set is changing there is
@@ -44,6 +49,12 @@ runHook('stop-gate', ({ payload, config, state }) => {
     reasons.push(`verification:${state.codeWritesSinceVerify}`);
     detail.push(`  ${state.codeWritesSinceVerify} code write(s) happened and no test ran this turn (TEST-05).`);
     detail.push('    Run it before saying it works.');
+  }
+
+  if ((state.interfaceWritesSinceReport ?? 0) > 0) {
+    reasons.push(`delivery:${state.interfaceWritesSinceReport}`);
+    detail.push(`  ${state.interfaceWritesSinceReport} interface file(s) changed and the delivery gate has not run.`);
+    detail.push('    Run: node "${CLAUDE_PLUGIN_ROOT}/scripts/deliver.mjs"');
   }
 
   const limit = config.thresholds.maxDiffLines;
