@@ -7,7 +7,7 @@ A Claude Code plugin that protects the quality and safety of what gets produced
 during agentic development. Rule text carries the intent; hooks set the boundary,
 and stop where the model cannot step over.
 
-Version 0.7.0 · 81 mechanical patterns · 86 taxonomy entries · zero runtime dependencies.
+Version 0.8.0 · 81 mechanical patterns · 86 taxonomy entries · zero runtime dependencies.
 
 ## What it does
 
