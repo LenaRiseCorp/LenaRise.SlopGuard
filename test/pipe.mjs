@@ -65,14 +65,14 @@ export function pipe(hookRelPath, payload, { cfgDir } = {}) {
 }
 
 /** A PostToolUse payload; the field names follow the measured schema. */
-export function postToolUsePayload({ sessionId = 'test', cwd, filePath, toolName = 'Write', patch = [], content }) {
+export function postToolUsePayload({ sessionId = 'test', cwd, filePath, toolName = 'Write', patch = [], content, input = {} }) {
   return {
     session_id: sessionId,
     cwd,
     permission_mode: 'bypassPermissions',
     hook_event_name: 'PostToolUse',
     tool_name: toolName,
-    tool_input: { file_path: filePath, ...(content === undefined ? {} : { content }) },
+    tool_input: { file_path: filePath, ...(content === undefined ? {} : { content }), ...input },
     tool_response: { type: 'create', filePath, structuredPatch: patch, ...(content === undefined ? {} : { content }) },
   };
 }
