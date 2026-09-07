@@ -71,6 +71,7 @@ Three layers, three audiences.
 | `post-edit` | PostToolUse Edit/Write | On a finding, **block** and record the violation |
 | `pre-bash` | PreToolUse Bash | Destructive command → **deny**; unverified package → **deny**; redirect to a protected path → **deny** |
 | `post-bash` | PostToolUse Bash | Test and commit stamps; scans files written through the shell |
+| `post-read` | PostToolUse Read | Counts the lines delivered — the comprehension-debt measurement (HUMAN-01) |
 | `stop-gate` | Stop | Open violations, unverified code or an oversized diff → **block** |
 | `session-end` | SessionEnd | Measurement-based session summary |
 
@@ -125,6 +126,8 @@ Claude wants to run a command
   ├─ pre-bash  → rm -rf / DROP TABLE / force push: DENY
   ├─ pre-bash  → package not in the registry: DENY
   └─ post-bash → test or commit: stamp
+Claude reads a file
+  └─ post-read → lines delivered: counted (HUMAN-01)
 Claude wants to finish
   └─ stop-gate → open violations or unverified code: BLOCK
 session closes

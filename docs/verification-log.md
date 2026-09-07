@@ -353,6 +353,47 @@ test carve-out — not worth over-fitting the pattern for.
 signatures once the key is registered as a **signing** key — a separate list from
 authentication keys. Configured; the registration is an account action.
 
+## PostToolUse on Read: what is measured, and what is not
+
+`hooks.json` gained a `Read` matcher so that the comprehension-debt counter
+(HUMAN-01) has a source at all. Before it, `recordRead` was called only from the
+test suite and `linesRead` was 0 in every real session.
+
+Measured this round: nothing about the `tool_response` a Read produces. A
+`hooks.json` change takes effect only in a new session, so no real one could be
+observed from the session that wrote the hook.
+
+So the count is taken from `tool_input` — `file_path`, `offset`, `limit` — which
+is the documented input contract of the tool, and the lines are counted from the
+file on disk. When a field is missing, the file cannot be read, or its first 8 KB
+contain a NUL byte, the counter stays at 0 rather than producing an invented
+number. That is the policy `linesChanged` already follows for an unexpected
+`structuredPatch`.
+
+Still open: with the hook registered, capture one real Read `tool_response` and
+record whether it carries the delivered text and in what field. If it does, it is
+cheaper than reading the file a second time, and this note gets replaced by the
+measurement.
+
+The 2000-line ceiling in `READ_DEFAULT_LIMIT` is the Read tool's documented
+default, not something measured here. It errs low deliberately: an inflated
+`linesRead` hides comprehension debt, while a low one only makes the warning
+arrive sooner.
+
+## `npm run <script>` and the test stamp
+
+`npm run verify` runs this repository's own documented check, and the stop gate
+still reported "no test ran this turn" — the command name carries no evidence of
+what it runs, and `TEST_COMMAND_PATTERNS` only ever saw the name.
+
+Adding `verify` to the pattern list would have been a guess in the dangerous
+direction: in a repository whose `verify` only lints, that guess hands out a test
+stamp for tests that never ran. `isTestCommand` now reads `scripts[name]` out of
+`package.json` in the command's cwd and classifies the body with the same
+patterns, up to three levels deep, stopping if a script reaches itself.
+
+Without a cwd nothing is resolved, which keeps the old answer for every existing
+caller: no evidence, no stamp.
 ## A false positive class the corpus run did not contain
 
 The measured false-positive rate above came from scanning files. This one came

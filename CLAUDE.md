@@ -79,7 +79,7 @@ text, and text comes in many languages.
 | `lib/config.mjs` · `lib/session.mjs` · `lib/coach.mjs` | Configuration, session state, thresholds |
 | `lib/hook.mjs` · `lib/report.mjs` · `lib/heartbeat.mjs` | Hook runner, output contract, liveness |
 | `lib/commands.mjs` · `lib/project.mjs` | Shell command understanding, engine detection |
-| `hooks/` | Eight hooks plus `hooks.json` |
+| `hooks/` | 9 hooks plus `hooks.json` |
 | `bin/statusline.mjs` | Status line; works even when the plugin is dead |
 | `scripts/` | Command scripts, scanner CLIs, the documentation generator |
 | `test/` | `node --test`; pipe tests run in a real process |
