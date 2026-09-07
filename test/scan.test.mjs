@@ -7,7 +7,7 @@ const ids = (fs) => fs.map((f) => f.key);
 
 test('taxonomy integrity: every pattern id is in the canonical list', () => {
   for (const p of PATTERNS) assert.ok(titleOf(p.id), `${p.key} → ${p.id}`);
-  assert.equal(TAXONOMY.length, 72, '62 canonical + PROC-08 + 8 GAME + CODE-10');
+  assert.equal(TAXONOMY.length, 86, '62 canonical + 24 added: PROC-08, 8 GAME, CODE-10, DOC-08/09, 7 UI, 5 A11Y');
 });
 
 test('pattern schema: every pattern has detects, fix and a valid severity', () => {

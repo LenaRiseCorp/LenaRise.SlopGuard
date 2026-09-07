@@ -7,7 +7,7 @@ A Claude Code plugin that protects the quality and safety of what gets produced
 during agentic development. Rule text carries the intent; hooks set the boundary,
 and stop where the model cannot step over.
 
-Version 0.7.0 · 46 mechanical patterns · 72 taxonomy entries · zero runtime dependencies.
+Version 0.7.0 · 81 mechanical patterns · 86 taxonomy entries · zero runtime dependencies.
 
 ## What it does
 
@@ -27,9 +27,11 @@ Three layers, three audiences.
 | **SEC** Security | 8 | 9 | strong |
 | **AGENT** Agent operations | 9 | 6 | strong |
 | **PROC** Process and team | 8 | 1 | moderate |
-| **DOC** Non-code output | 7 | 3 | moderate |
+| **DOC** Non-code output | 9 | 16 | moderate |
 | **HUMAN** Human factors | 6 | none — coach layer | measure and warn |
 | **GAME** Game development | 8 | 7 | domain-scoped |
+| **UI** Interface output | 7 | 15 | domain-scoped |
+| **A11Y** Accessibility | 5 | 7 | domain-scoped |
 
 ### Hook behaviour
 
@@ -166,6 +168,13 @@ twice. After writing one, confirm with `/slop-doctor` that the pattern count wen
 
 | ID | Pattern key | Scope | Severity | What it catches |
 |---|---|---|---|---|
+| A11Y-01 | `a11y-01-outline-none-class` | source file | warns | outline-none with no focus style beside it. |
+| A11Y-01 | `a11y-01-outline-none-css` | stylesheet | warns | Focus outline removed with no visible replacement. |
+| A11Y-03 | `a11y-03-hover-only-reveal` | stylesheet | warns | Content revealed on hover with no focus equivalent anywhere in the file. |
+| A11Y-04 | `a11y-04-zoom-disabled` | markup file | warns | Pinch zoom disabled in the viewport meta tag. |
+| A11Y-05 | `a11y-05-root-overflow-hidden` | stylesheet | warns | Horizontal overflow hidden on the root — the leak is covered, not fixed. |
+| A11Y-06 | `a11y-06-viewport-locked-class` | source file | warns | h-screen locks the element to the viewport height. |
+| A11Y-06 | `a11y-06-viewport-locked-css` | stylesheet | warns | Section locked to the viewport height. |
 | AGENT-05 | `agent-05-chmod-777` | shell command | blocks | World-writable permissions. |
 | AGENT-05 | `agent-05-delete-without-where` | shell command | blocks | DELETE without WHERE — it empties the table. |
 | AGENT-05 | `agent-05-git-force-push` | shell command | blocks | Force push — it erases someone else’s work. |
@@ -191,6 +200,19 @@ twice. After writing one, confirm with `/slop-doctor` that the pattern count wen
 | DOC-01 | `doc-01-buzzword` | text file | warns | Marketing language carrying no information. |
 | DOC-03 | `doc-03-empty-commit-msg` | shell command | warns | Empty commit message — it does not say what changed or why. |
 | DOC-04 | `doc-04-emoji-heading` | text file | warns | Heading that opens with an emoji. |
+| DOC-08 | `doc-08-chatbot-closer` | text file | warns | A chat turn closing a document that has no reader to answer it. |
+| DOC-08 | `doc-08-filler-opener` | text file | warns | An opener that delays the sentence without adding to it. |
+| DOC-08 | `doc-08-inline-header-list` | text file | warns | A list where every item is a bold lead-in followed by a colon. |
+| DOC-08 | `doc-08-negative-parallelism` | text file | warns | The "not X, but Y" cadence used as emphasis. |
+| DOC-08 | `doc-08-signposting` | text file | warns | A sentence announcing what the next sentences will do. |
+| DOC-08 | `doc-08-stacked-hedging` | text file | warns | Two hedges on one verb — the sentence commits to nothing. |
+| DOC-08 | `doc-08-weasel-attribution` | text file | warns | A claim attributed to an authority that is never named. |
+| DOC-09 | `doc-09-fabricated-metric-code` | source file | warns | A headline number with nothing behind it. |
+| DOC-09 | `doc-09-fabricated-metric-markup` | markup file | warns | A headline number with nothing behind it. |
+| DOC-09 | `doc-09-fabricated-metric-prose` | text file | warns | A headline number with nothing behind it. |
+| DOC-09 | `doc-09-filler-identity-code` | source file | warns | Placeholder identity shipped as if it were content. |
+| DOC-09 | `doc-09-filler-identity-markup` | markup file | warns | Placeholder identity shipped as if it were content. |
+| DOC-09 | `doc-09-filler-identity-prose` | text file | warns | Placeholder identity shipped as if it were content. |
 | GAME-01 | `game-01-framerate-dependent-motion` | source file | warns | Motion is frame-rate dependent — not scaled by Time.deltaTime. |
 | GAME-02 | `game-02-scene-lookup-per-frame` | source file | warns | Scene lookup or component resolution inside the frame loop. |
 | GAME-03 | `game-03-physics-in-update` | source file | warns | Physics call inside Update — not synchronised with the physics step. |
@@ -212,11 +234,26 @@ twice. After writing one, confirm with `/slop-doctor` that the pattern count wen
 | TEST-01 | `test-01-skipped-test` | source file | blocks | A skipped test — the shortest route from red to green. |
 | TEST-03 | `test-03-fake-impl` | source file | warns | Fake implementation — a signature with no body. |
 | TEST-04 | `test-04-tautological-assert` | source file | blocks | An assertion that passes under every condition — it verifies nothing. |
+| UI-01 | `ui-01-default-gradient-classes` | source file | warns | The default blue-to-purple gradient pair. |
+| UI-01 | `ui-01-default-gradient-css` | stylesheet | warns | Gradient built from the default indigo and violet hexes. |
+| UI-02 | `ui-02-glass-stacking` | source file | warns | Glassmorphism on three or more elements close together. |
+| UI-02 | `ui-02-glow-stacking` | stylesheet | warns | Glow applied to three or more elements close together. |
+| UI-03 | `ui-03-background-grid` | source file | warns | Grid or dot background applied with no stated visual purpose. |
+| UI-03 | `ui-03-button-arrow-code` | source file | warns | Arrow used as button decoration. |
+| UI-03 | `ui-03-button-arrow-markup` | markup file | warns | Arrow used as button decoration. |
+| UI-04 | `ui-04-generic-icon-import` | source file | warns | Icons picked from the default set rather than for their meaning. |
+| UI-05 | `ui-05-empty-anchor-code` | source file | warns | Link that goes nowhere. |
+| UI-05 | `ui-05-empty-anchor-markup` | markup file | warns | Link that goes nowhere. |
+| UI-05 | `ui-05-inert-button` | source file | warns | Button with no action attached. |
+| UI-06 | `ui-06-mono-heading` | source file | warns | Monospace applied to a heading as a style gesture. |
+| UI-06 | `ui-06-uppercase-tracking` | source file | warns | The uppercase label with wide tracking, used as a default. |
+| UI-07 | `ui-07-stock-illustration-code` | source file | warns | Stock illustration with no connection to the product. |
+| UI-07 | `ui-07-stock-illustration-markup` | markup file | warns | Stock illustration with no connection to the product. |
 
 Disabling works at three levels: a category (`SEC`), a taxonomy id (`SEC-03`) or
 a single pattern key (`sec-03-aws-key`).
 
-`PROC-08`, `CODE-10`, `GAME-01`, `GAME-02`, `GAME-03`, `GAME-04`, `GAME-05`, `GAME-06`, `GAME-07`, `GAME-08` are not in the source taxonomy; this project added them.
+`PROC-08`, `CODE-10`, `DOC-08`, `DOC-09`, `UI-01`, `UI-02`, `UI-03`, `UI-04`, `UI-05`, `UI-06`, `UI-07`, `A11Y-01`, `A11Y-03`, `A11Y-04`, `A11Y-05`, `A11Y-06`, `GAME-01`, `GAME-02`, `GAME-03`, `GAME-04`, `GAME-05`, `GAME-06`, `GAME-07`, `GAME-08` are not in the source taxonomy; this project added them.
 
 ### Game development (GAME)
 
