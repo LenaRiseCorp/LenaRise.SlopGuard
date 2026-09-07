@@ -214,6 +214,416 @@ rules:
       - "*.tfvars"
     patterns:
       - pattern-regex: "\\.catch\\(\\s*(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
+  - id: slopguard-code-10-banner-rule
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Comment made only of repeated characters — decoration standing in for a section. Fix: Do not write it. If the section needs a name, write the name.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "^[ \\t]*(?:\\/\\/|#|;{1,2})[ \\t]*[=\\-*~_+]{6,}[ \\t]*$|\\/\\*[ \\t]*[=\\-*~_+]{6,}[ \\t]*\\*\\/"
+  - id: slopguard-code-10-shouted-banner
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Section name shouted between rows of punctuation. Fix: Do not write it. A plain lower-case label reads the same and says as much.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?:\\/\\/|#)[ \\t]*[=\\-*~_]{2,}[ \\t]*[A-Z][A-Z0-9 \\t]{2,}[ \\t]*[=\\-*~_]{2,}"
+  - id: slopguard-code-10-step-narration
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Comment narrating the flow step by step. Fix: Do not write it. If the flow is hard to follow, that is a structure problem.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)(?:\\/\\/|#|^[ \\t]*\\*)[ \\t]*Step[ \\t]+\\d+[ \\t]*[:.)-]"
+  - id: slopguard-code-10-empty-label
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Comment naming a category instead of stating a fact. Fix: Do not write it. Keep a label only when it carries information the code does not.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)^[ \\t]*(?:\\/\\/|#|\\*)[ \\t]*(?:(?:main|core|business|helper|utility)[ \\t]+(?:logic|functions?|code)|entry[ \\t]+point|error[ \\t]+handling)[ \\t]*[.!]?[ \\t]*$"
+  - id: slopguard-code-10-empty-note
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 A note that announces importance without saying what is important. Fix: Do not write it. State the fact: what breaks, and under what condition.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)(?:\\/\\/|#|\\*)[ \\t]*(?:note|important|warning)[ \\t]*:[ \\t]*(?:this[ \\t]+is[ \\t]+important|please[ \\t]+read|be[ \\t]+careful|do[ \\t]+not[ \\t]+change[ \\t]*[.!]?[ \\t]*$)"
+  - id: slopguard-code-10-vague-todo
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 A TODO naming a feeling rather than a task. Fix: Do not write it. A TODO earns its place when it names what to do and why.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)(?:\\/\\/|#)[ \\t]*(?:TODO|FIXME)[ \\t]*:?[ \\t]*(?:improve|optimi[sz]e|refactor|clean[ \\t]*up|enhance|polish|add[ \\t]+more)\\b[^\\n]{0,25}$"
+  - id: slopguard-code-10-future-work
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 A placeholder promising work that is never specified. Fix: Do not write it. Unwritten work belongs in an issue, not in a comment.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)(?:\\/\\/|#|\\*)[ \\t]*(?:future[ \\t]+improvements?|additional[ \\t]+(?:optimi[sz]ations?|features?|validation)[ \\t]+(?:can|could|may)[ \\t]+be[ \\t]+added|more[ \\t]+(?:validation|checks?|tests?)[ \\t]+(?:can|could)[ \\t]+be[ \\t]+added)"
+  - id: slopguard-code-10-signature-echo
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Documentation repeating the parameter name back as its description. Fix: Do not write it. Document the rule, the unit or the edge case, or leave the line out.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)@param[ \\t]+(?:\\{[^}]*\\}[ \\t]*)?(\\w+)[ \\t]+(?:the[ \\t]+)?\\1[ \\t]*\\.?[ \\t]*$"
+  - id: slopguard-code-10-comment-emoji
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Emoji used as decoration in a comment. Fix: Do not write it. Plain words carry the same meaning and survive every terminal.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?:\\/\\/|#|^[ \\t]*\\*)[ \\t]*[✅❌⚠✨❗⭐🚀🔒💡🎯📦🐛🔥🎉📝]"
+  - id: slopguard-code-10-end-marker
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      CODE-10 Comment marking the end of a block the closing brace already ends. Fix: Do not write it. Keep an end marker only where it prevents real confusion.
+    paths:
+      include:
+      - "*.js"
+      - "*.jsx"
+      - "*.mjs"
+      - "*.cjs"
+      - "*.ts"
+      - "*.tsx"
+      - "*.mts"
+      - "*.cts"
+      - "*.py"
+      - "*.rb"
+      - "*.go"
+      - "*.rs"
+      - "*.java"
+      - "*.kt"
+      - "*.swift"
+      - "*.cs"
+      - "*.php"
+      - "*.c"
+      - "*.h"
+      - "*.cc"
+      - "*.cpp"
+      - "*.hpp"
+      - "*.scala"
+      - "*.sh"
+      - "*.bash"
+      - "*.zsh"
+      - "*.sql"
+      - "*.vue"
+      - "*.svelte"
+      - "*.gd"
+      - "*.tf"
+      - "*.tfvars"
+    patterns:
+      - pattern-regex: "(?i)(?:\\/\\/|#)[ \\t]*end[ \\t]+(?:of[ \\t]+)?(?:if|for|while|loop|function|class|method|switch|try|block)\\b"
   - id: slopguard-test-04-tautological-assert
     languages: [generic]
     severity: ERROR

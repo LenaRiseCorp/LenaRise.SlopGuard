@@ -135,6 +135,16 @@ If the problem list is not empty the pattern did not load. Do not leave it at th
 | CODE-05 | `code-05-comment-only-catch` | source file | warns | Catch body containing only comments — the error is still swallowed. |
 | CODE-05 | `code-05-empty-catch` | source file | blocks | Empty catch body — the error is caught and swallowed. |
 | CODE-05 | `code-05-except-pass` | source file | blocks | except: pass — the exception is silently swallowed. |
+| CODE-10 | `code-10-banner-rule` | source file | warns | Comment made only of repeated characters — decoration standing in for a section. |
+| CODE-10 | `code-10-comment-emoji` | source file | warns | Emoji used as decoration in a comment. |
+| CODE-10 | `code-10-empty-label` | source file | warns | Comment naming a category instead of stating a fact. |
+| CODE-10 | `code-10-empty-note` | source file | warns | A note that announces importance without saying what is important. |
+| CODE-10 | `code-10-end-marker` | source file | warns | Comment marking the end of a block the closing brace already ends. |
+| CODE-10 | `code-10-future-work` | source file | warns | A placeholder promising work that is never specified. |
+| CODE-10 | `code-10-shouted-banner` | source file | warns | Section name shouted between rows of punctuation. |
+| CODE-10 | `code-10-signature-echo` | source file | warns | Documentation repeating the parameter name back as its description. |
+| CODE-10 | `code-10-step-narration` | source file | warns | Comment narrating the flow step by step. |
+| CODE-10 | `code-10-vague-todo` | source file | warns | A TODO naming a feeling rather than a task. |
 | DOC-01 | `doc-01-buzzword` | text file | warns | Marketing language carrying no information. |
 | DOC-03 | `doc-03-empty-commit-msg` | shell command | warns | Empty commit message — it does not say what changed or why. |
 | DOC-04 | `doc-04-emoji-heading` | text file | warns | Heading that opens with an emoji. |

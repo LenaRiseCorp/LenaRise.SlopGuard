@@ -7,7 +7,7 @@ const ids = (fs) => fs.map((f) => f.key);
 
 test('taxonomy integrity: every pattern id is in the canonical list', () => {
   for (const p of PATTERNS) assert.ok(titleOf(p.id), `${p.key} → ${p.id}`);
-  assert.equal(TAXONOMY.length, 71, '62 canonical + PROC-08 + 8 GAME');
+  assert.equal(TAXONOMY.length, 72, '62 canonical + PROC-08 + 8 GAME + CODE-10');
 });
 
 test('pattern schema: every pattern has detects, fix and a valid severity', () => {
@@ -18,6 +18,26 @@ test('pattern schema: every pattern has detects, fix and a valid severity', () =
     assert.ok(SCOPES.includes(p.scope), `${p.key}: scope`);
   }
   assert.equal(PATTERN_COUNT, PATTERNS.length);
+});
+
+/**
+ * The counter-list. Three false positives were found in v0.6.5 by measuring;
+ * that knowledge lived only in git history. `notFlagged` puts it in the registry
+ * next to the pattern it constrains.
+ *
+ * Each string is checked against its own pattern only. Checking it against every
+ * pattern would be a different test: a line can legitimately trip another rule,
+ * and this one is about the rule that owns the example.
+ */
+test('notFlagged: every counter-example stays clean under its own pattern', () => {
+  for (const p of PATTERNS) {
+    if (!p.notFlagged) continue;
+    for (const sample of p.notFlagged) {
+      const re = new RegExp(p.match.source, p.match.flags);
+      re.lastIndex = 0;
+      assert.equal(re.test(sample), false, `${p.key} should not match: ${sample}`);
+    }
+  }
 });
 
 // ── Positive matches: every block pattern must catch a real payload ────────
