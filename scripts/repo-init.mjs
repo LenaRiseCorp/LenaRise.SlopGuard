@@ -18,6 +18,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { BRAND } from '../lib/report.mjs';
+import { isGameProject, isWebProject } from '../lib/project.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -91,9 +92,22 @@ function installOrRefresh({ rel, source, target, label, executable = false }) {
 }
 
 // AGENTS.md derives from the rule set; keeping a second copy would be DOC-07.
+//
+// The domain sections are appended for the repository they apply to. This file
+// is the only layer Cursor, Codex and Copilot get — they run no hooks — so
+// leaving the interface rules out of a web repository would leave those agents
+// with the general rules and nothing about the thing they are being asked to
+// build.
 let baseRules = null;
 try {
   baseRules = readFileSync(join(ROOT, 'rules', 'base-rules.md'), 'utf8');
+  for (const [file, applies] of [
+    ['game-rules.md', isGameProject(repo)],
+    ['ui-rules.md', isWebProject(repo)],
+  ]) {
+    if (!applies) continue;
+    baseRules += `\n\n---\n\n${readFileSync(join(ROOT, 'rules', file), 'utf8').trim()}\n`;
+  }
 } catch (error) {
   warn(`the rule set could not be read, so AGENTS.md was not generated — ${error.message}`);
 }

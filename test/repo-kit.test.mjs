@@ -251,3 +251,39 @@ test('the secret scan does not depend on a licensed action', () => {
   assert.match(body, /--exit-code 1/, 'a found secret must fail the job');
   assert.match(body, /GITLEAKS_VERSION: '\d+\.\d+\.\d+'/, 'the version is pinned, not latest');
 });
+
+/**
+ * AGENTS.md is the only layer the agents without hooks get. A web repository
+ * that receives the general rules and nothing about interfaces would leave
+ * Cursor, Codex and Copilot with the wrong half of the rule set.
+ */
+test('AGENTS.md carries the interface rules in a web repository', () => {
+  const web = mkdtempSync(join(tmpdir(), 'slopguard-web-'));
+  after(() => rmSync(web, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q'], { cwd: web });
+  writeFileSync(join(web, 'package.json'), JSON.stringify({ dependencies: { react: '^18.0.0' } }));
+
+  execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')], {
+    cwd: web, encoding: 'utf8',
+    env: { ...process.env, SLOPGUARD_CONFIG_DIR: cfg },
+  });
+
+  const agents = readFileSync(join(web, 'AGENTS.md'), 'utf8');
+  assert.match(agents, /Interface output/, 'the interface section is missing');
+  assert.match(agents, /filter cannot supply direction/);
+  assert.doesNotMatch(agents, /Game development/, 'game rules do not belong in a web repository');
+});
+
+test('AGENTS.md in a plain repository carries the general rules only', () => {
+  const plain = mkdtempSync(join(tmpdir(), 'slopguard-plain-'));
+  after(() => rmSync(plain, { recursive: true, force: true }));
+  execFileSync('git', ['init', '-q'], { cwd: plain });
+  execFileSync(process.execPath, [join(ROOT, 'scripts/repo-init.mjs')], {
+    cwd: plain, encoding: 'utf8',
+    env: { ...process.env, SLOPGUARD_CONFIG_DIR: cfg },
+  });
+
+  const agents = readFileSync(join(plain, 'AGENTS.md'), 'utf8');
+  assert.doesNotMatch(agents, /Interface output/);
+  assert.doesNotMatch(agents, /Game development/);
+});
