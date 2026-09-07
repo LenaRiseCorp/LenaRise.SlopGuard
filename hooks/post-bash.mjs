@@ -25,7 +25,7 @@ import { block, notify, formatFindings, fail, BRAND } from '../lib/report.mjs';
 runHook('post-bash', ({ payload, config, state, repoRoot }) => {
   const command = payload?.tool_input?.command;
   if (typeof command !== 'string') return;
-  if (isTestCommand(command)) recordTestRun(state);
+  if (isTestCommand(command, { cwd: payload.cwd })) recordTestRun(state);
   if (isCommitCommand(command)) recordCommit(state);
 
   // Content of files written through the shell. post-edit never saw these: the

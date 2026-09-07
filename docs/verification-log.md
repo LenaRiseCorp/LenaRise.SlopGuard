@@ -379,3 +379,18 @@ The 2000-line ceiling in `READ_DEFAULT_LIMIT` is the Read tool's documented
 default, not something measured here. It errs low deliberately: an inflated
 `linesRead` hides comprehension debt, while a low one only makes the warning
 arrive sooner.
+
+## `npm run <script>` and the test stamp
+
+`npm run verify` runs this repository's own documented check, and the stop gate
+still reported "no test ran this turn" — the command name carries no evidence of
+what it runs, and `TEST_COMMAND_PATTERNS` only ever saw the name.
+
+Adding `verify` to the pattern list would have been a guess in the dangerous
+direction: in a repository whose `verify` only lints, that guess hands out a test
+stamp for tests that never ran. `isTestCommand` now reads `scripts[name]` out of
+`package.json` in the command's cwd and classifies the body with the same
+patterns, up to three levels deep, stopping if a script reaches itself.
+
+Without a cwd nothing is resolved, which keeps the old answer for every existing
+caller: no evidence, no stamp.
