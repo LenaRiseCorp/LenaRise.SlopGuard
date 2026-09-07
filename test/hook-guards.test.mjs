@@ -165,6 +165,25 @@ test('an install command does not stamp a test run', () => {
   assert.equal(session('kurulum').testRunAt, null);
 });
 
+// `npm run verify` is what this repository's own documentation tells people to
+// run, and it went unstamped: the gate then blocked a turn whose tests had in
+// fact just passed. The stamp now follows the script body, not the script name.
+
+test('a run script whose body runs tests stamps the run', () => {
+  writeFileSync(join(ws.repo, 'package.json'),
+    JSON.stringify({ scripts: { verify: 'npm test && npm run selfscan' } }));
+  postBash('npm run verify', 'cozumlu');
+  assert.ok(session('cozumlu').testRunAt > 0);
+});
+
+test('a run script whose body runs no tests leaves the turn unverified', () => {
+  writeFileSync(join(ws.repo, 'package.json'),
+    JSON.stringify({ scripts: { verify: 'eslint . && npm run docs -- --check' } }));
+  postBash('npm run verify', 'cozumsuz');
+  assert.equal(session('cozumsuz').testRunAt, null,
+    'the same command name, and no stamp — the body is what decides');
+});
+
 // Writing through the shell must not bypass the pre-edit lock.
 
 test('writing to a protected path through the shell is refused', () => {

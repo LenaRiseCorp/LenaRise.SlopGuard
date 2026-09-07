@@ -12,7 +12,7 @@
  * on disk it exits 1. That is the CI gate.
  */
 
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -58,6 +58,10 @@ function repoSlug() {
 }
 const SLUG = repoSlug();
 const SCOPE_LABEL = { code: 'source file', prose: 'text file', style: 'stylesheet', markup: 'markup file', path: 'file path', command: 'shell command' };
+
+// Counted from the directory rather than written as a word: a ninth hook was
+// added and three sentences still said "eight", which is the drift DOC-07 is about.
+const HOOK_COUNT = readdirSync(join(ROOT, 'hooks')).filter((f) => f.endsWith('.mjs')).length;
 
 // Severity split and the LOGIC share, derived so the introduction cannot drift
 // from the registry when a pattern is added or its severity changes.
@@ -242,6 +246,7 @@ ${taxonomyTable()}
 | \`post-edit\` | PostToolUse Edit/Write | On a finding, **block** and record the violation |
 | \`pre-bash\` | PreToolUse Bash | Destructive command → **deny**; unverified package → **deny**; redirect to a protected path → **deny** |
 | \`post-bash\` | PostToolUse Bash | Test and commit stamps; scans files written through the shell |
+| \`post-read\` | PostToolUse Read | Counts the lines delivered — the comprehension-debt measurement (HUMAN-01) |
 | \`stop-gate\` | Stop | Open violations, unverified code or an oversized diff → **block** |
 | \`session-end\` | SessionEnd | Measurement-based session summary |
 
@@ -296,6 +301,8 @@ Claude wants to run a command
   ├─ pre-bash  → rm -rf / DROP TABLE / force push: DENY
   ├─ pre-bash  → package not in the registry: DENY
   └─ post-bash → test or commit: stamp
+Claude reads a file
+  └─ post-read → lines delivered: counted (HUMAN-01)
 Claude wants to finish
   └─ stop-gate → open violations or unverified code: BLOCK
 session closes
@@ -687,7 +694,7 @@ text, and text comes in many languages.
 | \`lib/config.mjs\` · \`lib/session.mjs\` · \`lib/coach.mjs\` | Configuration, session state, thresholds |
 | \`lib/hook.mjs\` · \`lib/report.mjs\` · \`lib/heartbeat.mjs\` | Hook runner, output contract, liveness |
 | \`lib/commands.mjs\` · \`lib/project.mjs\` | Shell command understanding, engine detection |
-| \`hooks/\` | Eight hooks plus \`hooks.json\` |
+| \`hooks/\` | ${HOOK_COUNT} hooks plus \`hooks.json\` |
 | \`bin/statusline.mjs\` | Status line; works even when the plugin is dead |
 | \`scripts/\` | Command scripts, scanner CLIs, the documentation generator |
 | \`test/\` | ${'`node --test`'}; pipe tests run in a real process |
