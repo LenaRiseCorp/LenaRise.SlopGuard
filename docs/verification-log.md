@@ -352,3 +352,43 @@ test carve-out — not worth over-fitting the pattern for.
 (`gpg.format = ssh`), using a key that already exists, and GitHub verifies those
 signatures once the key is registered as a **signing** key — a separate list from
 authentication keys. Configured; the registration is an account action.
+
+## A false positive class the corpus run did not contain
+
+The measured false-positive rate above came from scanning files. This one came
+from a command, and no file scan could have found it.
+
+Writing a test file through a heredoc was denied as an unverified package
+install (SEC-02). The heredoc body held sample code that quoted an install line;
+nothing was being installed. The reported package names were fragments of the
+surrounding source, which is what the parser produced from text that was never a
+command.
+
+Two causes, both in `lib/commands.mjs`, both already solved elsewhere in the same
+file:
+
+- `parseInstall` read the raw command string. `commandSegments` strips heredoc
+  bodies; `parseInstall` did not, so data inside a body was parsed as shell.
+- `parseInstall` split on `&&`, `||`, `;` and `|` but not on newlines — the same
+  omission recorded further up this log for `commandSegments`, where a `git
+  commit` on the second line was invisible. Here it merged unrelated lines into
+  one segment, which is where the fragment list came from.
+
+`writeTargets` had the same shape: its redirection scan and `inlineCodeTargets`
+both read the whole command, so a document quoting a redirection to a protected
+path was reported as writing there — enough for `pre-bash` to deny the write.
+The heredoc opener line survives stripping, so the common real case, a
+redirection that opens the heredoc, is still seen.
+
+What this costs: an install or a redirection inside a heredoc fed to a shell is
+no longer seen. That trade was already made — `scanCommand` strips heredocs
+before matching command patterns, so `logic-02-package-install` never saw those
+lines either. The fix removes an inconsistency rather than opening a new hole,
+and writes through an interpreter reading a heredoc were already invisible to
+`inlineCodeTargets`.
+
+Left alone: an install line quoted on an ordinary line, `echo "…"` for example,
+still parses as an install. Anchoring the manager patterns to the start of a
+segment would fix it and would also stop recognising forms like a `sudo` prefix.
+Missing a real install fails open on a security path, so that one needs evidence
+before it is changed, not a guess.
