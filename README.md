@@ -9,6 +9,29 @@ and stop where the model cannot step over.
 
 Version 0.8.0 · 81 mechanical patterns · 86 taxonomy entries · zero runtime dependencies.
 
+## What changes when it runs
+
+The agent is stopped while the file is being written rather than at review time:
+an empty `catch`, a skipped test, an assertion that cannot fail, a secret
+pasted into source, an `rm -rf` about to run. 23 of the
+81 patterns deny outright and 58 warn, and the turn
+cannot close while a finding is open.
+
+| | Without it | With it |
+|---|---|---|
+| A finding surfaces | At review, or never | As the file is written, before the command runs |
+| What enforces the rule | The model remembering it | A hook the harness runs, which the model cannot skip |
+| Saying "done" | The model declares it | `stop-gate` refuses while a violation is open |
+| `rm -rf` · `DROP TABLE` · force push | They run | Denied in `pre-bash` |
+| Installing a package | Whatever answers to that name | The name is checked against the registry first |
+| The agent's own conduct | Unmeasured | Turns, unread lines and uncommitted work are counted |
+| The rest of the team | Your machine only | A pre-commit hook and CI, whichever agent wrote the code |
+
+Mechanical matching covers what has a shape: LOGIC — an invented API, a package
+name nobody published — holds 1 of the 81 patterns and
+leans on the rule text, and HUMAN is measured and warned, never blocked. The rest
+of what it cannot see is in [Known limits](#known-limits).
+
 ## What it does
 
 Three layers, three audiences.

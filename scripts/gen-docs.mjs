@@ -59,6 +59,12 @@ function repoSlug() {
 const SLUG = repoSlug();
 const SCOPE_LABEL = { code: 'source file', prose: 'text file', style: 'stylesheet', markup: 'markup file', path: 'file path', command: 'shell command' };
 
+// Severity split and the LOGIC share, derived so the introduction cannot drift
+// from the registry when a pattern is added or its severity changes.
+const BLOCKING = PATTERNS.filter((p) => p.severity === 'block').length;
+const WARNING = PATTERN_COUNT - BLOCKING;
+const LOGIC_MECH = PATTERNS.filter((p) => categoryOf(p.id) === 'LOGIC').length;
+
 // ── Shared tables ────────────────────────────────────────────────────────
 
 function patternCatalogue() {
@@ -185,6 +191,29 @@ during agentic development. Rule text carries the intent; hooks set the boundary
 and stop where the model cannot step over.
 
 Version ${VERSION} · ${PATTERN_COUNT} mechanical patterns · ${TAXONOMY.length} taxonomy entries · zero runtime dependencies.
+
+## What changes when it runs
+
+The agent is stopped while the file is being written rather than at review time:
+an empty \`catch\`, a skipped test, an assertion that cannot fail, a secret
+pasted into source, an \`rm -rf\` about to run. ${BLOCKING} of the
+${PATTERN_COUNT} patterns deny outright and ${WARNING} warn, and the turn
+cannot close while a finding is open.
+
+| | Without it | With it |
+|---|---|---|
+| A finding surfaces | At review, or never | As the file is written, before the command runs |
+| What enforces the rule | The model remembering it | A hook the harness runs, which the model cannot skip |
+| Saying "done" | The model declares it | \`stop-gate\` refuses while a violation is open |
+| \`rm -rf\` · \`DROP TABLE\` · force push | They run | Denied in \`pre-bash\` |
+| Installing a package | Whatever answers to that name | The name is checked against the registry first |
+| The agent's own conduct | Unmeasured | Turns, unread lines and uncommitted work are counted |
+| The rest of the team | Your machine only | A pre-commit hook and CI, whichever agent wrote the code |
+
+Mechanical matching covers what has a shape: LOGIC — an invented API, a package
+name nobody published — holds ${LOGIC_MECH} of the ${PATTERN_COUNT} patterns and
+leans on the rule text, and HUMAN is measured and warned, never blocked. The rest
+of what it cannot see is in [Known limits](#known-limits).
 
 ## What it does
 
