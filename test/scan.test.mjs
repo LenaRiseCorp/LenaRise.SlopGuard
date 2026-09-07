@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PATTERNS, TAXONOMY, PATTERN_COUNT, titleOf } from '../lib/patterns.mjs';
+import { PATTERNS, TAXONOMY, PATTERN_COUNT, SCOPES, titleOf } from '../lib/patterns.mjs';
 import { scanContent, scanPath, scanCommand, actionable, stripCodeSpans, classify } from '../lib/scan.mjs';
 
 const ids = (fs) => fs.map((f) => f.key);
@@ -15,7 +15,7 @@ test('pattern schema: every pattern has detects, fix and a valid severity', () =
     assert.ok(p.detects?.length > 0, `${p.key}: detects missing`);
     assert.ok(p.fix?.length > 0, `${p.key}: fix missing`);
     assert.ok(['block', 'warn'].includes(p.severity), `${p.key}: severity`);
-    assert.ok(['code', 'prose', 'path', 'command'].includes(p.scope), `${p.key}: scope`);
+    assert.ok(SCOPES.includes(p.scope), `${p.key}: scope`);
   }
   assert.equal(PATTERN_COUNT, PATTERNS.length);
 });

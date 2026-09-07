@@ -158,8 +158,8 @@ repository `.slopignore` → session mode.
 }
 ```
 
-`scope` values: `code` (source file) · `prose` (text file) · `path` (file path) ·
-`command` (shell command). `match` is a JSON string, so backslashes are escaped
+`scope` values: `code` (source file) · `prose` (text file) · `style` (stylesheet) ·
+`markup` (markup file) · `path` (file path) · `command` (shell command). `match` is a JSON string, so backslashes are escaped
 twice. After writing one, confirm with `/slop-doctor` that the pattern count went up.
 
 ### Pattern catalogue
