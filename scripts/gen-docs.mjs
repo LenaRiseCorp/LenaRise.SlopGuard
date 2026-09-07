@@ -16,7 +16,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, PROSE_EXTENSIONS, CODE_EXTENSIONS, categoryOf } from '../lib/patterns.mjs';
+import { PATTERNS, TAXONOMY, CATEGORIES, PATTERN_COUNT, NEW_IDS, EXTENSIONS_BY_SCOPE, categoryOf } from '../lib/patterns.mjs';
 import { DEFAULT_CONFIG } from '../lib/config.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,7 +57,7 @@ function repoSlug() {
   }
 }
 const SLUG = repoSlug();
-const SCOPE_LABEL = { code: 'source file', prose: 'text file', path: 'file path', command: 'shell command' };
+const SCOPE_LABEL = { code: 'source file', prose: 'text file', style: 'stylesheet', markup: 'markup file', path: 'file path', command: 'shell command' };
 
 // ── Shared tables ────────────────────────────────────────────────────────
 
@@ -141,10 +141,10 @@ emit('templates/patterns.local.example.json', JSON.stringify({
 }, null, 2) + '\n');
 
 const semgrepRules = PATTERNS
-  .filter((p) => p.scope === 'code' || p.scope === 'prose')
+  .filter((p) => EXTENSIONS_BY_SCOPE[p.scope])
   .map((p) => {
     const insensitive = p.match.flags.includes('i') ? '(?i)' : '';
-    const exts = (p.scope === 'prose' ? PROSE_EXTENSIONS : CODE_EXTENSIONS).map((e) => `      - "*${e}"`).join('\n');
+    const exts = EXTENSIONS_BY_SCOPE[p.scope].map((e) => `      - "*${e}"`).join('\n');
     return `  - id: slopguard-${p.key}
     languages: [generic]
     severity: ${p.severity === 'block' ? 'ERROR' : 'WARNING'}
@@ -306,8 +306,8 @@ ${configSchema()}
 }
 \`\`\`
 
-\`scope\` values: \`code\` (source file) · \`prose\` (text file) · \`path\` (file path) ·
-\`command\` (shell command). \`match\` is a JSON string, so backslashes are escaped
+\`scope\` values: \`code\` (source file) · \`prose\` (text file) · \`style\` (stylesheet) ·
+\`markup\` (markup file) · \`path\` (file path) · \`command\` (shell command). \`match\` is a JSON string, so backslashes are escaped
 twice. After writing one, confirm with \`/slop-doctor\` that the pattern count went up.
 
 ### Pattern catalogue

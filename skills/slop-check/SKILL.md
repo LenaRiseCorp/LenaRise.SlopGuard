@@ -37,8 +37,13 @@ Check these by hand; do not act as though the tool covers them:
   reading the code.
 - **TEST-06 happy path** — a test existing is not enough; check whether it covers
   the error path.
+- **UI and A11Y judgment** — the patterns catch a dead link, a removed focus
+  outline, a stacked effect. Whether a technique has a reason, whether a section
+  earns its place, and whether the content is real are not visible to a regex.
+  Contrast and tap target size need the thing running, not the source. Load the
+  `slop-ui` skill for interface work.
 
 ## If a thorough review is requested
 
-List the scanner findings, then assess the four headings above by hand and say
+List the scanner findings, then assess the headings above by hand and say
 explicitly which ones you looked at. Do not call something clean that you did not examine.

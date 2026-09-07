@@ -280,10 +280,44 @@ anything real, all the same class of error:
 - `gen-docs` asserts that generated files match the registry, so it failed for
   any change to a regex and made every mutant look caught.
 - Truncated output, as above.
+- A fourth, found while adding the interface patterns: the runner mutates
+  **source text**, looking for `key: '<name>'`. Entries generated from a shared
+  regex have no such literal, so `mutate()` returned null and the row printed
+  `unparsed` — counted as neither caught nor survived. Eight patterns went
+  through a full run and exited 0 without being measured at all.
+
+The last one is worth stating plainly, because the paragraph below it used to be
+written as though it were already true. It was not: `NO-RESULT` counted against
+coverage, `unparsed` did not, and the difference was invisible in a green run.
+An entry now carries the `sourceKey` its regex is written under, and an unparsed
+mutant is a survivor.
 
 It is not treated as working on a green result. Adding a pattern with no test of
 its own must make it report SURVIVED, and it does. An unmeasurable mutant counts
 against coverage rather than passing quietly.
+
+## What the interface patterns cost to scan
+
+The design flagged scan cost as the main risk of going from 36 patterns to 81,
+because v0.6.4 was a release about a large repository silently not being
+scanned. Measured rather than assumed.
+
+Corpus: 9240 files, 60.2 MB, built by repeating this repository's real file
+contents under `.mjs`, `.tsx`, `.css`, `.html` and `.md` so the two new scopes
+are actually exercised. The comparison is the same engine with
+`disabled: ["CODE-10", "DOC-08", "DOC-09", "UI", "A11Y"]` against all 81.
+
+| Registry | Time | Throughput |
+|---|---|---|
+| 36-pattern equivalent | 1.58s | 38.1 MB/s |
+| 81 patterns | 1.87s | 32.2 MB/s |
+
+0.29s over 9240 files, or 0.032ms per file. On this repository's own 87 files
+the same comparison reads 12ms against 21ms — 81% — because at that size the
+per-file overhead dominates and the number says more about file count than about
+the patterns. The corpus figure is the one to use.
+
+Cost was not the failure mode in v0.6.4 and is not one here.
 
 ## The false-positive rate, measured
 

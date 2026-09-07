@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PATTERNS, TAXONOMY, PATTERN_COUNT, titleOf } from '../lib/patterns.mjs';
+import { PATTERNS, TAXONOMY, PATTERN_COUNT, SCOPES, titleOf } from '../lib/patterns.mjs';
 import { scanContent, scanPath, scanCommand, actionable, stripCodeSpans, classify } from '../lib/scan.mjs';
 
 const ids = (fs) => fs.map((f) => f.key);
 
 test('taxonomy integrity: every pattern id is in the canonical list', () => {
   for (const p of PATTERNS) assert.ok(titleOf(p.id), `${p.key} → ${p.id}`);
-  assert.equal(TAXONOMY.length, 71, '62 canonical + PROC-08 + 8 GAME');
+  assert.equal(TAXONOMY.length, 86, '62 canonical + 24 added: PROC-08, 8 GAME, CODE-10, DOC-08/09, 7 UI, 5 A11Y');
 });
 
 test('pattern schema: every pattern has detects, fix and a valid severity', () => {
@@ -15,9 +15,29 @@ test('pattern schema: every pattern has detects, fix and a valid severity', () =
     assert.ok(p.detects?.length > 0, `${p.key}: detects missing`);
     assert.ok(p.fix?.length > 0, `${p.key}: fix missing`);
     assert.ok(['block', 'warn'].includes(p.severity), `${p.key}: severity`);
-    assert.ok(['code', 'prose', 'path', 'command'].includes(p.scope), `${p.key}: scope`);
+    assert.ok(SCOPES.includes(p.scope), `${p.key}: scope`);
   }
   assert.equal(PATTERN_COUNT, PATTERNS.length);
+});
+
+/**
+ * The counter-list. Three false positives were found in v0.6.5 by measuring;
+ * that knowledge lived only in git history. `notFlagged` puts it in the registry
+ * next to the pattern it constrains.
+ *
+ * Each string is checked against its own pattern only. Checking it against every
+ * pattern would be a different test: a line can legitimately trip another rule,
+ * and this one is about the rule that owns the example.
+ */
+test('notFlagged: every counter-example stays clean under its own pattern', () => {
+  for (const p of PATTERNS) {
+    if (!p.notFlagged) continue;
+    for (const sample of p.notFlagged) {
+      const re = new RegExp(p.match.source, p.match.flags);
+      re.lastIndex = 0;
+      assert.equal(re.test(sample), false, `${p.key} should not match: ${sample}`);
+    }
+  }
 });
 
 // ── Positive matches: every block pattern must catch a real payload ────────

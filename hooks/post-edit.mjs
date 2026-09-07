@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs';
 import { relative } from 'node:path';
 import { runHook, editedPath, linesChanged, isInsideRepo } from '../lib/hook.mjs';
 import { scanContent, actionable, classify } from '../lib/scan.mjs';
+import { isInterfaceFile } from '../lib/patterns.mjs';
+import { isWebProject } from '../lib/project.mjs';
 import { isPathIgnored } from '../lib/config.mjs';
 import { recordWrite, recordViolations } from '../lib/session.mjs';
 import { block, notify, formatFindings, formatCleanScan, fail } from '../lib/report.mjs';
@@ -25,8 +27,12 @@ runHook('post-edit', ({ payload, config, state, repoRoot }) => {
   const shown = repoRoot ? relative(repoRoot, filePath) : filePath;
 
   const { added, removed } = linesChanged(payload.tool_response, payload.tool_input);
+  // The interface count is gated on the project, not only on the extension: a
+  // .css file in a Python service is not an interface delivery, and asking for
+  // a delivery report there would be a gate nobody can satisfy.
   recordWrite(state, filePath, {
     added, removed, isCode: classify(filePath) === 'code',
+    isInterface: isInterfaceFile(filePath) && isWebProject(repoRoot),
     inRepo: isInsideRepo(filePath, repoRoot),
   });
 

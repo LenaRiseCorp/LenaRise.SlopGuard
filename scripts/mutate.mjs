@@ -49,7 +49,13 @@ const source = readFileSync(join(work, 'lib/patterns.mjs'), 'utf8');
 const { PATTERNS } = await import(join(work, 'lib/patterns.mjs'));
 const target = join(work, 'lib/patterns.mjs');
 
-/** Replaces one pattern's `match:` line, leaving every other line untouched. */
+/**
+ * Replaces one pattern's `match:` line, leaving every other line untouched.
+ *
+ * The key looked for is the one written in the file. Entries generated from a
+ * shared regex carry `sourceKey` for this reason: mutating the source mutates
+ * every entry built from it, which is correct — they are one regex.
+ */
 function mutate(key, replacement) {
   const at = source.indexOf(`key: '${key}'`);
   if (at === -1) return null;
@@ -83,14 +89,28 @@ for (const name of SHAPE_ONLY) {
 }
 
 const survivors = [];
-const chosen = PATTERNS.filter((p) => !only || p.key.includes(only));
-process.stdout.write(`${BRAND} mutation check — ${chosen.length} pattern(s), ${MUTANTS.length} mutant(s) each\n\n`);
+// One run per regex written in the file. Several entries can share one regex
+// across file classes; mutating it once covers all of them, and running the
+// suite three times for the same edit would only be slower.
+const chosen = [...new Map(
+  PATTERNS
+    .filter((p) => !only || p.key.includes(only))
+    .map((p) => [p.sourceKey ?? p.key, p]),
+).values()];
+process.stdout.write(`${BRAND} mutation check — ${chosen.length} regex(es), ${MUTANTS.length} mutant(s) each\n\n`);
 
 for (const p of chosen) {
   const line = [];
   for (const [name, replacement] of MUTANTS) {
-    const mutated = mutate(p.key, replacement);
-    if (mutated === null) { line.push(`${name}:unparsed`); continue; }
+    const mutated = mutate(p.sourceKey ?? p.key, replacement);
+    if (mutated === null) {
+      // Not measurable is not covered. Reporting this as anything other than a
+      // survivor is the dishonesty the rest of this script exists to catch: it
+      // ran, it proved nothing, and it would have exited 0.
+      survivors.push(`${p.key} (${name}, no match: line found in the source)`);
+      line.push(`${name}:UNPARSED`);
+      continue;
+    }
     writeFileSync(target, mutated);
     // maxBuffer: a widened pattern fires on everything, so a run can produce tens
     // of megabytes of diffs. At the 1 MB default the output was truncated and the
@@ -110,7 +130,7 @@ for (const p of chosen) {
     } else line.push(`${name}:caught`);
   }
   writeFileSync(target, source);
-  process.stdout.write(`  ${line.join('  ')}  ${p.key}\n`);
+  process.stdout.write(`  ${line.join('  ')}  ${p.sourceKey ?? p.key}\n`);
 }
 
 process.stdout.write('\n');
